@@ -391,8 +391,9 @@ export function GameApp() {
               ))}
             </ul>
             <p className="mt-2 text-[0.65rem] text-stone-500">
-              Progress carries across turns until you Ascend. Meeting it on turn 1 lets you drink
-              on turn 2, 3, …
+              Early Sequences: complete Acting with your Pathway ability (sometimes + Attack) in
+              one turn. Progress also banks across turns until you Ascend. Mid/high Sequences get
+              harder as abilities grow stronger.
             </p>
 
             {nextSeq && humanActing.ready && (
