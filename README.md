@@ -13,7 +13,8 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 
 ## What’s in this build
 
-- **10 playable Pathways:** Fool, Error, Sun, Tyrant, Twilight Giant, Visionary, Door, Darkness, Death, Red Priest
+- **All 22 Arcana Pathways** (Fool through Justiciar), each with Sequences 9→0
+- Reveal modal for hand peeks, deck peeks, Trap reveals, and card steals
 - Full turn loop: Begin → Draw → Action (Standard / Sequence / Attack) → End
 - Card pool: Weapons, Spells, Utilities, Charms, Traps, Artifacts (revised 16C/4R spell & utility split)
 - Ascension with **sticky Acting Conditions** (early Seq completable via Pathway ability; progress banks until you drink)

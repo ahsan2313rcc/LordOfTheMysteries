@@ -683,8 +683,8 @@ function DesignNotes({ onBack }: { onBack: () => void }) {
           </p>
         </section>
 
-        <p className="text-xs text-stone-500">
-          Playable pathways in build: {PATHWAYS.map((p) => p.name).join(" · ")}
+          <p className="text-xs text-stone-500">
+          {PATHWAYS.length} pathways: {PATHWAYS.map((p) => p.name).join(" · ")}
         </p>
       </article>
     </main>
