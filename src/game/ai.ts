@@ -1,3 +1,4 @@
+import { ascensionReady } from "./ascension";
 import { getCardDef } from "./cards";
 import {
   attemptAscension,
@@ -12,7 +13,7 @@ import {
 import { getSequence } from "./pathways";
 import type { GameState } from "./types";
 
-/** Simple greedy AI: play cards → ability → attack → end. */
+/** Greedy AI: Ascend when ready → cards → ability → attack → end. */
 export function runAiTurn(state: GameState): GameState {
   const s = state;
   const rng = getRng(s);
@@ -22,16 +23,20 @@ export function runAiTurn(state: GameState): GameState {
     s.phase === "action" &&
     currentPlayer(s).alive &&
     !currentPlayer(s).isHuman &&
-    guard < 12
+    guard < 14
   ) {
     guard += 1;
     const p = currentPlayer(s);
     const opps = opponentsOf(s, p.id);
     const target = [...opps].sort((a, b) => a.hp - b.hp)[0];
 
-    if (!s.actionsUsed.sequence && p.hand.length >= 2) {
-      const res = attemptAscension(s, rng);
-      if (res.ok) continue;
+    // Prefer Ascension when Acting is locked and recipe is payable
+    if (!s.actionsUsed.sequence) {
+      const ready = ascensionReady(p);
+      if (ready.acting && ready.recipe) {
+        const res = attemptAscension(s, rng);
+        if (res.ok) continue;
+      }
     }
 
     if (!s.actionsUsed.standard) {
@@ -71,6 +76,9 @@ export function runAiTurn(state: GameState): GameState {
         const r = castSequenceAbility(s, target?.id, rng);
         if (r.ok) continue;
       }
+      // Fallback: try Ascension even if recipe incomplete (will no-op)
+      const res = attemptAscension(s, rng);
+      if (res.ok) continue;
     }
 
     if (!s.actionsUsed.attack && target) {

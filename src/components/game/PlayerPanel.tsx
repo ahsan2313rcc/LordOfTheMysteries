@@ -45,11 +45,18 @@ export function PlayerPanel({
             <span style={{ color: pathway.accent }}>{seq.title}</span>
           </p>
         </div>
-        {player.mad && (
-          <span className="rounded bg-rose-900/80 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wide text-rose-100">
-            Mad
-          </span>
-        )}
+        <div className="flex flex-col items-end gap-1">
+          {player.mad && (
+            <span className="rounded bg-rose-900/80 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wide text-rose-100">
+              Mad
+            </span>
+          )}
+          {player.actingMet && (
+            <span className="rounded bg-emerald-900/70 px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wide text-emerald-200">
+              Potion ready
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">

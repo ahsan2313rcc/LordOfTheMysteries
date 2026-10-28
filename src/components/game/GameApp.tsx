@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { runAiTurn } from "@/game/ai";
 import { getCardDef } from "@/game/cards";
 import {
+  actingProgressItems,
+  activateArtifactPower,
+  ascensionReady,
   attemptAscension,
   castSequenceAbility,
-  checkActing,
+  contendArtifact,
   createGame,
   currentPlayer,
   endTurn,
@@ -37,10 +40,14 @@ export function GameApp() {
   const me = state ? currentPlayer(state) : null;
   const myTurn = !!(state && me?.isHuman && state.phase === "action");
 
-  const actingOk = useMemo(() => {
-    if (!state || !me?.isHuman) return false;
-    return checkActing(me) || me.actingMet;
-  }, [state, me]);
+  const humanActing = useMemo(() => {
+    if (!human) return { ok: false, items: [], ready: null as ReturnType<typeof ascensionReady> | null };
+    return {
+      ok: human.actingMet,
+      items: actingProgressItems(human),
+      ready: ascensionReady(human),
+    };
+  }, [human, state]);
 
   useEffect(() => {
     if (!state || state.phase === "gameover") return;
@@ -128,6 +135,30 @@ export function GameApp() {
       const r = attemptAscension(s, rng);
       if (!r.ok) return r.error ?? "Ascension failed";
       return "Ascension successful!";
+    });
+  }
+
+  function onContend() {
+    if (!state || !selectedTarget) {
+      flash("Select an opponent with an Artifact");
+      return;
+    }
+    const rng = getRng(state);
+    const target = selectedTarget;
+    apply((s) => {
+      const r = contendArtifact(s, target, rng);
+      if (!r.ok) return r.error ?? "Contention failed";
+      return "Artifact stolen!";
+    });
+  }
+
+  function onArtifactPower() {
+    if (!state) return;
+    const rng = getRng(state);
+    const target = selectedTarget ?? undefined;
+    apply((s) => {
+      const r = activateArtifactPower(s, target, rng);
+      if (!r.ok) return r.error ?? "Cannot activate";
     });
   }
 
@@ -321,27 +352,69 @@ export function GameApp() {
           </div>
 
           <div className="rounded-xl border border-stone-700/50 bg-stone-950/70 p-4">
-            <p className="font-[family-name:var(--font-display)] text-amber-100">
-              Your Sequence — {seq.title}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="font-[family-name:var(--font-display)] text-amber-100">
+                  Your Sequence — {seq.title}{" "}
+                  <span className="text-stone-500">(Seq {human.sequence})</span>
+                </p>
+                <p className="mt-1 text-sm text-stone-300">
+                  Ability: <span className="text-cyan-300">{seq.abilityName}</span> (
+                  {seq.abilityCost} SP) — {seq.abilityText}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "rounded-full border px-2.5 py-1 text-[0.65rem] uppercase tracking-wider",
+                  humanActing.ok
+                    ? "border-emerald-600/60 bg-emerald-950/50 text-emerald-300"
+                    : "border-amber-700/50 bg-amber-950/30 text-amber-300/90",
+                )}
+              >
+                {humanActing.ok ? "Acting locked ✓" : "Acting in progress"}
+              </span>
+            </div>
+
+            <p className="mt-3 text-xs text-stone-400">{seq.actingCondition}</p>
+            <ul className="mt-2 space-y-1">
+              {humanActing.items.map((item) => (
+                <li
+                  key={item.id}
+                  className={cn(
+                    "flex items-center gap-2 text-xs",
+                    item.done ? "text-emerald-300/90" : "text-stone-500",
+                  )}
+                >
+                  <span className="font-mono">{item.done ? "✓" : "○"}</span>
+                  {item.label}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[0.65rem] text-stone-500">
+              Progress carries across turns until you Ascend. Meeting it on turn 1 lets you drink
+              on turn 2, 3, …
             </p>
-            <p className="mt-1 text-sm text-stone-300">
-              Ability: <span className="text-cyan-300">{seq.abilityName}</span> ({seq.abilityCost}{" "}
-              SP) — {seq.abilityText}
-            </p>
-            <p className="mt-2 text-xs text-stone-400">
-              Acting Condition: {seq.actingCondition}{" "}
-              {actingOk ? (
-                <span className="text-emerald-400">✓ met</span>
-              ) : (
-                <span className="text-amber-500/80">○ in progress</span>
-              )}
-            </p>
-            {nextSeq && (
-              <p className="mt-2 text-xs text-stone-500">
-                Next potion ({nextSeq.title}):{" "}
-                {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ")} · Sanity toll{" "}
-                {nextSeq.sanityToll}
-              </p>
+
+            {nextSeq && humanActing.ready && (
+              <div className="mt-3 rounded-lg border border-stone-700/60 bg-stone-900/60 p-2.5">
+                <p className="text-[0.7rem] text-amber-200/90">
+                  Potion → Seq {human.sequence - 1} {nextSeq.title}
+                </p>
+                <p className="mt-1 text-[0.65rem] text-stone-400">
+                  Recipe: {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ")} · Toll{" "}
+                  {nextSeq.sanityToll} Sanity
+                </p>
+                <p
+                  className={cn(
+                    "mt-1 text-[0.65rem]",
+                    humanActing.ready.acting && humanActing.ready.recipe
+                      ? "text-emerald-400"
+                      : "text-amber-500/90",
+                  )}
+                >
+                  {humanActing.ready.reason}
+                </p>
+              </div>
             )}
           </div>
 
@@ -374,10 +447,23 @@ export function GameApp() {
               <Button
                 size="sm"
                 variant="outline"
-                className="border-amber-600/50 text-amber-200"
+                className={cn(
+                  "border-amber-600/50 text-amber-200",
+                  humanActing.ready?.acting &&
+                    humanActing.ready?.recipe &&
+                    "border-emerald-500/70 text-emerald-200",
+                )}
                 onClick={onAscend}
               >
                 Drink Potion
+              </Button>
+              {human.artifact && (
+                <Button size="sm" variant="outline" onClick={onArtifactPower}>
+                  Artifact Power
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={onContend}>
+                Contend Artifact
               </Button>
               <Button size="sm" variant="ghost" onClick={onEnd}>
                 End Turn
@@ -498,7 +584,8 @@ function DesignNotes({ onBack }: { onBack: () => void }) {
             </li>
             <li>
               <strong className="text-stone-100">Acting Conditions</strong> are the soul of LotM
-              adaptation; they force thematic play instead of SP dumps.
+              adaptation; they force thematic play instead of SP dumps. Progress now{" "}
+              <em>persists across turns</em> until Ascension (bank + sticky lock).
             </li>
             <li>
               <strong className="text-stone-100">Madness</strong> at 0 Sanity is a brilliant

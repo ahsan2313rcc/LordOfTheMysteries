@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:acting": "tsx scripts/test-acting.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",

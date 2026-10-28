@@ -153,6 +153,19 @@ export interface TurnTracking {
   forcedSkip: boolean;
   cardsPlayed: number;
   spSpent: number;
+  /** Persistent-friendly counters for multi-turn Acting Conditions */
+  cardsFromOpponent: number;
+  discardCardsPlayed: number;
+  sanityRestored: number;
+  damageDealtTotal: number;
+  targetsHitInAction: number;
+  trapsDestroyed: number;
+  healedHp: number;
+  witnessedSpellOrTrap: boolean;
+  stoleResource: boolean;
+  preventedDraw: boolean;
+  survivedFatal: boolean;
+  causedMadness: number;
 }
 
 export interface PlayerState {
@@ -171,11 +184,19 @@ export interface PlayerState {
   artifact?: CardInstance;
   trap?: CardInstance; // face-down
   status: StatusFlags;
+  /** Progress this turn only (resets each Begin). */
   turnFlags: TurnTracking;
+  /**
+   * Accumulated Acting Condition progress across turns for the current Sequence.
+   * Never cleared until Ascension (or Sequence change).
+   */
+  actingBank: TurnTracking;
+  /** Sticky: once true for current Sequence, stays true until Ascension. */
   actingMet: boolean;
   alive: boolean;
   mad: boolean;
   universalReagent?: boolean;
+  lastingBlock?: number; // Groselle etc.
 }
 
 export interface GameLogEntry {

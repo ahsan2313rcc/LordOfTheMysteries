@@ -1,3 +1,11 @@
+import {
+  bankTurnProgress,
+  emptyFlags,
+  evaluateActing,
+  refreshActingMet,
+  resetActingForNewSequence,
+} from "./acting";
+import { matchRecipe } from "./ascension";
 import { buildMainDeckCounts, getCardDef } from "./cards";
 import { getPathway, getSequence, spGainFor } from "./pathways";
 import { createRng, type Rng } from "./rng";
@@ -8,8 +16,14 @@ import type {
   GameState,
   PlayerState,
   StatusFlags,
-  TurnTracking,
 } from "./types";
+
+export {
+  actingProgressItems,
+  evaluateActing as checkActing,
+  refreshActingMet,
+} from "./acting";
+export { ascensionReady, matchRecipe } from "./ascension";
 
 let idCounter = 0;
 export function uid(prefix = "id"): string {
@@ -32,32 +46,15 @@ function emptyStatus(): StatusFlags {
   };
 }
 
-function emptyFlags(): TurnTracking {
-  return {
-    dealtDamage: false,
-    tookDamage: false,
-    lostSanity: false,
-    drankPotion: false,
-    lookedAtHand: false,
-    lookedAtDeck: false,
-    evadedOrBlocked: false,
-    playedSpells: 0,
-    negatedAttack: false,
-    discardedVoluntarily: false,
-    usedDiscard: false,
-    healedAlly: false,
-    dealtSanity: false,
-    triggeredTrap: false,
-    playedUtility: false,
-    drewExtra: false,
-    attackedWithWeapon: false,
-    sacrificedHp: false,
-    copiedEffect: false,
-    damagedWhileLowHp: false,
-    forcedSkip: false,
-    cardsPlayed: 0,
-    spSpent: 0,
-  };
+function noteActing(state: GameState, player: PlayerState) {
+  if (refreshActingMet(player)) {
+    const seq = getSequence(player.pathwayId, player.sequence);
+    log(
+      state,
+      `${player.name} fulfills the Acting Condition for ${seq.title} — potion ready (persists until Ascension).`,
+      "ascend",
+    );
+  }
 }
 
 function log(state: GameState, text: string, tone: GameLogEntry["tone"] = "neutral") {
@@ -197,12 +194,23 @@ export function dealDamage(
 
   let dmg = amount;
   if (dtype === "hp") {
-    let block = target.status.block + charmBlock(target) + target.status.blockModifier;
+    let block =
+      target.status.block +
+      (target.lastingBlock ?? 0) +
+      charmBlock(target) +
+      target.status.blockModifier;
     if (opts.ignoreBlock) block = Math.max(0, block - opts.ignoreBlock);
     if (opts.unblockable) block = 0;
     if (block > 0) {
       const absorbed = Math.min(block, dmg);
-      target.status.block = Math.max(0, target.status.block - absorbed);
+      // Spend temporary block first, then lasting
+      let left = absorbed;
+      const fromTemp = Math.min(target.status.block, left);
+      target.status.block -= fromTemp;
+      left -= fromTemp;
+      if (left > 0 && (target.lastingBlock ?? 0) > 0) {
+        target.lastingBlock = Math.max(0, (target.lastingBlock ?? 0) - left);
+      }
       dmg -= absorbed;
       target.turnFlags.evadedOrBlocked = true;
       if (absorbed > 0 && source) {
@@ -236,7 +244,9 @@ export function dealDamage(
     target.turnFlags.tookDamage = true;
     if (source) {
       source.turnFlags.dealtDamage = true;
+      source.turnFlags.damageDealtTotal += dmg;
       if (source.hp < 10) source.turnFlags.damagedWhileLowHp = true;
+      noteActing(state, source);
     }
     log(
       state,
@@ -263,11 +273,14 @@ export function dealDamage(
     return dealDamage(state, source, target, dmg, { type: "hp", unblockable: opts.unblockable }, rng);
   }
 
+  const wasSane = target.sanity > 0;
   target.sanity = Math.max(0, target.sanity - dmg);
   target.turnFlags.lostSanity = true;
   if (source) {
     source.turnFlags.dealtDamage = true;
     source.turnFlags.dealtSanity = true;
+    source.turnFlags.damageDealtTotal += dmg;
+    noteActing(state, source);
   }
   log(
     state,
@@ -275,6 +288,10 @@ export function dealDamage(
     "damage",
   );
   updateMadness(target, state);
+  if (wasSane && target.mad && source) {
+    source.turnFlags.causedMadness += 1;
+    noteActing(state, source);
+  }
   return dmg;
 }
 
@@ -420,50 +437,6 @@ export function maybeTriggerTraps(
   }
 }
 
-export function checkActing(player: PlayerState): boolean {
-  const seq = getSequence(player.pathwayId, player.sequence);
-  const f = player.turnFlags;
-  switch (seq.actingId) {
-    case "look_hand_and_deck":
-      return f.lookedAtHand && f.lookedAtDeck;
-    case "evade_block_then_damage":
-      return f.evadedOrBlocked && f.dealtDamage;
-    case "two_spells_negate":
-      return f.playedSpells >= 2 && f.negatedAttack;
-    case "extra_cards_2":
-      return f.drewExtra;
-    case "weapon_attack":
-      return f.attackedWithWeapon;
-    case "sanity_2":
-      return f.dealtSanity;
-    case "utility_and_draw":
-      return f.playedUtility && f.drewExtra;
-    case "no_damage_no_weapon":
-      return !f.tookDamage && !f.attackedWithWeapon;
-    case "use_discard":
-      return f.usedDiscard;
-    case "trap_interact":
-      return f.triggeredTrap;
-    case "spell_damage_2":
-      return f.dealtDamage && f.playedSpells >= 1;
-    case "damage_low_hp":
-      return f.dealtDamage && player.hp < 10;
-    case "voluntary_discard":
-      return f.discardedVoluntarily;
-    case "force_skip":
-      return f.forcedSkip;
-    case "swap_sanity":
-      return f.dealtSanity && !f.lostSanity;
-    case "buff_other":
-      return f.healedAlly;
-    case "restore_sanity_3":
-      return true; // simplified — tracked via heal
-    default:
-      // Soft fail-open for mid/high sequences in prototype: any meaningful action
-      return f.dealtDamage || f.cardsPlayed >= 2 || f.spSpent >= 3;
-  }
-}
-
 export function createGame(opts: {
   humanPathwayId: string;
   aiPathwayIds: string[];
@@ -498,9 +471,11 @@ export function createGame(opts: {
       charms: [],
       status: emptyStatus(),
       turnFlags: emptyFlags(),
+      actingBank: emptyFlags(),
       actingMet: false,
       alive: true,
       mad: false,
+      lastingBlock: 0,
     };
   });
 
@@ -547,9 +522,16 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   }
 
   state.phase = "begin";
+  // Turn-local flags reset; Acting bank + actingMet persist until Ascension.
   p.turnFlags = emptyFlags();
-  p.actingMet = false;
   state.actionsUsed = { standard: false, sequence: false, attack: false };
+  state.extraStandard = 0;
+
+  // Groselle-style lasting Block expires at the start of your next Begin
+  if ((p.lastingBlock ?? 0) > 0) {
+    log(state, `${p.name}'s lasting Block fades with the new dawn.`, "system");
+    p.lastingBlock = 0;
+  }
 
   // Artifact drawbacks (simplified)
   if (p.artifact) {
@@ -703,7 +685,18 @@ export function runEndPhase(state: GameState, rng: Rng) {
     log(state, `${p.name} discards down to ${lim}.`, "system");
   }
 
-  p.actingMet = checkActing(p);
+  // Bank Acting progress across rounds — does NOT clear actingMet
+  const wasMet = p.actingMet;
+  bankTurnProgress(p);
+  if (!wasMet && p.actingMet) {
+    const seq = getSequence(p.pathwayId, p.sequence);
+    log(
+      state,
+      `${p.name}'s Acting Condition for ${seq.title} is locked in for future turns.`,
+      "ascend",
+    );
+  }
+
   advanceTurn(state, rng);
 }
 
@@ -744,6 +737,7 @@ export function playCardFromHand(
     state.actionsUsed.attack = true;
     p.turnFlags.cardsPlayed += 1;
     log(state, `${p.name} sets a face-down Trap.`, "system");
+    noteActing(state, p);
     return { ok: true };
   }
 
@@ -778,6 +772,7 @@ export function playCardFromHand(
 
   resolveCardEffect(state, p, card, def.effectId, target, rng);
   markStandard(state);
+  noteActing(state, p);
   return { ok: true };
 }
 
@@ -1353,6 +1348,7 @@ export function performAttack(
 
   p.status.unblockableAttack = false;
   state.actionsUsed.attack = true;
+  noteActing(state, p);
   return { ok: true };
 }
 
@@ -1375,6 +1371,99 @@ export function castSequenceAbility(
   resolveAbility(state, p, seq.abilityId, target, rng);
   state.actionsUsed.sequence = true;
   p.turnFlags.cardsPlayed += 1;
+  noteActing(state, p);
+  return { ok: true };
+}
+
+/** Steal an active Artifact (Contention). Uses Standard action. */
+export function contendArtifact(
+  state: GameState,
+  targetId: string,
+  rng: Rng,
+): { ok: boolean; error?: string } {
+  const p = currentPlayer(state);
+  if (!canUseBucket(state, "standard"))
+    return { ok: false, error: "Standard action already used" };
+  const target = state.players.find((x) => x.id === targetId);
+  if (!target?.alive || !target.artifact)
+    return { ok: false, error: "Target has no Artifact" };
+  if (p.sp < 5) return { ok: false, error: "Need 5 SP" };
+
+  const seqDiff = target.sequence - p.sequence; // positive if target is higher Seq number... wait Seq 9 is lower rank
+  // Rule: your Sequence Level must be equal or higher (lower number = higher rank)
+  // Seq 5 is higher than Seq 7. So p.sequence <= target.sequence means equal or higher rank.
+  const needSanity = p.sequence > target.sequence ? p.sequence - target.sequence : 0;
+  if (needSanity > 0 && p.sanity < needSanity) {
+    return {
+      ok: false,
+      error: `Need ${needSanity} Sanity to force-steal from higher Sequence`,
+    };
+  }
+
+  if (!paySp(p, 5, state)) return { ok: false, error: "Need 5 SP" };
+  if (needSanity > 0) {
+    dealDamage(state, p, p, needSanity, { type: "sanity", unblockable: true }, rng);
+  }
+
+  if (p.artifact) discardToPile(state, p.artifact);
+  p.artifact = target.artifact;
+  target.artifact = undefined;
+  markStandard(state);
+  p.turnFlags.stoleResource = true;
+  p.turnFlags.cardsPlayed += 1;
+  log(state, `${p.name} contends and steals ${getCardDef(p.artifact.defId).name}!`, "ascend");
+  noteActing(state, p);
+  return { ok: true };
+}
+
+/** Activate equipped Artifact power (still Standard, 0 extra SP beyond equip). */
+export function activateArtifactPower(
+  state: GameState,
+  targetId: string | undefined,
+  rng: Rng,
+): { ok: boolean; error?: string } {
+  const p = currentPlayer(state);
+  if (!p.artifact) return { ok: false, error: "No Artifact equipped" };
+  if (!canUseBucket(state, "standard"))
+    return { ok: false, error: "Standard action already used" };
+  const def = getCardDef(p.artifact.defId);
+  const target =
+    (targetId && state.players.find((x) => x.id === targetId)) ||
+    opponentsOf(state, p.id)[0];
+
+  switch (def.id) {
+    case "groselle":
+      p.lastingBlock = Math.max(p.lastingBlock ?? 0, 3);
+      log(state, `${p.name} gains 3 lasting Block from Groselle's Travels.`, "heal");
+      break;
+    case "wishing_lamp": {
+      // Choose heal 2 by default
+      p.hp = Math.min(p.maxHp, p.hp + 2);
+      p.turnFlags.healedHp += 2;
+      log(state, `${p.name} wishes for healing.`, "heal");
+      break;
+    }
+    case "die_probability":
+      drawCards(state, p, 2, rng, true);
+      break;
+    case "mirror_arrodes":
+      if (target) {
+        const piece = target.weapon ?? target.charms[0];
+        if (piece) {
+          if (target.weapon?.instanceId === piece.instanceId) target.weapon = undefined;
+          else target.charms = target.charms.filter((c) => c.instanceId !== piece.instanceId);
+          // seize then sacrifice next begin — put in hand for now
+          p.hand.push(piece);
+          p.turnFlags.stoleResource = true;
+        }
+      }
+      break;
+    default:
+      log(state, `${p.name} invokes ${def.name}.`, "system");
+  }
+
+  markStandard(state);
+  noteActing(state, p);
   return { ok: true };
 }
 
@@ -1637,10 +1726,12 @@ export function attemptAscension(
     return { ok: false, error: "Sequence action already used" };
   if (p.sequence <= 0) return { ok: false, error: "Already Sequence 0" };
 
-  if (!checkActing(p) && !p.actingMet) {
-    // Allow mid-turn if flags already met
-    if (!checkActing(p))
-      return { ok: false, error: "Acting Condition not met this turn" };
+  // Sticky Acting: bank progress from prior turns OR live turn flags count.
+  if (!p.actingMet && !evaluateActing(p)) {
+    return {
+      ok: false,
+      error: "Acting Condition not met yet (progress carries across turns)",
+    };
   }
 
   const nextSeq = p.sequence - 1;
@@ -1660,60 +1751,41 @@ export function attemptAscension(
     }
   }
 
-  // Recipe check — discard matching ingredient cards from hand
-  const needed = [...next.recipe];
-  if (p.universalReagent) {
-    // Satisfy up to 2 common ingredients
-    let filled = 0;
-    for (let i = needed.length - 1; i >= 0 && filled < 2; i--) {
-      if (needed[i]!.startsWith("C")) {
-        needed.splice(i, 1);
-        filled++;
-      }
-    }
-    p.universalReagent = false;
-  }
-
-  const toDiscard: number[] = [];
-  const remaining = [...needed];
-  p.hand.forEach((c, i) => {
-    const ings = getCardDef(c.defId).ingredients;
-    for (let r = remaining.length - 1; r >= 0; r--) {
-      if (ings.includes(remaining[r]!)) {
-        remaining.splice(r, 1);
-        toDiscard.push(i);
-        break;
-      }
-    }
-  });
-
-  if (remaining.length > 0) {
+  const recipe = matchRecipe(p);
+  if (!recipe) return { ok: false, error: "Cannot Ascend further" };
+  if (recipe.remaining.length > 0) {
     return {
       ok: false,
-      error: `Missing ingredients: ${remaining.join(", ")}`,
+      error: `Missing ingredients: ${recipe.missingLabels.join(", ")}`,
     };
   }
 
-  const toll = next.sanityToll;
-  if (p.sanity < toll && p.sanity + p.hp <= toll) {
-    return { ok: false, error: "Cannot pay Sanity toll" };
+  const toll = recipe.toll;
+  if (p.sanity < toll) {
+    return { ok: false, error: `Need ${toll} Sanity (have ${p.sanity})` };
   }
 
-  // Discard unique indices
-  const uniqueIdx = [...new Set(toDiscard)].sort((a, b) => b - a);
-  for (const i of uniqueIdx) {
-    const [c] = p.hand.splice(i, 1);
-    if (c) discardToPile(state, c);
+  // Discard matched ingredient cards
+  for (const id of recipe.discardInstanceIds) {
+    const idx = p.hand.findIndex((c) => c.instanceId === id);
+    if (idx >= 0) {
+      const [c] = p.hand.splice(idx, 1);
+      if (c) discardToPile(state, c);
+    }
   }
+  if (recipe.universalUsed) p.universalReagent = false;
 
   dealDamage(state, p, p, toll, { type: "sanity", unblockable: true }, rng);
   p.turnFlags.drankPotion = true;
   p.sequence = nextSeq;
   state.actionsUsed.sequence = true;
 
+  // New Sequence → clear locked Acting; must fulfill the next condition fresh.
+  resetActingForNewSequence(p);
+
   log(
     state,
-    `${p.name} Ascends to Sequence ${nextSeq} — ${next.title}!`,
+    `${p.name} Ascends to Sequence ${nextSeq} — ${next.title}! Acting Condition reset.`,
     "ascend",
   );
 
