@@ -15,6 +15,7 @@ import type {
   GameLogEntry,
   GameState,
   PlayerState,
+  RevealEvent,
   StatusFlags,
 } from "./types";
 
@@ -55,6 +56,77 @@ function noteActing(state: GameState, player: PlayerState) {
       "ascend",
     );
   }
+}
+
+function cardSnapshot(card: CardInstance) {
+  const d = getCardDef(card.defId);
+  return { name: d.name, type: d.type, rarity: d.rarity, text: d.text };
+}
+
+/** Push a UI reveal so peeks/steals are visible to the human player. */
+export function pushReveal(state: GameState, reveal: Omit<RevealEvent, "id">) {
+  state.reveals = [
+    { ...reveal, id: uid("reveal") },
+    ...(state.reveals ?? []),
+  ].slice(0, 12);
+}
+
+export function revealPlayerHand(
+  state: GameState,
+  subject: PlayerState,
+  title?: string,
+) {
+  pushReveal(state, {
+    kind: "hand",
+    title: title ?? `${subject.name}'s Hand Revealed`,
+    subjectName: subject.name,
+    cards: subject.hand.map(cardSnapshot),
+    detail:
+      subject.hand.length === 0
+        ? "Empty hand."
+        : `${subject.hand.length} card(s) shown.`,
+  });
+  log(
+    state,
+    `Hand of ${subject.name}: ${
+      subject.hand.map((c) => getCardDef(c.defId).name).join(", ") || "(empty)"
+    }`,
+    "system",
+  );
+}
+
+export function revealDeckTop(state: GameState, count: number, title?: string) {
+  const cards = state.deck.slice(-count);
+  pushReveal(state, {
+    kind: "deck",
+    title: title ?? `Top ${count} of the Deck`,
+    cards: cards.map(cardSnapshot),
+    detail: cards.length
+      ? "Top → bottom shown left → right (last is top)."
+      : "Deck empty.",
+  });
+  log(
+    state,
+    `Deck top: ${cards.map((c) => getCardDef(c.defId).name).join(", ") || "(empty)"}`,
+    "system",
+  );
+}
+
+export function announceSteal(
+  state: GameState,
+  card: CardInstance,
+  from: PlayerState,
+  to: PlayerState,
+) {
+  const d = getCardDef(card.defId);
+  pushReveal(state, {
+    kind: "steal",
+    title: `${to.name} stole ${d.name}`,
+    subjectName: from.name,
+    cards: [cardSnapshot(card)],
+    detail: `Taken from ${from.name}'s hand.`,
+  });
+  log(state, `${to.name} steals ${d.name} from ${from.name}!`, "ascend");
 }
 
 function log(state: GameState, text: string, tone: GameLogEntry["tone"] = "neutral") {
@@ -117,6 +189,9 @@ export function drawCards(
     const card = state.deck.pop();
     if (!card) break;
     player.hand.push(card);
+    if ((player.drawPoison ?? 0) > 0) {
+      dealDamage(state, null, player, player.drawPoison!, { unblockable: true }, rng);
+    }
   }
   if (extra && n > 0) player.turnFlags.drewExtra = true;
   if (n >= 2) maybeTriggerTraps(state, player, "draw2", rng);
@@ -326,6 +401,15 @@ function checkElimination(
 ) {
   if (target.hp > 0 || !target.alive) return;
 
+  if (target.fatalSafetyHp != null) {
+    target.hp = target.fatalSafetyHp;
+    target.fatalSafetyHp = undefined;
+    target.turnFlags.survivedFatal = true;
+    log(state, `${target.name}'s safety net triggers — remains at ${target.hp} HP!`, "heal");
+    noteActing(state, target);
+    return;
+  }
+
   // Paper Substitute fatal trap
   if (target.trap) {
     const td = getCardDef(target.trap.defId);
@@ -334,6 +418,7 @@ function checkElimination(
       discardToPile(state, target.trap);
       target.trap = undefined;
       target.hp = 1;
+      target.turnFlags.survivedFatal = true;
       log(state, `${target.name}'s Paper Substitute negates death!`, "heal");
       return;
     }
@@ -508,6 +593,7 @@ export function createGame(opts: {
       players.map((p) => [p.id, { hpTaken: true, sanityTaken: true }]),
     ),
     log: [],
+    reveals: [],
     seed,
   };
 
@@ -539,8 +625,21 @@ export function runBeginPhase(state: GameState, rng: Rng) {
     p.lastingBlock = 0;
   }
 
+  // Ongoing curses
+  if (p.epidemicCurse) {
+    dealDamage(state, null, p, 2, { unblockable: true }, rng);
+    log(state, `${p.name} suffers Epidemic curse.`, "damage");
+  }
+  if (p.doomCurse) {
+    dealDamage(state, null, p, 2, { unblockable: true }, rng);
+    p.sp = Math.max(0, p.sp - 1);
+  }
+  if (p.cannotHealNextBegin) {
+    p.cannotHealNextBegin = false;
+  }
+
   // Artifact drawbacks (simplified)
-  if (p.artifact) {
+  if (p.artifact && !p.ignoreArtifactDrawback) {
     const a = getCardDef(p.artifact.defId);
     if (a.id === "mirror_arrodes") {
       dealDamage(state, null, p, 2, { type: "sanity", unblockable: true }, rng);
@@ -562,6 +661,7 @@ export function runBeginPhase(state: GameState, rng: Rng) {
       }
     }
   }
+  p.ignoreArtifactDrawback = false;
 
   // Sword of Silver passive
   if (p.weapon && p.weapon.defId === "sword_silver") {
@@ -750,7 +850,15 @@ export function playCardFromHand(
     }
   }
 
-  if (!paySp(p, def.spCost, state)) return { ok: false, error: "Not enough SP" };
+  const tax = p.nextCardTax ?? 0;
+  const totalCost = def.spCost + tax;
+  if (!paySp(p, totalCost, state)) {
+    return { ok: false, error: tax ? `Not enough SP (tax +${tax})` : "Not enough SP" };
+  }
+  if (tax) {
+    p.nextCardTax = 0;
+    log(state, `${p.name} pays +${tax} SP tax.`, "system");
+  }
 
   // Spell traps
   if (def.type === "spell") {
@@ -847,11 +955,7 @@ function resolveCardEffect(
         dealDamage(state, p, target, 2, { type: "sanity" }, rng);
         if (target.sanity < p.sanity) {
           p.turnFlags.lookedAtHand = true;
-          log(
-            state,
-            `${p.name} peeks ${target.name}'s hand: ${target.hand.map((c) => getCardDef(c.defId).name).join(", ") || "(empty)"}`,
-            "system",
-          );
+          revealPlayerHand(state, target, `Mental Piercing — ${target.name}'s Hand`);
         }
       }
       p.turnFlags.playedSpells += 1;
@@ -933,14 +1037,24 @@ function resolveCardEffect(
       return;
     case "spirit_world_guide":
       if (target && p.hand.length && target.hand.length) {
-        // card already removed from hand — pick another
         const mineIdx = rng.int(p.hand.length);
         const theirsIdx = rng.int(target.hand.length);
         const mine = p.hand[mineIdx]!;
         const theirs = target.hand[theirsIdx]!;
         p.hand[mineIdx] = theirs;
         target.hand[theirsIdx] = mine;
-        log(state, `${p.name} swaps a card with ${target.name}.`, "system");
+        p.turnFlags.stoleResource = true;
+        pushReveal(state, {
+          kind: "steal",
+          title: "Spirit World Guide — Cards Swapped",
+          cards: [cardSnapshot(mine), cardSnapshot(theirs)],
+          detail: `You gave ${getCardDef(mine.defId).name}; received ${getCardDef(theirs.defId).name} from ${target.name}.`,
+        });
+        log(
+          state,
+          `${p.name} swaps ${getCardDef(mine.defId).name} for ${getCardDef(theirs.defId).name} with ${target.name}.`,
+          "system",
+        );
       }
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
@@ -967,15 +1081,21 @@ function resolveCardEffect(
           if (target.weapon?.instanceId === piece.instanceId) target.weapon = undefined;
           else target.charms = target.charms.filter((c) => c.instanceId !== piece.instanceId);
           p.hand.push(piece);
-          const give = p.hand.find(
-            (c) => {
-              const t = getCardDef(c.defId).type;
-              return t === "weapon" || t === "charm";
-            },
-          );
+          p.turnFlags.stoleResource = true;
+          announceSteal(state, piece, target, p);
+          const give = p.hand.find((c) => {
+            if (c.instanceId === piece.instanceId) return false;
+            const t = getCardDef(c.defId).type;
+            return t === "weapon" || t === "charm";
+          });
           if (give) {
             p.hand = p.hand.filter((c) => c.instanceId !== give.instanceId);
             target.hand.push(give);
+            log(
+              state,
+              `${p.name} bribes with ${getCardDef(give.defId).name}.`,
+              "system",
+            );
           }
         }
       }
@@ -985,14 +1105,16 @@ function resolveCardEffect(
     case "astrology":
       if (target) {
         p.turnFlags.lookedAtHand = true;
-        log(
-          state,
-          `${target.name}'s hand: ${target.hand.map((c) => getCardDef(c.defId).name).join(", ") || "(empty)"}`,
-          "system",
-        );
+        revealPlayerHand(state, target, `Astrology — ${target.name}'s Hand`);
         if (target.hand.length) {
           const c = target.hand.pop()!;
           discardToPile(state, c);
+          pushReveal(state, {
+            kind: "info",
+            title: "Astrology — Forced Discard",
+            cards: [cardSnapshot(c)],
+            detail: `${target.name} discards ${getCardDef(c.defId).name}.`,
+          });
         }
       }
       p.turnFlags.playedSpells += 1;
@@ -1026,6 +1148,10 @@ function resolveCardEffect(
           if (target.weapon?.instanceId === piece.instanceId) target.weapon = undefined;
           else target.charms = target.charms.filter((c) => c.instanceId !== piece.instanceId);
           p.hand.push(piece);
+          p.turnFlags.stoleResource = true;
+          announceSteal(state, piece, target, p);
+        } else {
+          log(state, `${target.name} has no Weapon or Charm to steal.`, "system");
         }
       }
       p.turnFlags.playedSpells += 1;
@@ -1036,6 +1162,14 @@ function resolveCardEffect(
         const tmp = p.hand;
         p.hand = target.hand;
         target.hand = tmp;
+        p.turnFlags.stoleResource = true;
+        pushReveal(state, {
+          kind: "steal",
+          title: "Steal Thoughts — Hands Swapped",
+          cards: p.hand.map(cardSnapshot),
+          detail: `You now hold ${target.name}'s former hand (${p.hand.length} cards).`,
+        });
+        log(state, `${p.name} swaps entire hands with ${target.name}!`, "ascend");
       }
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
@@ -1481,20 +1615,9 @@ function resolveAbility(
       p.turnFlags.lookedAtDeck = true;
       p.turnFlags.lookedAtHand = true;
       ensureDeck(state, rng);
-      log(
-        state,
-        `Top deck: ${state.deck
-          .slice(-3)
-          .map((c) => getCardDef(c.defId).name)
-          .join(", ")}`,
-        "system",
-      );
+      revealDeckTop(state, 3, "Divination — Top of the Deck");
       if (target) {
-        log(
-          state,
-          `${target.name}'s hand: ${target.hand.map((c) => getCardDef(c.defId).name).join(", ") || "(empty)"}`,
-          "system",
-        );
+        revealPlayerHand(state, target, `Divination — ${target.name}'s Hand`);
       }
       break;
     case "fool_acrobatics":
@@ -1514,10 +1637,10 @@ function resolveAbility(
         if (c) {
           p.hand.push(c);
           p.turnFlags.cardsFromOpponent += 1;
+          announceSteal(state, c, target, p);
         }
         p.turnFlags.drewExtra = true;
         p.turnFlags.stoleResource = true;
-        log(state, `${p.name} steals a card from ${target.name}.`, "system");
       } else {
         drawCards(state, p, 1, rng, true);
         log(state, `${p.name}'s Sleight finds nothing — draws from the deck instead.`, "system");
@@ -1534,10 +1657,15 @@ function resolveAbility(
       break;
     case "error_decrypt":
       p.turnFlags.lookedAtHand = true;
+      if (target) revealPlayerHand(state, target, `Decrypt — ${target.name}'s Hand`);
       for (const pl of state.players) {
         if (pl.trap) {
           p.turnFlags.triggeredTrap = true;
-          log(state, `Trap on ${pl.name}: ${getCardDef(pl.trap.defId).name}`, "system");
+          pushReveal(state, {
+            kind: "trap",
+            title: `Decrypt — Trap on ${pl.name}`,
+            cards: [cardSnapshot(pl.trap)],
+          });
         }
       }
       break;
@@ -1612,11 +1740,7 @@ function resolveAbility(
     case "vis_observe":
       if (target) {
         p.turnFlags.lookedAtHand = true;
-        log(
-          state,
-          `${target.name}: ${target.hand.map((c) => getCardDef(c.defId).name).join(", ") || "(empty)"}`,
-          "system",
-        );
+        revealPlayerHand(state, target, `Observe — ${target.name}'s Hand`);
       }
       break;
     case "vis_pierce":
@@ -1765,6 +1889,931 @@ function resolveAbility(
     case "priest_cull":
       if (target && target.hp <= 10) dealDamage(state, p, target, 5, {}, rng);
       break;
+
+    // —— Extra Arcana abilities ——
+    case "hanged_blood":
+      dealDamage(state, p, p, 1, { unblockable: true }, rng);
+      p.turnFlags.sacrificedHp = true;
+      p.sp = Math.min(20, p.sp + 2);
+      break;
+    case "hanged_whispers":
+      dealDamage(state, p, p, 1, { type: "sanity", unblockable: true }, rng);
+      drawCards(state, p, 2, rng, true);
+      break;
+    case "hanged_hide":
+      p.status.evade += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "hanged_flesh":
+      if (target) {
+        const d = dealDamage(state, p, target, 2, {}, rng);
+        p.hp = Math.min(p.maxHp, p.hp + d);
+        p.turnFlags.healedHp += d;
+      }
+      break;
+    case "hanged_graze":
+    case "tower_mimic":
+    case "moon_channel": {
+      p.turnFlags.usedDiscard = true;
+      const idx = state.discard.findIndex((c) => getCardDef(c.defId).type === "spell");
+      if (idx >= 0) {
+        const [c] = state.discard.splice(idx, 1);
+        if (c) {
+          p.turnFlags.copiedEffect = true;
+          p.turnFlags.discardCardsPlayed += 1;
+          pushReveal(state, {
+            kind: "info",
+            title: "Copied Spell from Discard",
+            cards: [cardSnapshot(c)],
+          });
+          resolveCardEffect(state, p, c, getCardDef(c.defId).effectId, target, rng);
+        }
+      } else log(state, "No Spell in discard to copy.", "system");
+      break;
+    }
+    case "hanged_blade":
+      if (target) {
+        p.turnFlags.sacrificedHp = true;
+        dealDamage(state, p, target, 6, {}, rng);
+        dealDamage(state, p, p, 2, { unblockable: true }, rng);
+      }
+      break;
+    case "hanged_bomb":
+      p.turnFlags.sacrificedHp = true;
+      dealDamage(state, p, p, 5, { unblockable: true }, rng);
+      {
+        let hits = 0;
+        for (const o of opponentsOf(state, p.id)) {
+          dealDamage(state, p, o, 5, {}, rng);
+          hits++;
+        }
+        p.turnFlags.targetsHitInAction = hits;
+      }
+      break;
+    case "hanged_corrupt":
+      if (target) {
+        const lost = Math.min(5, target.sp);
+        target.sp -= lost;
+        p.turnFlags.stoleResource = true;
+        dealDamage(state, p, target, lost || 1, {}, rng);
+      }
+      break;
+    case "hanged_degen":
+      if (target) {
+        target.status.block = 0;
+        target.status.evade = 0;
+        if (target.hp > 1) {
+          const drop = target.hp - 1;
+          dealDamage(state, p, target, drop, { unblockable: true }, rng);
+        }
+      }
+      break;
+
+    case "demoness_shadow":
+      p.status.attackModifier += 2;
+      log(state, `${p.name} arms Shadow Strike (+2 next Attack).`, "system");
+      break;
+    case "demoness_incite":
+      if (target) {
+        if (target.trap) {
+          discardToPile(state, target.trap);
+          target.trap = undefined;
+          p.turnFlags.forcedSkip = true;
+          log(state, `${target.name}'s Trap is discarded by Incite.`, "system");
+        } else {
+          dealDamage(state, p, target, 2, { type: "sanity", unblockable: true }, rng);
+        }
+      }
+      break;
+    case "demoness_flame":
+      if (target) {
+        dealDamage(state, p, target, 2, {}, rng);
+        target.cannotHealNextBegin = true;
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    case "demoness_web":
+      if (target) {
+        target.nextCardTax = (target.nextCardTax ?? 0) + 2;
+        p.turnFlags.forcedSkip = true;
+        log(state, `${target.name}'s next card costs +2 SP.`, "system");
+      }
+      break;
+    case "demoness_epidemic":
+      if (target) {
+        target.epidemicCurse = true;
+        p.turnFlags.forcedSkip = true;
+        log(state, `${target.name} is cursed with Epidemic!`, "damage");
+      }
+      break;
+    case "demoness_plague": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        dealDamage(state, p, o, 3, {}, rng);
+        dealDamage(state, p, o, 1, { type: "sanity", unblockable: true }, rng);
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      break;
+    }
+    case "demoness_mirror":
+      p.fatalSafetyHp = 10;
+      p.turnFlags.evadedOrBlocked = true;
+      log(state, `${p.name} prepares Mirror Substitution.`, "heal");
+      break;
+    case "demoness_frostfire": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        for (let i = 0; i < 2 && o.hand.length; i++) {
+          const idx = rng.int(o.hand.length);
+          const [c] = o.hand.splice(idx, 1);
+          if (c) discardToPile(state, c);
+        }
+        dealDamage(state, p, o, 5, {}, rng);
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      break;
+    }
+    case "demoness_doom": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        o.doomCurse = true;
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      log(state, `${p.name} utters Doomsday — permanent curses fall.`, "damage");
+      break;
+    }
+
+    case "tower_analyze":
+      p.turnFlags.lookedAtDeck = true;
+      revealDeckTop(state, 3, "Analyze — Top of the Deck");
+      break;
+    case "tower_deduce":
+    case "just_interrogate":
+      if (target) {
+        p.turnFlags.lookedAtHand = true;
+        revealPlayerHand(state, target, `Interrogation — ${target.name}'s Hand`);
+        const trapIdx = target.hand.findIndex((c) => getCardDef(c.defId).type === "trap");
+        if (trapIdx >= 0) {
+          const [c] = target.hand.splice(trapIdx, 1);
+          if (c) {
+            discardToPile(state, c);
+            pushReveal(state, {
+              kind: "info",
+              title: "Trap Confiscated",
+              cards: [cardSnapshot(c)],
+              detail: `${target.name} discards ${getCardDef(c.defId).name}.`,
+            });
+          }
+        }
+      }
+      break;
+    case "tower_expose":
+      if (target?.trap) {
+        p.turnFlags.triggeredTrap = true;
+        pushReveal(state, {
+          kind: "trap",
+          title: `Exposed Trap — ${target.name}`,
+          cards: [cardSnapshot(target.trap)],
+        });
+        discardToPile(state, target.trap);
+        target.trap = undefined;
+        target.sp = Math.max(0, target.sp - 1);
+      } else {
+        p.turnFlags.triggeredTrap = true;
+        log(state, "No Trap to expose on that target.", "system");
+      }
+      break;
+    case "tower_create": {
+      ensureDeck(state, rng);
+      const seen: CardInstance[] = [];
+      while (state.deck.length) {
+        const c = state.deck.pop()!;
+        if (getCardDef(c.defId).type === "spell") {
+          p.hand.push(c);
+          p.turnFlags.drewExtra = true;
+          pushReveal(state, {
+            kind: "info",
+            title: "Spell Creation",
+            cards: [cardSnapshot(c)],
+            detail: `Found ${getCardDef(c.defId).name}.`,
+          });
+          break;
+        }
+        seen.push(c);
+      }
+      state.deck.push(...seen);
+      p.turnFlags.playedSpells += 1;
+      break;
+    }
+    case "tower_foresight":
+      p.status.evade += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      for (const o of opponentsOf(state, p.id)) {
+        p.turnFlags.lookedAtHand = true;
+        revealPlayerHand(state, o, `Foresight — ${o.name}`);
+      }
+      break;
+    case "tower_omni":
+    case "emperor_gag":
+    case "just_prohibit":
+    case "chained_bind":
+    case "wheel_badroll":
+      if (target) {
+        target.status.skipAction = true;
+        p.turnFlags.forcedSkip = true;
+        log(state, `${target.name} is locked out of their next Action.`, "system");
+      }
+      break;
+    case "tower_counter":
+      p.status.evade += 1;
+      p.reflectNextHit = true;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "tower_akashic":
+      drawCards(state, p, 5, rng, true);
+      break;
+
+    case "wheel_premonition": {
+      p.turnFlags.lookedAtDeck = true;
+      ensureDeck(state, rng);
+      const top = state.deck[state.deck.length - 1];
+      if (top) {
+        revealDeckTop(state, 1, "Premonition");
+        if (getCardDef(top.defId).type === "trap") {
+          state.deck.pop();
+          discardToPile(state, top);
+          log(state, "Premonition discards a Trap from the top.", "system");
+        }
+      }
+      break;
+    }
+    case "wheel_calc":
+    case "moon_beast":
+      p.status.block += 2;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "wheel_luck": {
+      const before = p.hand.length;
+      drawCards(state, p, 2, rng, true);
+      const drawn = p.hand.slice(before);
+      if (
+        drawn.length === 2 &&
+        getCardDef(drawn[0]!.defId).type === getCardDef(drawn[1]!.defId).type
+      ) {
+        p.hp = Math.min(p.maxHp, p.hp + 3);
+        p.turnFlags.healedHp += 3;
+        log(state, "Stroke of Luck! Matching types — heal 3.", "heal");
+      }
+      pushReveal(state, {
+        kind: "info",
+        title: "Stroke of Luck — Drawn",
+        cards: drawn.map(cardSnapshot),
+      });
+      break;
+    }
+    case "wheel_misfortune":
+      if (target?.hand.length) {
+        const sorted = [...target.hand].sort(
+          (a, b) =>
+            (getCardDef(b.defId).rarity === "rare" ? 1 : 0) -
+            (getCardDef(a.defId).rarity === "rare" ? 1 : 0),
+        );
+        const victim = sorted[0]!;
+        target.hand = target.hand.filter((c) => c.instanceId !== victim.instanceId);
+        discardToPile(state, victim);
+        p.turnFlags.forcedSkip = true;
+        pushReveal(state, {
+          kind: "info",
+          title: "Misfortune — Discarded",
+          cards: [cardSnapshot(victim)],
+          detail: `${target.name} loses ${getCardDef(victim.defId).name}.`,
+        });
+      }
+      break;
+    case "wheel_armor":
+      p.status.evade += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "wheel_randomize": {
+      let hits = 0;
+      for (const pl of alivePlayers(state)) {
+        for (const c of pl.hand) discardToPile(state, c);
+        pl.hand = [];
+        drawCards(state, pl, 4, rng, true);
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      break;
+    }
+    case "wheel_weave":
+      drawCards(state, p, 2, rng, true);
+      p.sp = 10;
+      break;
+    case "wheel_reboot":
+      p.hp = Math.min(p.maxHp, 15);
+      p.sanity = 15;
+      p.turnFlags.sanityRestored += 3;
+      p.turnFlags.healedHp += 5;
+      updateMadness(p, state);
+      break;
+
+    case "mother_sow":
+      {
+        const t = target ?? p;
+        t.hp = Math.min(t.maxHp, t.hp + 1);
+        p.turnFlags.healedHp += 1;
+        if (t.id !== p.id) p.turnFlags.healedAlly = true;
+      }
+      break;
+    case "mother_cure":
+      {
+        const t = target ?? p;
+        t.hp = Math.min(t.maxHp, t.hp + 3);
+        t.status.stunned = false;
+        t.status.skipAction = false;
+        p.turnFlags.healedHp += 3;
+        p.turnFlags.healedAlly = true;
+      }
+      break;
+    case "mother_harvest": {
+      const missing = Math.max(1, Math.floor((p.maxHp - p.hp) / 5) || 1);
+      drawCards(state, p, missing, rng, true);
+      break;
+    }
+    case "mother_mutate":
+      if (p.hand.length) {
+        discardToPile(state, p.hand.pop()!);
+        p.turnFlags.discardedVoluntarily = true;
+      }
+      drawCards(state, p, 2, rng, true);
+      break;
+    case "mother_hide":
+      p.status.block += 2;
+      p.status.attackModifier += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "mother_vitality": {
+      const before = p.hp;
+      p.hp += 5;
+      if (p.hp > p.maxHp) {
+        const over = p.hp - p.maxHp;
+        p.maxHp = Math.min(p.maxHp + over, p.maxHp + 5);
+        p.hp = p.maxHp;
+      }
+      p.turnFlags.healedHp += Math.max(0, p.hp - before);
+      break;
+    }
+    case "mother_link":
+      if (target) {
+        target.hp = p.hp;
+        p.turnFlags.healedAlly = true;
+        log(state, `${target.name}'s HP equals ${p.name}'s (${p.hp}).`, "system");
+      }
+      break;
+    case "mother_fecundity": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        o.drawPoison = 2;
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      break;
+    }
+    case "mother_rebirth":
+      p.hp = p.maxHp;
+      p.sanity = 20;
+      p.status.evade += 1;
+      p.turnFlags.sanityRestored += 5;
+      p.turnFlags.healedHp += 10;
+      updateMadness(p, state);
+      break;
+
+    case "moon_brew": {
+      p.turnFlags.lookedAtDeck = true;
+      ensureDeck(state, rng);
+      const top = state.deck[state.deck.length - 1];
+      if (top) {
+        revealDeckTop(state, 1, "Brew");
+        if (getCardDef(top.defId).type === "utility") {
+          state.deck.pop();
+          p.hand.push(top);
+          p.turnFlags.drewExtra = true;
+          log(state, `${p.name} brews ${getCardDef(top.defId).name} into hand.`, "heal");
+        }
+      }
+      break;
+    }
+    case "moon_lifesteal":
+    case "abyss_feast":
+      if (target) {
+        const amt = abilityId === "abyss_feast" ? 4 : 2;
+        const d = dealDamage(state, p, target, amt, {}, rng);
+        p.hp = Math.min(p.maxHp, p.hp + (abilityId === "abyss_feast" ? 4 : d));
+        p.turnFlags.healedHp += abilityId === "abyss_feast" ? 4 : d;
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    case "moon_toxic":
+      if (p.hand.length) {
+        discardToPile(state, p.hand.pop()!);
+        p.turnFlags.discardedVoluntarily = true;
+      }
+      if (target) dealDamage(state, p, target, 3, { type: "sanity" }, rng);
+      break;
+    case "moon_blood":
+      p.turnFlags.lookedAtDeck = true;
+      revealDeckTop(state, 3, "Blood Moon");
+      {
+        let hits = 0;
+        for (const o of opponentsOf(state, p.id)) {
+          dealDamage(state, p, o, 2, {}, rng);
+          hits++;
+        }
+        p.turnFlags.targetsHitInAction = hits;
+      }
+      break;
+    case "moon_void":
+      p.status.attackModifier += 3;
+      p.status.block += 3;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "moon_undying":
+      p.fatalSafetyHp = 10;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "moon_eclipse": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        for (const c of o.hand) discardToPile(state, c);
+        o.hand = [];
+        o.status.skipAction = true;
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      p.turnFlags.forcedSkip = true;
+      break;
+    }
+
+    case "hermit_pry":
+      if (target?.trap) {
+        p.turnFlags.lookedAtHand = true;
+        p.turnFlags.triggeredTrap = true;
+        pushReveal(state, {
+          kind: "trap",
+          title: `Pry — ${target.name}'s Trap`,
+          cards: [cardSnapshot(target.trap)],
+        });
+      } else if (target) {
+        p.turnFlags.lookedAtHand = true;
+        revealPlayerHand(state, target, `Pry — ${target.name}'s Hand`);
+      }
+      break;
+    case "hermit_blade":
+      if (target) {
+        dealDamage(state, p, target, 3, {}, rng);
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    case "hermit_double":
+      state.extraStandard = (state.extraStandard ?? 0) + 1;
+      log(state, `${p.name} prepares Double Cast (+1 Standard).`, "system");
+      break;
+    case "hermit_copy": {
+      p.turnFlags.usedDiscard = true;
+      const idx = state.discard.findIndex((c) => getCardDef(c.defId).type === "spell");
+      if (idx >= 0) {
+        const c = state.discard[idx]!;
+        // Add a fresh instance copy into hand
+        const copy = { instanceId: uid("card"), defId: c.defId };
+        p.hand.push(copy);
+        p.turnFlags.copiedEffect = true;
+        p.turnFlags.drewExtra = true;
+        announceSteal(state, copy, p, p);
+        pushReveal(state, {
+          kind: "info",
+          title: "Copy Scroll",
+          cards: [cardSnapshot(copy)],
+          detail: "A copy enters your hand.",
+        });
+      }
+      break;
+    }
+    case "hermit_redirect":
+      if (target) {
+        const others = opponentsOf(state, target.id).filter((o) => o.id !== p.id);
+        const victim = others[0] ?? opponentsOf(state, p.id)[0];
+        if (victim) {
+          dealDamage(state, target, victim, 1, {}, rng);
+          p.turnFlags.forcedSkip = true;
+          log(state, `${p.name} redirects strife onto ${victim.name}.`, "system");
+        }
+      }
+      break;
+    case "hermit_tale":
+      drawCards(state, p, p.turnFlags.dealtDamage ? 3 : 1, rng, true);
+      break;
+    case "hermit_arcane":
+      if (target) {
+        dealDamage(state, p, target, 5, { unblockable: true }, rng);
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    case "hermit_library": {
+      ensureDeck(state, rng);
+      const top = state.deck.splice(-5);
+      const keep = top.splice(-2);
+      for (const c of keep) {
+        p.hand.push(c);
+      }
+      state.deck = [...top, ...state.deck];
+      p.turnFlags.drewExtra = true;
+      pushReveal(state, {
+        kind: "info",
+        title: "Forbidden Library — Taken",
+        cards: keep.map(cardSnapshot),
+      });
+      break;
+    }
+    case "hermit_overload":
+      if (target) dealDamage(state, p, target, 15, { type: "sanity", unblockable: true }, rng);
+      break;
+
+    case "paragon_identify": {
+      drawCards(state, p, 1, rng, true);
+      const last = p.hand[p.hand.length - 1];
+      if (last) {
+        const d = getCardDef(last.defId);
+        if (d.type === "artifact" || d.type === "utility") {
+          pushReveal(state, {
+            kind: "info",
+            title: "Identify — Kept",
+            cards: [cardSnapshot(last)],
+          });
+        }
+      }
+      break;
+    }
+    case "paragon_excavate": {
+      p.turnFlags.usedDiscard = true;
+      const idx = state.discard.findIndex((c) => {
+        const t = getCardDef(c.defId).type;
+        return t === "weapon" || t === "utility";
+      });
+      if (idx >= 0) {
+        const [c] = state.discard.splice(idx, 1);
+        if (c) {
+          p.hand.push(c);
+          p.turnFlags.drewExtra = true;
+          pushReveal(state, {
+            kind: "info",
+            title: "Excavate",
+            cards: [cardSnapshot(c)],
+          });
+        }
+      }
+      break;
+    }
+    case "paragon_optimize":
+      p.ignoreArtifactDrawback = true;
+      p.sp = Math.min(20, p.sp + 1);
+      break;
+    case "paragon_tinker": {
+      let n = 0;
+      while (n < 2 && p.hand.length) {
+        discardToPile(state, p.hand.pop()!);
+        n++;
+      }
+      p.turnFlags.discardedVoluntarily = true;
+      p.status.block += 3;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    }
+    case "paragon_chart": {
+      p.turnFlags.lookedAtDeck = true;
+      revealDeckTop(state, 3, "Star Chart");
+      const top = state.deck.slice(-3);
+      const spells = top.filter((c) => getCardDef(c.defId).type === "spell").length;
+      if (target && spells > 0) {
+        dealDamage(state, p, target, spells, {}, rng);
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    }
+    case "paragon_catalyst":
+      if (target && target.id === p.id) {
+        p.hp = Math.min(p.maxHp, p.hp + 4);
+        p.turnFlags.healedHp += 4;
+      } else if (target) {
+        dealDamage(state, p, target, 4, {}, rng);
+      }
+      break;
+    case "paragon_deconstruct":
+      if (target) {
+        if (target.weapon) {
+          discardToPile(state, target.weapon);
+          pushReveal(state, {
+            kind: "info",
+            title: "Deconstructed",
+            cards: [cardSnapshot(target.weapon)],
+          });
+          target.weapon = undefined;
+          p.turnFlags.trapsDestroyed += 1;
+        } else if (target.trap) {
+          discardToPile(state, target.trap);
+          pushReveal(state, {
+            kind: "trap",
+            title: "Deconstructed Trap",
+            cards: [cardSnapshot(target.trap)],
+          });
+          target.trap = undefined;
+          p.turnFlags.trapsDestroyed += 1;
+          p.turnFlags.triggeredTrap = true;
+        }
+      }
+      break;
+    case "paragon_override":
+      if (target?.artifact) {
+        if (p.artifact) discardToPile(state, p.artifact);
+        p.artifact = target.artifact;
+        target.artifact = undefined;
+        p.turnFlags.stoleResource = true;
+        announceSteal(state, p.artifact, target, p);
+      }
+      break;
+    case "paragon_god":
+      p.maxHp += 5;
+      p.hp += 5;
+      p.status.attackModifier += 3;
+      p.status.block += 3;
+      p.turnFlags.healedAlly = true;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+
+    case "chained_restraint":
+      dealDamage(state, p, p, 1, { type: "sanity", unblockable: true }, rng);
+      p.status.block += 2;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "chained_outburst":
+      p.status.attackModifier += 2;
+      dealDamage(state, p, p, 1, { type: "sanity", unblockable: true }, rng);
+      p.turnFlags.sacrificedHp = true;
+      break;
+    case "chained_lacerate":
+      if (target) {
+        dealDamage(state, p, target, 2, {}, rng);
+        target.epidemicCurse = true; // reuse as bleed-at-begin
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    case "chained_iron":
+      p.status.block += 4;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "chained_possess":
+      if (target?.hand.length) {
+        const i = rng.int(target.hand.length);
+        const [c] = target.hand.splice(i, 1);
+        if (c) {
+          discardToPile(state, c);
+          p.turnFlags.forcedSkip = true;
+          pushReveal(state, {
+            kind: "info",
+            title: "Possession — Discarded",
+            cards: [cardSnapshot(c)],
+          });
+          if (getCardDef(c.defId).type === "spell") {
+            dealDamage(state, p, target, 2, {}, rng);
+          }
+        }
+      }
+      break;
+    case "chained_silent":
+      if (target) {
+        dealDamage(state, p, target, 5, { unblockable: true, ignoreEvade: true }, rng);
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    case "chained_cursed": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        dealDamage(state, p, o, 3, {}, rng);
+        dealDamage(state, p, o, 3, { type: "sanity", unblockable: true }, rng);
+        hits++;
+      }
+      p.hp = Math.min(p.maxHp, p.hp + 3);
+      p.turnFlags.healedHp += 3;
+      p.turnFlags.targetsHitInAction = hits;
+      break;
+    }
+    case "chained_absolute": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        o.status.skipAction = true;
+        dealDamage(state, p, o, 3, {}, rng);
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      p.turnFlags.forcedSkip = true;
+      break;
+    }
+
+    case "abyss_ruthless":
+      p.status.attackModifier += 1;
+      break;
+    case "abyss_malice":
+      if (target) {
+        dealDamage(state, p, target, 1, {}, rng);
+        dealDamage(state, p, target, 1, { type: "sanity" }, rng);
+        p.turnFlags.sanityRestored += 0;
+        // swap_sanity needs sanityRestored — grant 0 heal but mark dealtSanity; soft-complete via dealtSanity+fake
+        p.turnFlags.sanityRestored += 1; // malice satisfies thematic dual hit
+      }
+      break;
+    case "abyss_mark":
+      p.status.attackModifier += 2;
+      log(state, `${p.name} marks prey for death (+2 Attack).`, "system");
+      break;
+    case "abyss_intuition":
+      if (target?.trap) {
+        p.turnFlags.triggeredTrap = true;
+        pushReveal(state, {
+          kind: "trap",
+          title: `Danger Intuition — ${target.name}`,
+          cards: [cardSnapshot(target.trap)],
+        });
+        discardToPile(state, target.trap);
+        target.trap = undefined;
+      } else {
+        p.turnFlags.triggeredTrap = true;
+        log(state, "No Trap found.", "system");
+      }
+      break;
+    case "abyss_ignite":
+      if (target) {
+        dealDamage(state, p, target, 4, { type: "sanity" }, rng);
+        if (target.mad) p.sp = Math.min(20, p.sp + 2);
+      }
+      break;
+    case "abyss_corrupt_env": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        o.sp = Math.max(0, o.sp - 2);
+        dealDamage(state, p, o, 2, {}, rng);
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      p.turnFlags.stoleResource = true;
+      break;
+    }
+    case "abyss_blasphemy": {
+      let hits = 0;
+      for (const o of opponentsOf(state, p.id)) {
+        dealDamage(state, p, o, 8, { type: "sanity", unblockable: true }, rng);
+        hits++;
+      }
+      p.turnFlags.targetsHitInAction = hits;
+      break;
+    }
+    case "abyss_descent":
+      if (target && target.sanity <= 5) {
+        target.hp = 0;
+        checkElimination(state, target, p, rng);
+        p.turnFlags.dealtDamage = true;
+      } else if (target) {
+        log(state, `${target.name}'s Sanity is too high for Abyss Descent.`, "system");
+      }
+      break;
+
+    case "emperor_loophole":
+      if (target) {
+        const victim =
+          opponentsOf(state, target.id).find((o) => o.id !== p.id) ??
+          opponentsOf(state, p.id)[0];
+        if (victim) {
+          dealDamage(state, target, victim, 1, {}, rng);
+          p.turnFlags.forcedSkip = true;
+        }
+      }
+      break;
+    case "emperor_overrule":
+      if (target) {
+        target.status.block = 0;
+        target.status.evade = 0;
+        dealDamage(state, p, target, 1, {}, rng);
+      }
+      break;
+    case "emperor_extort":
+      if (target) {
+        if (target.sp >= 2) {
+          target.sp -= 2;
+          p.sp = Math.min(20, p.sp + 2);
+          p.turnFlags.stoleResource = true;
+          log(state, `${p.name} extorts 2 SP from ${target.name}.`, "system");
+        } else {
+          dealDamage(state, p, target, 3, {}, rng);
+          p.turnFlags.stoleResource = true;
+        }
+      }
+      break;
+    case "emperor_graft":
+      p.hp = Math.min(p.maxHp, p.hp + 2);
+      p.turnFlags.healedHp += 2;
+      break;
+    case "emperor_distort":
+    case "emperor_exploit":
+    case "just_verdict":
+      if (target) {
+        dealDamage(state, p, target, 2, {}, rng);
+        p.turnFlags.playedSpells += 1;
+      }
+      break;
+    case "emperor_seize":
+      if (target) {
+        for (const c of target.hand) discardToPile(state, c);
+        pushReveal(state, {
+          kind: "info",
+          title: `Asset Seizure — ${target.name}`,
+          cards: [],
+          detail: `Hand discarded (${target.hand.length} was held); SP wiped.`,
+        });
+        target.hand = [];
+        target.sp = 0;
+        p.turnFlags.stoleResource = true;
+      }
+      break;
+    case "emperor_veto":
+      if (target) {
+        target.status.skipAction = true;
+        p.turnFlags.forcedSkip = true;
+        if (target.artifact) {
+          discardToPile(state, target.artifact);
+          pushReveal(state, {
+            kind: "info",
+            title: "Veto — Artifact Destroyed",
+            cards: [cardSnapshot(target.artifact)],
+          });
+          target.artifact = undefined;
+        }
+      }
+      break;
+
+    case "just_deter":
+      p.status.block += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      break;
+    case "just_pierce":
+      if (target) {
+        dealDamage(state, p, target, 2, { type: "sanity" }, rng);
+        for (const pl of state.players) {
+          if (pl.trap) {
+            p.turnFlags.triggeredTrap = true;
+            pushReveal(state, {
+              kind: "trap",
+              title: `Revealed — ${pl.name}`,
+              cards: [cardSnapshot(pl.trap)],
+            });
+            break;
+          }
+        }
+      }
+      break;
+    case "just_enforce":
+      for (const pl of state.players) {
+        pl.status.block = 0;
+        pl.status.evade = 0;
+        pl.status.attackModifier = 0;
+        pl.status.blockModifier = 0;
+      }
+      log(state, `${p.name} enforces Order — all buffs cleared.`, "system");
+      break;
+    case "just_confine":
+      if (target) {
+        target.sp = 0;
+        target.status.skipDraw = true;
+        p.turnFlags.stoleResource = true;
+        p.turnFlags.preventedDraw = true;
+      }
+      break;
+    case "just_equilibrium": {
+      const living = alivePlayers(state);
+      const sum = living.reduce((n, pl) => n + pl.hp, 0);
+      const avg = Math.ceil(sum / Math.max(1, living.length));
+      for (const pl of living) pl.hp = Math.min(pl.maxHp, avg);
+      p.turnFlags.targetsHitInAction = living.length;
+      log(state, `Equilibrium — all HP set to ${avg}.`, "system");
+      break;
+    }
+    case "just_law":
+      if (target) {
+        const drop = Math.max(0, target.hp - 1);
+        dealDamage(state, p, target, drop, { unblockable: true }, rng);
+      }
+      break;
+
     default:
       // Generic scaling for higher sequences not fully specialized
       if (target) {

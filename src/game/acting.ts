@@ -132,6 +132,16 @@ export function evaluateActing(player: PlayerState): boolean {
       return f.dealtDamage;
     case "look_hand":
       return f.lookedAtHand;
+    case "look_deck":
+      return f.lookedAtDeck;
+    case "sacrifice_hp":
+      return f.sacrificedHp;
+    case "sanity_for_cards":
+      return f.lostSanity && f.drewExtra;
+    case "lifesteal":
+      return f.dealtDamage && f.healedHp > 0;
+    case "heal_hp":
+      return f.healedHp > 0 || f.healedAlly;
     case "sanity_2":
       return f.dealtSanity;
     case "damage_or_block":
@@ -407,6 +417,22 @@ export function actingProgressItems(player: PlayerState): ActingProgressItem[] {
       break;
     case "look_hand":
       add("hand", "Look at an opponent's hand", f.lookedAtHand);
+      break;
+    case "look_deck":
+      add("deck", "Look at the top of the deck", f.lookedAtDeck);
+      break;
+    case "sacrifice_hp":
+      add("sac", "Sacrifice your HP", f.sacrificedHp);
+      break;
+    case "sanity_for_cards":
+      add("san", "Lose Sanity", f.lostSanity);
+      add("draw", "Draw cards", f.drewExtra);
+      break;
+    case "lifesteal":
+      add("ls", "Damage and heal", f.dealtDamage && f.healedHp > 0);
+      break;
+    case "heal_hp":
+      add("heal", "Heal HP", f.healedHp > 0 || f.healedAlly);
       break;
     case "sanity_2":
       add("san", "Deal Sanity damage", f.dealtSanity);

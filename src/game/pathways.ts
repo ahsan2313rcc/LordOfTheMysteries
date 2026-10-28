@@ -1,14 +1,12 @@
 import type { PathwayDef } from "./types";
+import { EXTRA_PATHWAYS } from "./pathways-extra";
 
 /**
- * Design notes baked into these 10 pathways:
- * - Each has a distinct resource axis (info, theft, heal-aggro, AoE, weapons,
- *   sanity, space, skip-control, discard, traps).
- * - Early abilities (9–7) are cheap engines; mid (6–4) change the board;
- *   high (3–1) are expensive finishers.
- * - Acting conditions force thematic play instead of "pay SP, win."
+ * All 22 Arcana Pathways.
+ * Early Sequences (9–7): completable via Sequence Ability (± Attack).
+ * Mid/high: harder sinks matching stronger abilities.
  */
-export const PATHWAYS: PathwayDef[] = [
+const CORE_PATHWAYS: PathwayDef[] = [
   {
     id: "fool",
     name: "The Fool",
@@ -1410,6 +1408,8 @@ export const PATHWAYS: PathwayDef[] = [
     ],
   },
 ];
+
+export const PATHWAYS: PathwayDef[] = [...CORE_PATHWAYS, ...EXTRA_PATHWAYS];
 
 export const INGREDIENT_NAMES: Record<string, string> = {
   C1: "Spirit Gold",

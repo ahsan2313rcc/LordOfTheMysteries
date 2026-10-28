@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { CardView } from "./CardView";
 import { PlayerPanel } from "./PlayerPanel";
+import { RevealModal } from "./RevealModal";
 
 type Screen = "title" | "setup" | "play" | "design";
 
@@ -69,6 +70,17 @@ export function GameApp() {
     setToast(msg);
     setTimeout(() => setToast(null), 2800);
   }
+
+  function dismissReveal() {
+    setState((prev) => {
+      if (!prev?.reveals?.length) return prev;
+      const next = structuredClone(prev);
+      next.reveals = next.reveals.slice(1);
+      return next;
+    });
+  }
+
+  const activeReveal = state?.reveals?.[0] ?? null;
 
   function startGame() {
     const pool = PATHWAYS.filter((p) => p.id !== pathwayId);
@@ -230,8 +242,9 @@ export function GameApp() {
             Choose Your Pathway
           </h2>
           <p className="mt-2 max-w-2xl text-sm text-stone-400">
-            Ten Arcana are playable in this build. Each has a unique SP curve, Sequence
-            abilities, Acting Conditions, and potion recipes.
+            All 22 Arcana Pathways are playable. Each has a unique SP curve, Sequence
+            abilities, Acting Conditions, and potion recipes. Peeks and steals open a reveal
+            panel so you can see exactly what happened.
           </p>
 
           <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -533,6 +546,10 @@ export function GameApp() {
         <div className="fixed bottom-40 left-1/2 z-40 -translate-x-1/2 rounded-full border border-amber-700/50 bg-stone-950 px-4 py-2 text-sm text-amber-100 shadow-xl">
           {toast}
         </div>
+      )}
+
+      {activeReveal && (
+        <RevealModal reveal={activeReveal} onDismiss={dismissReveal} />
       )}
     </main>
   );

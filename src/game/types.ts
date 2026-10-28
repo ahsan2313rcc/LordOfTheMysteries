@@ -197,6 +197,16 @@ export interface PlayerState {
   mad: boolean;
   universalReagent?: boolean;
   lastingBlock?: number; // Groselle etc.
+  /** Soft status from high abilities */
+  epidemicCurse?: boolean;
+  cannotHealNextBegin?: boolean;
+  drawPoison?: number;
+  doomCurse?: boolean;
+  fatalSafetyHp?: number; // if set, survive fatal at this HP once
+  reflectNextHit?: boolean;
+  ignoreArtifactDrawback?: boolean;
+  nextCardTax?: number;
+  markedBonusAttack?: number; // extra damage on next attack received from marker
 }
 
 export interface GameLogEntry {
@@ -218,6 +228,17 @@ export interface PendingChoice {
   meta?: Record<string, string | number | boolean>;
 }
 
+/** Pop-up intel for the human player (hand peeks, deck peeks, steals). */
+export interface RevealEvent {
+  id: string;
+  kind: "hand" | "deck" | "trap" | "steal" | "info";
+  title: string;
+  /** Whose private info was revealed (optional). */
+  subjectName?: string;
+  cards: { name: string; type: string; rarity: string; text: string }[];
+  detail?: string;
+}
+
 export interface GameState {
   players: PlayerState[];
   deck: CardInstance[];
@@ -232,6 +253,8 @@ export interface GameState {
     { hpTaken: boolean; sanityTaken: boolean }
   >;
   log: GameLogEntry[];
+  /** Latest reveals for UI modals (newest first). */
+  reveals: RevealEvent[];
   winnerId?: string;
   winReason?: "lastStanding" | "apotheosis";
   pending?: PendingChoice;
