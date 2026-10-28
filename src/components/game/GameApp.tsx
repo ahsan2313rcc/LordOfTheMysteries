@@ -48,7 +48,11 @@ export function GameApp() {
     if (cur.isHuman || !cur.alive) return;
     const t = setTimeout(() => {
       startTransition(() => {
-        setState((prev) => (prev ? { ...runAiTurn(prev) } : prev));
+        setState((prev) => {
+          if (!prev) return prev;
+          const next = structuredClone(prev);
+          return runAiTurn(next);
+        });
       });
     }, 700);
     return () => clearTimeout(t);
