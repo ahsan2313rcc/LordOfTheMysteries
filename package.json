@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:acting": "tsx scripts/test-acting.ts",
-    "test:passives": "tsx scripts/test-passives-acting.ts"
+    "test:passives": "tsx scripts/test-passives-acting.ts",
+    "sim:four": "tsx scripts/sim-four-player.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
@@ -31,6 +32,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }

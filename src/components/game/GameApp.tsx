@@ -655,8 +655,8 @@ function DesignNotes({ onBack }: { onBack: () => void }) {
               build uses pathway sheet gains for excitement at the top.
             </li>
             <li>
-              Hand limit 5 + multi-ingredient recipes is harsh — Potion Ingredients + Slumber
-              Charm are essential valves (kept).
+              Hand limit 7 + Potion Ingredients (wild commons in hand) keep mid/late recipes
+              payable; Slumber Charm still adds +2. Recipe scarcity remains the main pace brake.
             </li>
             <li>
               Spirit Entanglement, Rust & Ruin, Item Refinement, Wind Blade→top-deck are strong

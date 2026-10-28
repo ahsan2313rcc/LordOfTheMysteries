@@ -138,7 +138,8 @@ function makeCard(defId: string): CardInstance {
 }
 
 export function handLimit(p: PlayerState): number {
-  let lim = 5;
+  // Base 7 so mid/late recipes (4–5 ingredients) can be held without auto-discard.
+  let lim = 7;
   for (const c of p.charms) {
     const d = getCardDef(c.defId);
     lim += d.charm?.handLimitBonus ?? 0;
@@ -606,7 +607,29 @@ export function createGame(opts: {
   return state;
 }
 
+/** True when the match already ended (avoids TS narrowing after local phase assigns). */
+function isGameOver(state: GameState): boolean {
+  const phase: string = state.phase;
+  return phase === "gameover";
+}
+
+/** If only one (or zero) living players remain, lock the win immediately. */
+function ensureLastStanding(state: GameState) {
+  if (isGameOver(state)) return;
+  const living = alivePlayers(state);
+  if (living.length === 1) {
+    state.winnerId = living[0]!.id;
+    state.winReason = "lastStanding";
+    state.phase = "gameover";
+    log(state, `${living[0]!.name} is the Last One Standing!`, "ascend");
+  } else if (living.length === 0) {
+    state.phase = "gameover";
+    log(state, "All have fallen into the fog…", "system");
+  }
+}
+
 export function runBeginPhase(state: GameState, rng: Rng) {
+  if (isGameOver(state)) return;
   const p = currentPlayer(state);
   if (!p.alive) {
     advanceTurn(state, rng);
@@ -629,10 +652,12 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   if (p.epidemicCurse) {
     dealDamage(state, null, p, 2, { unblockable: true }, rng);
     log(state, `${p.name} suffers Epidemic curse.`, "damage");
+    if (isGameOver(state)) return;
   }
   if (p.doomCurse) {
     dealDamage(state, null, p, 2, { unblockable: true }, rng);
     p.sp = Math.max(0, p.sp - 1);
+    if (isGameOver(state)) return;
   }
   if (p.cannotHealNextBegin) {
     p.cannotHealNextBegin = false;
@@ -660,6 +685,7 @@ export function runBeginPhase(state: GameState, rng: Rng) {
         }
       }
     }
+    if (isGameOver(state)) return;
   }
   p.ignoreArtifactDrawback = false;
 
@@ -708,6 +734,7 @@ export function runBeginPhase(state: GameState, rng: Rng) {
         "system",
       );
       maybeTriggerTraps(state, p, "gainSp", rng);
+      if (isGameOver(state)) return;
     }
   }
   p.status.noPassiveSp = false;
@@ -725,7 +752,10 @@ export function runBeginPhase(state: GameState, rng: Rng) {
     // Deal base attack to all including self
     for (const t of alivePlayers(state)) {
       dealDamage(state, p, t, 1, {}, rng);
+      if (isGameOver(state)) return;
     }
+    ensureLastStanding(state);
+    if (isGameOver(state)) return;
     runEndPhase(state, rng);
     return;
   }
@@ -745,6 +775,7 @@ export function runBeginPhase(state: GameState, rng: Rng) {
       log(state, `${p.name} draws.`, "system");
     }
     p.status.skipDraw = false;
+    if (isGameOver(state)) return;
     runEndPhase(state, rng);
     return;
   }
@@ -759,14 +790,20 @@ export function runBeginPhase(state: GameState, rng: Rng) {
     log(state, `${p.name} draws ${1 + bonus}.`, "system");
   }
   p.status.skipDraw = false;
+  if (isGameOver(state)) return;
   state.phase = "action";
 }
 
 export function runEndPhase(state: GameState, rng: Rng) {
+  if (isGameOver(state)) return;
+  ensureLastStanding(state);
+  if (isGameOver(state)) return;
+
   const p = currentPlayer(state);
   state.phase = "end";
 
   maybeTriggerTraps(state, p, "endTurn", rng);
+  if (isGameOver(state)) return;
 
   // Reset temporary combat status
   p.status.block = 0;
@@ -779,12 +816,25 @@ export function runEndPhase(state: GameState, rng: Rng) {
   p.status.onceEvadeUsed = false;
   p.status.weaponDisabled = false;
 
-  // Hand limit
+  // Hand limit — discard non-recipe cards first when Acting is locked
   const lim = handLimit(p);
+  const recipe = matchRecipe(p);
+  const needed = new Set(recipe?.remaining ?? []);
   while (p.hand.length > lim) {
-    const card = p.hand.pop()!;
-    discardToPile(state, card);
-    log(state, `${p.name} discards down to ${lim}.`, "system");
+    let idx = p.hand.length - 1;
+    if (p.actingMet && needed.size > 0) {
+      const soft = p.hand.findIndex((c) => {
+        if (c.defId === "potion_ingredients") return false;
+        const ings = getCardDef(c.defId).ingredients;
+        return !ings.some((ing) => needed.has(ing));
+      });
+      if (soft >= 0) idx = soft;
+    }
+    const [card] = p.hand.splice(idx, 1);
+    if (card) {
+      discardToPile(state, card);
+      log(state, `${p.name} discards down to ${lim}.`, "system");
+    }
   }
 
   // Bank Acting progress across rounds — does NOT clear actingMet
@@ -803,7 +853,9 @@ export function runEndPhase(state: GameState, rng: Rng) {
 }
 
 function advanceTurn(state: GameState, rng: Rng) {
-  if (state.phase === "gameover") return;
+  if (isGameOver(state)) return;
+  ensureLastStanding(state);
+  if (isGameOver(state)) return;
   const n = state.players.length;
   for (let i = 0; i < n; i++) {
     state.currentPlayerIndex = (state.currentPlayerIndex + 1) % n;
@@ -2908,7 +2960,7 @@ export function attemptAscension(
 }
 
 export function endTurn(state: GameState, rng: Rng) {
-  if (state.phase === "gameover") return;
+  if (isGameOver(state)) return;
   runEndPhase(state, rng);
 }
 

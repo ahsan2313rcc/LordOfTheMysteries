@@ -552,9 +552,9 @@ export const CARD_DEFS: CardDef[] = [
     type: "charm",
     rarity: "common",
     spCost: 1,
-    text: "+0 Block. Hand limit 7.",
+    text: "+0 Block. Hand limit +2.",
     ingredients: ["C2", "C4", "C7"],
-    charm: { block: 0, perk: "Hand limit 7", handLimitBonus: 2 },
+    charm: { block: 0, perk: "Hand limit +2", handLimitBonus: 2 },
     effectId: "equip_charm",
   },
   {
@@ -881,6 +881,14 @@ export function getCardDef(id: string): CardDef {
 export function buildMainDeckCounts(): { defId: string; copies: number }[] {
   return CARD_DEFS.map((c) => ({
     defId: c.id,
-    copies: c.rarity === "rare" ? 1 : c.type === "artifact" ? 1 : 2,
+    // Potion Ingredients are the economy unlock for mid/late recipes — seed a few more.
+    copies:
+      c.id === "potion_ingredients"
+        ? 4
+        : c.rarity === "rare"
+          ? 1
+          : c.type === "artifact"
+            ? 1
+            : 2,
   }));
 }

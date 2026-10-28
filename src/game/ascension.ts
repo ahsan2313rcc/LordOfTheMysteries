@@ -34,8 +34,10 @@ export function matchRecipe(player: PlayerState): RecipeMatch | null {
   const discardInstanceIds: string[] = [];
   const used = new Set<string>();
 
+  // Exact ingredient matches first (save wild Potion Ingredients for leftovers).
   for (const card of player.hand) {
     if (remaining.length === 0) break;
+    if (card.defId === "potion_ingredients") continue;
     const ings = getCardDef(card.defId).ingredients;
     for (let r = remaining.length - 1; r >= 0; r--) {
       if (ings.includes(remaining[r]!) && !used.has(card.instanceId)) {
@@ -44,6 +46,23 @@ export function matchRecipe(player: PlayerState): RecipeMatch | null {
         used.add(card.instanceId);
         break;
       }
+    }
+  }
+
+  // Potion Ingredients in hand: any 2 Common slots (matches card text).
+  for (const card of player.hand) {
+    if (remaining.length === 0) break;
+    if (card.defId !== "potion_ingredients" || used.has(card.instanceId)) continue;
+    let filled = 0;
+    for (let r = remaining.length - 1; r >= 0 && filled < 2; r--) {
+      if (remaining[r]!.startsWith("C")) {
+        remaining.splice(r, 1);
+        filled++;
+      }
+    }
+    if (filled > 0) {
+      discardInstanceIds.push(card.instanceId);
+      used.add(card.instanceId);
     }
   }
 

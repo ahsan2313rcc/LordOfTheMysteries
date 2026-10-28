@@ -24,8 +24,14 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - In-app **Design Notes** with balance verdict and improvement suggestions
 
 ```bash
-npm run test:acting   # sticky Acting Condition regression tests
+npm run test:acting     # sticky Acting Condition regression tests
+npm run test:passives   # SP / HP / Sanity passives + early Acting
+npm run sim:four        # 24× auto 4-player games → length & economy metrics
 ```
+
+### Balance snapshot (4-player AI sims)
+
+Typical finished game: **~100–110 turns** (~25–28 full rounds), always ends by **Last Standing**. Critical economy bottleneck is **potion recipe assembly** (Acting locks easily; ingredients do not). Sanity tolls rarely block. Apotheosis (Seq 0) is rare in free-for-alls — combat resolves first.
 
 ## Stack
 
