@@ -67,6 +67,9 @@ export function PlayerPanel({
 
       <div className="mt-2 flex flex-wrap gap-1 text-[0.6rem] text-stone-400">
         {player.status.block > 0 && <Chip>Block {player.status.block}</Chip>}
+        {(player.lastingBlock ?? 0) > 0 && (
+          <Chip>Lasting {player.lastingBlock}</Chip>
+        )}
         {player.status.evade > 0 && <Chip>Evade {player.status.evade}</Chip>}
         {player.trap && <Chip>Trap set</Chip>}
         {player.weapon && <Chip>{getCardDef(player.weapon.defId).name}</Chip>}

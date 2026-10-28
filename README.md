@@ -16,9 +16,14 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - **10 playable Pathways:** Fool, Error, Sun, Tyrant, Twilight Giant, Visionary, Door, Darkness, Death, Red Priest
 - Full turn loop: Begin → Draw → Action (Standard / Sequence / Attack) → End
 - Card pool: Weapons, Spells, Utilities, Charms, Traps, Artifacts (revised 16C/4R spell & utility split)
-- Ascension with Acting Conditions, ingredient recipes, Sanity tolls
-- Madness, Block / Evade, traps as interrupts, AI opponents (1–3)
+- Ascension with **sticky Acting Conditions** (progress banks across turns until you drink), recipes, Sanity tolls
+- Artifact powers + Contention (steal)
+- Madness, Block / Evade, lasting Block, traps as interrupts, AI opponents (1–3)
 - In-app **Design Notes** with balance verdict and improvement suggestions
+
+```bash
+npm run test:acting   # sticky Acting Condition regression tests
+```
 
 ## Stack
 
