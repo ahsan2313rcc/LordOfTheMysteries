@@ -91,12 +91,71 @@ export function evaluateActing(player: PlayerState): boolean {
   const seq = getSequence(player.pathwayId, player.sequence);
   const f = actingView(player);
   switch (seq.actingId) {
+    // —— Early (9–7): completable via Sequence Ability ± Attack/card ——
     case "look_hand_and_deck":
       return f.lookedAtHand && f.lookedAtDeck;
-    case "evade_block_then_damage":
+    case "prepare_defense_and_damage":
       return f.evadedOrBlocked && f.dealtDamage;
+    case "evade_and_draw":
+      return f.evadedOrBlocked && f.drewExtra;
+    case "two_spells":
+      return f.playedSpells >= 2;
     case "two_spells_negate":
       return f.playedSpells >= 2 && f.negatedAttack;
+    case "gain_extra_card":
+      return f.drewExtra || f.cardsFromOpponent >= 1;
+    case "spend_other_resource":
+      return f.stoleResource;
+    case "peek_then_damage":
+      return (f.lookedAtHand || f.triggeredTrap) && f.dealtDamage;
+    case "buff_any":
+      return f.healedAlly;
+    case "buff_other":
+      return f.healedAlly;
+    case "spell_damage_2":
+      return f.dealtDamage && f.playedSpells >= 1;
+    case "restore_sanity_3":
+      return f.sanityRestored >= 3;
+    case "ability_or_damage":
+      return f.cardsPlayed >= 1 || f.dealtDamage || f.evadedOrBlocked;
+    case "rage_damage":
+      return f.dealtDamage && (f.sacrificedHp || player.hp < 10 || f.damagedWhileLowHp);
+    case "gain_block":
+      return f.evadedOrBlocked;
+    case "mastery_attack":
+      return f.attackedWithWeapon || (f.dealtDamage && f.spSpent >= 1);
+    case "weapon_attack":
+      return f.attackedWithWeapon;
+    case "cast_provoke":
+      return f.healedAlly || f.evadedOrBlocked || f.forcedSkip;
+    case "break_and_hit":
+      return f.dealtDamage;
+    case "look_hand":
+      return f.lookedAtHand;
+    case "sanity_2":
+      return f.dealtSanity;
+    case "damage_or_block":
+      return f.dealtDamage || f.evadedOrBlocked;
+    case "reorder_draw":
+      return f.lookedAtDeck && f.drewExtra;
+    case "quiet_night":
+      return f.cardsPlayed >= 1 && !f.attackedWithWeapon && !f.tookDamage;
+    case "swap_sanity":
+      return f.dealtSanity && f.sanityRestored >= 1;
+    case "force_skip":
+      return f.forcedSkip;
+    case "use_discard":
+      return f.usedDiscard;
+    case "voluntary_discard":
+      return f.discardedVoluntarily || f.healedHp > 0;
+    case "reveal_traps":
+      return f.triggeredTrap || f.lookedAtHand || f.witnessedSpellOrTrap;
+    case "taunt_disrupt":
+      return f.forcedSkip || f.stoleResource || f.dealtSanity || f.discardedVoluntarily;
+    case "unblockable_spell":
+      return f.playedSpells >= 1 && f.dealtDamage;
+
+    // —— Mid / high (harder sinks) ——
     case "copy_deal_damage":
       return f.copiedEffect && f.dealtDamage;
     case "force_damage":
@@ -111,8 +170,6 @@ export function evaluateActing(player: PlayerState): boolean {
       return f.survivedFatal;
     case "extra_cards_2":
       return f.drewExtra || f.cardsFromOpponent >= 1;
-    case "spend_other_resource":
-      return f.stoleResource;
     case "bypass_trap_damage":
       return f.triggeredTrap && f.dealtDamage;
     case "steal_heal":
@@ -127,16 +184,10 @@ export function evaluateActing(player: PlayerState): boolean {
       return f.stoleResource;
     case "play_5":
       return f.cardsPlayed >= 5;
-    case "buff_other":
-      return f.healedAlly;
-    case "spell_damage_2":
-      return f.dealtDamage && f.playedSpells >= 1;
-    case "restore_sanity_3":
-      return f.sanityRestored >= 3;
     case "negate_card":
       return f.negatedAttack || f.triggeredTrap;
     case "damage_mad":
-      return f.dealtDamage;
+      return f.dealtDamage && f.causedMadness >= 1;
     case "strip_2":
       return f.trapsDestroyed >= 2;
     case "reflect_exact":
@@ -163,12 +214,8 @@ export function evaluateActing(player: PlayerState): boolean {
       return f.damageDealtTotal >= 10;
     case "elim_unblockable":
       return f.dealtDamage;
-    case "weapon_attack":
-      return f.attackedWithWeapon;
     case "take_provoked":
       return f.tookDamage;
-    case "break_and_hit":
-      return f.dealtDamage;
     case "block_4":
       return f.evadedOrBlocked;
     case "survive_3_targets":
@@ -183,10 +230,8 @@ export function evaluateActing(player: PlayerState): boolean {
       return f.trapsDestroyed >= 1 || f.cardsPlayed >= 3;
     case "witness_trap_spell":
       return f.witnessedSpellOrTrap;
-    case "sanity_2":
-      return f.dealtSanity;
     case "heal_other_sanity":
-      return f.healedAlly && f.sanityRestored >= 1;
+      return f.sanityRestored >= 3;
     case "force_discard":
       return f.forcedSkip || f.discardedVoluntarily;
     case "sanity_full_hp":
@@ -201,10 +246,6 @@ export function evaluateActing(player: PlayerState): boolean {
       return f.forcedSkip;
     case "utility_and_draw":
       return f.playedUtility && f.drewExtra;
-    case "two_spells":
-      return f.playedSpells >= 2;
-    case "reorder_draw":
-      return f.lookedAtDeck && f.drewExtra;
     case "copy_spell":
       return f.copiedEffect;
     case "dodge_twice":
@@ -322,41 +363,85 @@ export function actingProgressItems(player: PlayerState): ActingProgressItem[] {
       add("hand", "Look at an opponent's hand", f.lookedAtHand);
       add("deck", "Look at the top of the deck", f.lookedAtDeck);
       break;
-    case "evade_block_then_damage":
-      add("evade", "Evade or Block an attack", f.evadedOrBlocked);
-      add("dmg", "Deal damage to an opponent", f.dealtDamage);
+    case "prepare_defense_and_damage":
+      add("evade", "Gain Evade/Block (Acrobatics counts)", f.evadedOrBlocked);
+      add("dmg", "Deal damage", f.dealtDamage);
       break;
-    case "two_spells_negate":
-      add("spells", `Play Spells/Abilities (${Math.min(2, f.playedSpells)}/2)`, f.playedSpells >= 2);
-      add("negate", "Negate an attack", f.negatedAttack);
+    case "evade_and_draw":
+      add("evade", "Gain Evade", f.evadedOrBlocked);
+      add("draw", "Draw a card", f.drewExtra);
       break;
-    case "weapon_attack":
-      add("wep", "Attack with a Weapon", f.attackedWithWeapon);
+    case "gain_extra_card":
+      add("extra", "Gain a card outside Draw Phase", f.drewExtra || f.cardsFromOpponent >= 1);
+      break;
+    case "spend_other_resource":
+      add("steal", "Drain an opponent's SP/cards", f.stoleResource);
+      break;
+    case "peek_then_damage":
+      add("peek", "Reveal hand or Traps", f.lookedAtHand || f.triggeredTrap);
+      add("dmg", "Deal damage", f.dealtDamage);
+      break;
+    case "buff_any":
+      add("buff", "Buff a player (Courage)", f.healedAlly);
+      break;
+    case "spell_damage_2":
+      add("spell", "Spell/Ability damage", f.playedSpells >= 1 && f.dealtDamage);
+      break;
+    case "restore_sanity_3":
+      add("san", `Restore Sanity (${Math.min(3, f.sanityRestored)}/3)`, f.sanityRestored >= 3);
+      break;
+    case "ability_or_damage":
+      add("act", "Use Balance or deal damage", f.cardsPlayed >= 1 || f.dealtDamage || f.evadedOrBlocked);
+      break;
+    case "rage_damage":
+      add("rage", "Deal damage after Rage / at low HP", evaluateActing(player));
+      break;
+    case "gain_block":
+      add("block", "Gain Block", f.evadedOrBlocked);
+      break;
+    case "mastery_attack":
+      add("atk", "Attack (Mastery or Weapon)", f.attackedWithWeapon || (f.dealtDamage && f.spSpent >= 1));
+      break;
+    case "cast_provoke":
+      add("prov", "Cast Provoke", f.forcedSkip || f.evadedOrBlocked);
+      break;
+    case "look_hand":
+      add("hand", "Look at an opponent's hand", f.lookedAtHand);
       break;
     case "sanity_2":
       add("san", "Deal Sanity damage", f.dealtSanity);
       break;
-    case "extra_cards_2":
-      add("extra", "Gain cards outside Draw Phase", f.drewExtra || f.cardsFromOpponent >= 1);
+    case "damage_or_block":
+      add("fx", "Deal damage or gain Block", f.dealtDamage || f.evadedOrBlocked);
       break;
-    case "utility_and_draw":
-      add("util", "Play a Utility", f.playedUtility);
-      add("draw", "Draw an extra card", f.drewExtra);
+    case "reorder_draw":
+      add("deck", "Reorder deck", f.lookedAtDeck);
+      add("draw", "Draw", f.drewExtra);
+      break;
+    case "quiet_night":
+      add("quiet", "Non-Weapon action, no damage taken", evaluateActing(player));
+      break;
+    case "swap_sanity":
+      add("drain", "Sanity damage", f.dealtSanity);
+      add("heal", "Restore your Sanity", f.sanityRestored >= 1);
+      break;
+    case "force_skip":
+      add("skip", "Force a skip", f.forcedSkip);
       break;
     case "use_discard":
-      add("disc", "Interact with the discard pile", f.usedDiscard);
+      add("disc", "Interact with discard", f.usedDiscard);
       break;
-    case "trap_interact":
-      add("trap", "Trigger or bypass a Trap", f.triggeredTrap);
+    case "voluntary_discard":
+      add("bury", "Bury/discard to heal", f.discardedVoluntarily || f.healedHp > 0);
       break;
-    case "spell_damage_2":
-      add("spell", "Play a Spell/Ability", f.playedSpells >= 1);
-      add("dmg", "Deal damage", f.dealtDamage);
+    case "reveal_traps":
+      add("track", "Reveal/track Traps", f.triggeredTrap || f.witnessedSpellOrTrap);
       break;
-    case "no_damage_no_weapon":
-      add("safe", "Take no damage this bank", !f.tookDamage);
-      add("nowep", "Use no Weapon", !f.attackedWithWeapon);
-      add("act", "Take at least one action", f.cardsPlayed >= 1);
+    case "taunt_disrupt":
+      add("taunt", "Disrupt with Taunt", evaluateActing(player));
+      break;
+    case "unblockable_spell":
+      add("fire", "Unblockable Spell/Ability damage", f.playedSpells >= 1 && f.dealtDamage);
       break;
     default:
       add("met", seq.actingCondition, evaluateActing(player));

@@ -226,7 +226,11 @@ export interface GameState {
   phase: Phase;
   actionsUsed: Record<ActionBucket, boolean>;
   turnNumber: number;
-  cycleDamage: Record<string, { dealt: boolean; taken: boolean; sanityLost: boolean; potion: boolean }>;
+  /** Tracks damage taken since last Begin recovery check (updated live). */
+  cycleDamage: Record<
+    string,
+    { hpTaken: boolean; sanityTaken: boolean }
+  >;
   log: GameLogEntry[];
   winnerId?: string;
   winReason?: "lastStanding" | "apotheosis";

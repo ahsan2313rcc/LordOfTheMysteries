@@ -242,6 +242,10 @@ export function dealDamage(
 
     target.hp = Math.max(0, target.hp - dmg);
     target.turnFlags.tookDamage = true;
+    if (!state.cycleDamage[target.id]) {
+      state.cycleDamage[target.id] = { hpTaken: false, sanityTaken: false };
+    }
+    state.cycleDamage[target.id]!.hpTaken = true;
     if (source) {
       source.turnFlags.dealtDamage = true;
       source.turnFlags.damageDealtTotal += dmg;
@@ -276,6 +280,10 @@ export function dealDamage(
   const wasSane = target.sanity > 0;
   target.sanity = Math.max(0, target.sanity - dmg);
   target.turnFlags.lostSanity = true;
+  if (!state.cycleDamage[target.id]) {
+    state.cycleDamage[target.id] = { hpTaken: false, sanityTaken: false };
+  }
+  state.cycleDamage[target.id]!.sanityTaken = true;
   if (source) {
     source.turnFlags.dealtDamage = true;
     source.turnFlags.dealtSanity = true;
@@ -495,11 +503,9 @@ export function createGame(opts: {
     phase: "begin",
     actionsUsed: { standard: false, sequence: false, attack: false },
     turnNumber: 1,
+    // Seed as "taken" so the opening Begin does not grant free recovery.
     cycleDamage: Object.fromEntries(
-      players.map((p) => [
-        p.id,
-        { dealt: false, taken: false, sanityLost: false, potion: false },
-      ]),
+      players.map((p) => [p.id, { hpTaken: true, sanityTaken: true }]),
     ),
     log: [],
     seed,
@@ -574,32 +580,35 @@ export function runBeginPhase(state: GameState, rng: Rng) {
     }
   }
 
-  // Passive recovery from last cycle
-  const cycle = state.cycleDamage[p.id];
-  if (cycle) {
-    if (!cycle.dealt && !cycle.taken) {
-      p.hp = Math.min(p.maxHp, p.hp + 1);
-      log(state, `${p.name} recovers 1 HP (peaceful cycle).`, "heal");
-    }
-    if (!cycle.sanityLost && !cycle.potion) {
-      p.sanity = Math.min(20, p.sanity + 1);
-      updateMadness(p, state);
-      log(state, `${p.name} steadies 1 Sanity.`, "heal");
-    }
+  // Passive recovery: HP if no HP taken; Sanity if no Sanity taken (full cycle).
+  const cycle = state.cycleDamage[p.id] ?? { hpTaken: false, sanityTaken: false };
+  if (!cycle.hpTaken) {
+    p.hp = Math.min(p.maxHp, p.hp + 1);
+    log(state, `${p.name} recovers 1 HP (no HP damage last cycle).`, "heal");
   }
-  state.cycleDamage[p.id] = {
-    dealt: false,
-    taken: false,
-    sanityLost: false,
-    potion: false,
-  };
+  if (!cycle.sanityTaken) {
+    p.sanity = Math.min(20, p.sanity + 1);
+    updateMadness(p, state);
+    log(state, `${p.name} steadies 1 Sanity (no Sanity damage last cycle).`, "heal");
+  }
+  state.cycleDamage[p.id] = { hpTaken: false, sanityTaken: false };
 
-  // SP generation
-  if (!p.status.noPassiveSp) {
-    const gain = spGainFor(p.pathwayId, p.sequence);
-    p.sp = Math.min(20, p.sp + gain);
-    log(state, `${p.name} generates ${gain} SP (Seq ${p.sequence}).`, "system");
-    maybeTriggerTraps(state, p, "gainSp", rng);
+  // Always generate SP from Pathway Sequence (Spirit Bullet may still tax via status).
+  {
+    let gain = spGainFor(p.pathwayId, p.sequence);
+    if (p.status.noPassiveSp) {
+      gain = Math.max(0, gain - 1);
+      log(state, `${p.name}'s Spirit is strained (−1 SP generation).`, "system");
+    }
+    if (gain > 0) {
+      p.sp = Math.min(20, p.sp + gain);
+      log(
+        state,
+        `${p.name} generates ${gain} SP (${getPathway(p.pathwayId).name} Seq ${p.sequence}).`,
+        "system",
+      );
+      maybeTriggerTraps(state, p, "gainSp", rng);
+    }
   }
   p.status.noPassiveSp = false;
 
@@ -669,13 +678,6 @@ export function runEndPhase(state: GameState, rng: Rng) {
   p.status.damageShareWith = undefined;
   p.status.onceEvadeUsed = false;
   p.status.weaponDisabled = false;
-
-  // Record cycle flags
-  const cyc = state.cycleDamage[p.id]!;
-  cyc.dealt = p.turnFlags.dealtDamage;
-  cyc.taken = p.turnFlags.tookDamage;
-  cyc.sanityLost = p.turnFlags.lostSanity;
-  cyc.potion = p.turnFlags.drankPotion;
 
   // Hand limit
   const lim = handLimit(p);
@@ -1497,39 +1499,53 @@ function resolveAbility(
       break;
     case "fool_acrobatics":
       p.status.evade += 1;
+      p.turnFlags.evadedOrBlocked = true; // prepared defense counts for Acting
       break;
     case "fool_paper":
       p.status.evade += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      p.turnFlags.playedSpells += 1;
       drawCards(state, p, 1, rng, true);
       break;
     case "error_sleight":
       if (target?.hand.length) {
         const i = rng.int(target.hand.length);
         const [c] = target.hand.splice(i, 1);
-        if (c) p.hand.push(c);
+        if (c) {
+          p.hand.push(c);
+          p.turnFlags.cardsFromOpponent += 1;
+        }
         p.turnFlags.drewExtra = true;
+        p.turnFlags.stoleResource = true;
         log(state, `${p.name} steals a card from ${target.name}.`, "system");
+      } else {
+        drawCards(state, p, 1, rng, true);
+        log(state, `${p.name}'s Sleight finds nothing — draws from the deck instead.`, "system");
       }
       break;
     case "error_fraud":
-      if (target && target.sp > 0) {
-        const take = Math.min(2, target.sp);
+      if (target) {
+        const take = Math.min(2, Math.max(0, target.sp));
         target.sp -= take;
         p.sp = Math.min(20, p.sp + take);
+        p.turnFlags.stoleResource = true;
         log(state, `${p.name} fraudulently drains ${take} SP.`, "system");
       }
       break;
     case "error_decrypt":
       p.turnFlags.lookedAtHand = true;
       for (const pl of state.players) {
-        if (pl.trap)
+        if (pl.trap) {
+          p.turnFlags.triggeredTrap = true;
           log(state, `Trap on ${pl.name}: ${getCardDef(pl.trap.defId).name}`, "system");
+        }
       }
       break;
     case "sun_courage":
       if (target) {
         target.status.attackModifier += 1;
-        if (target.id !== p.id) p.turnFlags.healedAlly = true;
+        p.turnFlags.healedAlly = true; // buff always completes Seq 9 Acting
+        log(state, `${p.name} inspires ${target.name} (+1 Attack).`, "heal");
       }
       break;
     case "sun_light":
@@ -1541,19 +1557,24 @@ function resolveAbility(
     case "sun_purify":
       if (target) {
         target.sanity = Math.min(20, target.sanity + 3);
+        p.turnFlags.sanityRestored += 3;
         updateMadness(target, state);
-        if (target.id !== p.id) p.turnFlags.healedAlly = true;
+        p.turnFlags.healedAlly = true;
       }
       break;
     case "tyrant_balance":
-      log(state, `${p.name} finds Balance against traps.`, "system");
+      p.status.block += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      log(state, `${p.name} finds Balance — gains 1 Block, ignores Traps.`, "system");
       break;
     case "tyrant_rage":
       p.status.attackModifier += 2;
+      p.turnFlags.sacrificedHp = true;
       dealDamage(state, p, p, 1, { unblockable: true }, rng);
       break;
     case "tyrant_shield":
       p.status.block += 3;
+      p.turnFlags.evadedOrBlocked = true;
       break;
     case "tyrant_gale":
       drawCards(state, p, 2, rng, true);
@@ -1570,8 +1591,12 @@ function resolveAbility(
       break;
     case "giant_mastery":
       p.status.attackModifier += 1;
+      log(state, `${p.name}'s Weapon Mastery empowers the next attack.`, "system");
       break;
     case "giant_provoke":
+      p.status.block += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      p.turnFlags.forcedSkip = true; // marked a foe — Acting complete
       if (target) log(state, `${target.name} is Provoked into attacking ${p.name}.`, "system");
       break;
     case "giant_shatter":
@@ -1600,8 +1625,9 @@ function resolveAbility(
     case "vis_placate":
       if (target) {
         target.sanity = Math.min(20, target.sanity + 3);
+        p.turnFlags.sanityRestored += 3;
         updateMadness(target, state);
-        if (target.id !== p.id) p.turnFlags.healedAlly = true;
+        p.turnFlags.healedAlly = true;
       }
       break;
     case "vis_hypnosis":
@@ -1625,8 +1651,12 @@ function resolveAbility(
       }
       break;
     case "door_trick":
-      if (rng.next() > 0.5 && target) dealDamage(state, p, target, 1, {}, rng);
-      else p.status.block += 1;
+      if (rng.next() > 0.5 && target) {
+        dealDamage(state, p, target, 1, {}, rng);
+      } else {
+        p.status.block += 1;
+        p.turnFlags.evadedOrBlocked = true;
+      }
       p.turnFlags.playedSpells += 1;
       break;
     case "door_star":
@@ -1640,11 +1670,14 @@ function resolveAbility(
       break;
     case "dark_vision":
       p.status.stunned = false;
+      // Quiet night: Sequence Ability itself is a non-Weapon action
+      log(state, `${p.name} watches through the night, immune to Stun.`, "system");
       break;
     case "dark_lullaby":
       if (target) {
         dealDamage(state, p, target, 1, { type: "sanity" }, rng);
         p.sanity = Math.min(20, p.sanity + 1);
+        p.turnFlags.sanityRestored += 1;
         updateMadness(p, state);
       }
       break;
@@ -1665,6 +1698,9 @@ function resolveAbility(
       if (state.discard.length) {
         const c = state.discard.pop()!;
         state.deck.unshift(c);
+        log(state, `${p.name} scavenges the discard into the deck's depths.`, "system");
+      } else {
+        log(state, `${p.name} scavenges an empty grave — the ritual still counts.`, "system");
       }
       break;
     case "death_bury":
@@ -1672,6 +1708,12 @@ function resolveAbility(
         discardToPile(state, p.hand.pop()!);
         p.turnFlags.discardedVoluntarily = true;
         p.hp = Math.min(p.maxHp, p.hp + 2);
+        p.turnFlags.healedHp += 2;
+      } else {
+        p.hp = Math.min(p.maxHp, p.hp + 1);
+        p.turnFlags.healedHp += 1;
+        p.turnFlags.discardedVoluntarily = true;
+        log(state, `${p.name} buries nothing but still knits flesh (+1 HP).`, "heal");
       }
       break;
     case "death_seance": {
@@ -1680,28 +1722,45 @@ function resolveAbility(
       if (idx >= 0) {
         const [c] = state.discard.splice(idx, 1);
         if (c) {
+          p.turnFlags.discardCardsPlayed += 1;
           resolveCardEffect(state, p, c, getCardDef(c.defId).effectId, target, rng);
         }
+      } else {
+        log(state, `${p.name}'s Seance finds no Utility — contact with discard still counts.`, "system");
       }
       break;
     }
     case "priest_track":
-      for (const pl of state.players) {
-        if (pl.trap)
-          log(state, `${pl.name}'s Trap: ${getCardDef(pl.trap.defId).name}`, "system");
+      p.turnFlags.witnessedSpellOrTrap = true;
+      p.turnFlags.triggeredTrap = true;
+      {
+        let found = false;
+        for (const pl of state.players) {
+          if (pl.trap) {
+            found = true;
+            log(state, `${pl.name}'s Trap: ${getCardDef(pl.trap.defId).name}`, "system");
+          }
+        }
+        if (!found) log(state, `${p.name} tracks the field — no Traps visible.`, "system");
       }
       break;
     case "priest_taunt":
-      if (target?.hand.length) {
+      if (target) {
         const spellIdx = target.hand.findIndex((c) => getCardDef(c.defId).type === "spell");
         if (spellIdx >= 0) {
           const [c] = target.hand.splice(spellIdx, 1);
           if (c) discardToPile(state, c);
+          p.turnFlags.forcedSkip = true;
+        } else {
+          dealDamage(state, p, target, 1, { type: "sanity", unblockable: true }, rng);
         }
       }
       break;
     case "priest_fire":
-      if (target) dealDamage(state, p, target, 3, { unblockable: true }, rng);
+      if (target) {
+        dealDamage(state, p, target, 3, { unblockable: true }, rng);
+        p.turnFlags.playedSpells += 1;
+      }
       break;
     case "priest_cull":
       if (target && target.hp <= 10) dealDamage(state, p, target, 5, {}, rng);
