@@ -48,9 +48,9 @@ export function PlayerPanel({
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          {player.mad && (
+          {(player.sanityBroken || player.mad) && (
             <span className="rounded bg-rose-900/80 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wide text-rose-100">
-              Mad
+              {player.sanityBroken ? "Lost" : "Mad"}
             </span>
           )}
           {concealment && (

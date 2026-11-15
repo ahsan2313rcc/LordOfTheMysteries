@@ -1,15 +1,17 @@
 /**
  * Cards must do what their text says. Run: npx tsx scripts/test-card-fidelity.ts
  */
-import { getCardDef } from "../src/game/cards";
+import { CARD_DEFS, getCardDef } from "../src/game/cards";
 import {
   activateArtifactPower,
   createGame,
   currentPlayer,
+  endTurn,
   performAttack,
   playCardFromHand,
   getRng,
 } from "../src/game/engine";
+import { PATHWAYS } from "../src/game/pathways";
 import type { GameState, PlayerState } from "../src/game/types";
 
 let failed = 0;
@@ -137,6 +139,66 @@ function give(state: GameState, p: PlayerState, defId: string) {
   const swing = performAttack(state, foe.id, getRng(state));
   check("attacking an exposed player is legal", swing.ok, swing.error);
   check("the attacker is now exposed", !!me.revealed);
+}
+
+{
+  const multi = CARD_DEFS.filter(
+    (c) => c.id !== "potion_ingredients" && c.id !== "major_arcana" && c.ingredients.length !== 1,
+  );
+  check("every card is a single ingredient", multi.length === 0, multi.map((c) => c.id).join(","));
+  let overlap = "";
+  for (const pathway of PATHWAYS) {
+    const rows = [...pathway.sequences].filter((s) => s.sequence > 0).sort((a, b) => b.sequence - a.sequence);
+    for (let i = 0; i < rows.length - 1; i++) {
+      const a = new Set(rows[i]!.recipe);
+      const shared = rows[i + 1]!.recipe.filter((tag) => a.has(tag));
+      if (shared.length) overlap += `${pathway.id} ${rows[i]!.sequence}/${rows[i + 1]!.sequence} `;
+    }
+  }
+  check("consecutive sequences share no ingredients", overlap === "", overlap);
+}
+
+{
+  const { state, me, foe } = boot();
+  const myHp = me.hp;
+  const foeHp = foe.hp;
+  foe.sanity = 1;
+  me.sp = 5;
+  const card = give(state, me, "mental_piercing");
+  const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
+  check("sanity damage can break", played.ok && !!foe.sanityBroken && foe.alive, played.error);
+  endTurn(state, getRng(state));
+  check("broken body hits the survivor", me.hp === myHp - 1, String(me.hp));
+  check("broken body hits itself", foe.alive && foe.hp === foeHp - 1, String(foe.hp));
+  check("the match continues while the body stands", state.phase !== "gameover");
+}
+
+{
+  const { state, me, foe } = boot();
+  foe.sanity = 1;
+  foe.charms.push({ instanceId: "cog", defId: "cogitation" });
+  me.sp = 5;
+  const card = give(state, me, "mental_piercing");
+  playCardFromHand(state, card.instanceId, foe.id, getRng(state));
+  check("cogitation holds the first break at 1", foe.sanity === 1 && !foe.sanityBroken, String(foe.sanity));
+}
+
+{
+  const { state, me, foe } = boot();
+  foe.weapon = { instanceId: "rare-w", defId: "creeping_hunger" };
+  foe.charms.push({ instanceId: "common-c", defId: "sunbird" });
+  me.sp = 10;
+  const bribe = give(state, me, "bribe");
+  playCardFromHand(state, bribe.instanceId, foe.id, getRng(state));
+  check("bribe takes the common charm", foe.charms.length === 0 && foe.weapon?.defId === "creeping_hunger");
+  check("bribe does not give a card back", !foe.hand.some((c) => c.defId === "sunbird"));
+  state.actionsUsed.standard = false;
+  const theft = give(state, me, "errors_theft");
+  playCardFromHand(state, theft.instanceId, foe.id, getRng(state));
+  check(
+    "error's theft takes the rare weapon",
+    !foe.weapon && me.hand.some((c) => c.defId === "creeping_hunger"),
+  );
 }
 
 console.log(failed ? `\n${failed} fidelity checks failed` : "\nAll card fidelity checks passed.");

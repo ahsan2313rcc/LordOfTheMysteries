@@ -7,6 +7,7 @@ import {
   emptyFlags,
   evaluateActing,
 } from "../src/game/acting";
+import { CARD_DEFS } from "../src/game/cards";
 import {
   attemptAscension,
   castSequenceAbility,
@@ -16,6 +17,7 @@ import {
   getRng,
   performAttack,
 } from "../src/game/engine";
+import { getSequence } from "../src/game/pathways";
 
 function assert(cond: unknown, msg: string) {
   if (!cond) throw new Error(`FAIL: ${msg}`);
@@ -86,11 +88,12 @@ console.log("Ascension clears bank");
   p.actingBank.attackedWithWeapon = true;
   p.sp = 10;
   p.sanity = 20;
-  // Seq 8 Gladiator recipe: C6 + C8
-  p.hand = [
-    { instanceId: "a", defId: "executioners_axe" }, // has C6
-    { instanceId: "b", defId: "requiem_charm" }, // has C8
-  ];
+  const recipe = getSequence("giant", 8).recipe;
+  p.hand = recipe.map((tag, i) => {
+    const def = CARD_DEFS.find((c) => c.ingredients.length === 1 && c.ingredients[0] === tag);
+    if (!def) throw new Error(`no card for ${tag}`);
+    return { instanceId: `ing-${i}`, defId: def.id };
+  });
   const before = p.sanity;
   const r = attemptAscension(state, getRng(state));
   assert(r.ok, `ascend ok (${r.error ?? "ok"})`);

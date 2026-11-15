@@ -1,6 +1,6 @@
 # Lord of the Mysteries: Ascension
 
-A browser card-game prototype inspired by *Lord of the Mysteries*: choose a Pathway, manage HP / Sanity / Spirituality, drink potions to climb Sequences, and win by **Last Man Standing** or **Apotheosis** (Sequence 0).
+A browser card-game prototype inspired by *Lord of the Mysteries*: choose a Pathway, manage HP / Sanity / Spirituality, drink potions to climb Sequences, and win by **Last Man Standing**, **Apotheosis** (Sequence 0), or by driving an opponent to **0 Sanity**.
 
 ## Play on Render
 
@@ -30,7 +30,11 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). Spirituality pays for cards: commons 1, rares 4, artifacts 6. The basic attack is free.
 - Passive recovery: +1 HP if no HP taken, +1 Sanity if no Sanity taken, SP every turn from Pathway/Seq
 - Artifact powers + Contention (steal)
-- Madness, Block / Evade, lasting Block, traps as interrupts, AI opponents (1–3)
+- 0 Sanity removes you as a contender. The body deals 1 HP to everyone, including itself, until that HP is gone.
+- A Sequence lead does not win. It pays more Spirituality each Begin and unlocks a stronger ability.
+- Potion recipes alternate two ingredient sets, and each card is a single ingredient. Potion Ingredients fills one common slot.
+- Bribe steals a common equipped piece. Error's Theft steals the best equipped piece, rares first.
+- Block / Evade, lasting Block, traps as interrupts, AI opponents (1–3)
 - In-app **Design Notes** with balance verdict and improvement suggestions
 
 ```bash

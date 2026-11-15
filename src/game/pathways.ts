@@ -1,4 +1,4 @@
-import type { PathwayDef } from "./types";
+import type { Ingredient, PathwayDef } from "./types";
 import { EXTRA_PATHWAYS } from "./pathways-extra";
 
 /**
@@ -1410,6 +1410,38 @@ const CORE_PATHWAYS: PathwayDef[] = [
 ];
 
 export const PATHWAYS: PathwayDef[] = [...CORE_PATHWAYS, ...EXTRA_PATHWAYS];
+
+/**
+ * Odd sequences (9, 7, 5, 3, 1) and even sequences draw from two disjoint sets,
+ * so two potions in a row never share an ingredient. Pathways rotate which
+ * slice of the set they ask for, but the tags themselves live on the shared deck.
+ */
+const ODD_INGREDIENTS: Ingredient[] = ["C1", "C2", "C3", "C4", "R1"];
+const EVEN_INGREDIENTS: Ingredient[] = ["C5", "C6", "C7", "C8", "R2"];
+const RECIPE_LENGTH: Record<number, number> = {
+  9: 2,
+  8: 2,
+  7: 3,
+  6: 3,
+  5: 4,
+  4: 3,
+  3: 4,
+  2: 5,
+  1: 5,
+};
+
+for (const [pi, pathway] of PATHWAYS.entries()) {
+  for (const seq of pathway.sequences) {
+    if (seq.sequence <= 0) {
+      seq.recipe = [];
+      continue;
+    }
+    const pool = seq.sequence % 2 === 1 ? ODD_INGREDIENTS : EVEN_INGREDIENTS;
+    const n = RECIPE_LENGTH[seq.sequence] ?? 2;
+    const start = (pi * 3 + seq.sequence) % pool.length;
+    seq.recipe = Array.from({ length: n }, (_, k) => pool[(start + k) % pool.length]!);
+  }
+}
 
 export const INGREDIENT_NAMES: Record<string, string> = {
   C1: "Spirit Gold",

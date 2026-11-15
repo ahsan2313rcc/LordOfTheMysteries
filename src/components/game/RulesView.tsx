@@ -74,8 +74,10 @@ export function RulesView({ onBack }: { onBack: () => void }) {
               <strong className="text-stone-100">Drink a potion</strong> when your Acting Condition
               is locked and the recipe is in hand. Potions cost no Sanity. Show those cards to
               every player; they stay in your hand, marked as revealed, and can be played or shown
-              again. Drinking does not spend the Sequence action, so you may cast and drink on the
-              same turn. Acting progress sticks until you drink, then resets for the new Sequence.
+              again. The next sequence asks for none of the same ingredients, and each card is only
+              one ingredient, so the cards you just showed cannot pay the following potion. Drinking
+              does not spend the Sequence action, so you may cast and drink on the same turn. Acting
+              progress sticks until you drink, then resets for the new Sequence.
             </li>
           </ul>
         </section>
@@ -84,9 +86,20 @@ export function RulesView({ onBack }: { onBack: () => void }) {
           <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-200">Sanity and Madness</h2>
           <p className="text-sm leading-relaxed">
             Paying for your ability lowers Sanity, and it does not count as being hit, so the Begin
-            recovery can refill you when opponents leave your mind alone. At 0 Sanity you are Mad:
-            you skip your draw and your actions, discard a card, and lash out at everyone, including
-            yourself.
+            recovery can refill you when opponents leave your mind alone. At 0 Sanity you lose.
+            You are no longer a contender: no draw, no cards, no potion. On each of your Begin
+            phases the body deals 1 unblockable HP to every living player, including itself, until
+            that HP reaches 0. A survivor still has to put the body down or keep taking the hit.
+            Cogitation Technique stops the first break and leaves you at 1 Sanity.
+          </p>
+        </section>
+
+        <section className="space-y-2">
+          <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-200">Sequence</h2>
+          <p className="text-sm leading-relaxed">
+            Being deeper than your opponent does not win the match. Each step down grants more
+            Spirituality at the start of your turn — 1 at Sequence 9–8, then 2, 3, 4, and 5 as you
+            descend — and replaces your ability with a stronger one. Sequence 0 is still Apotheosis.
           </p>
         </section>
 
@@ -121,7 +134,15 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             <li>Weapons, charms, and artifacts stay equipped. A new one of the same kind replaces the old.</li>
             <li>Traps sit face down and interrupt the printed moment: an attack, a spell, an equip, a potion.</li>
             <li>Hand limit is 7. Extra cards discard at the end of your turn. Slumber Charm raises the limit by 2.</li>
-            <li>Potion Ingredients in hand fill up to two common recipe slots.</li>
+            <li>
+              Each card is one potion ingredient. Odd sequences use Spirit Gold, Nightmare Grass,
+              Astral Crystal, Deep Sea Amber, and Transcendent Core. Even sequences use the other
+              five. Two steps in a row never share a material. Potion Ingredients fills one common slot.
+            </li>
+            <li>
+              Bribe steals a common equipped Weapon or Charm. Error&apos;s Theft steals the best
+              equipped piece, rares before commons, into your hand.
+            </li>
           </ul>
         </section>
       </article>

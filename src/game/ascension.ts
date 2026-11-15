@@ -49,12 +49,12 @@ export function matchRecipe(player: PlayerState): RecipeMatch | null {
     }
   }
 
-  // Potion Ingredients in hand: any 2 Common slots (matches card text).
+  // Potion Ingredients in hand: one Common slot (matches card text).
   for (const card of player.hand) {
     if (remaining.length === 0) break;
     if (card.defId !== "potion_ingredients" || used.has(card.instanceId)) continue;
     let filled = 0;
-    for (let r = remaining.length - 1; r >= 0 && filled < 2; r--) {
+    for (let r = remaining.length - 1; r >= 0 && filled < 1; r--) {
       if (remaining[r]!.startsWith("C")) {
         remaining.splice(r, 1);
         filled++;

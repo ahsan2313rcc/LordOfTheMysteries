@@ -1,4 +1,4 @@
-import type { CardDef } from "./types";
+import type { CardDef, Ingredient } from "./types";
 
 /** Playable main deck — revised 16C/4R Spells & Utilities, plus weapons/charms/traps/artifacts. */
 export const CARD_DEFS: CardDef[] = [
@@ -278,7 +278,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "spell",
     rarity: "common",
     spCost: 1,
-    text: "Take their Weapon/Charm; give them one of yours from hand if able.",
+    text: "Steal a common Weapon or Charm they have equipped. A Weapon is taken first. Rare pieces stay put.",
     ingredients: ["C3", "C7", "C8"],
     effectId: "bribe",
   },
@@ -318,7 +318,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "spell",
     rarity: "rare",
     spCost: 4,
-    text: "Steal 1 active Charm/Weapon into your hand.",
+    text: "Steal their best equipped piece into your hand: rare Weapon, then Artifact, then rare Charm, then a common piece.",
     ingredients: ["C6", "C7", "C8", "R2"],
     effectId: "errors_theft",
   },
@@ -380,8 +380,8 @@ export const CARD_DEFS: CardDef[] = [
     type: "utility",
     rarity: "common",
     spCost: 1,
-    text: "Counts as any 2 Common ingredients for Ascension.",
-    ingredients: ["C2", "C4", "C5", "R1"],
+    text: "Counts as any 1 Common ingredient for Ascension.",
+    ingredients: [],
     effectId: "potion_ingredients",
   },
   {
@@ -645,12 +645,12 @@ export const CARD_DEFS: CardDef[] = [
     type: "charm",
     rarity: "rare",
     spCost: 4,
-    text: "+1 Sanity Block. Immune to Madness at 0 Sanity.",
+    text: "+1 Sanity Block. The first time you would fall to 0 Sanity, remain at 1 instead.",
     ingredients: ["C2", "C5", "C8"],
     charm: {
       block: 0,
       sanityBlock: 1,
-      perk: "Madness immune",
+      perk: "Once, hold at 1 Sanity",
       madnessImmune: true,
     },
     effectId: "equip_charm",
@@ -881,6 +881,21 @@ export const CARD_DEFS: CardDef[] = [
     effectId: "reveal_arcana",
   },
 ];
+
+// One ingredient identity per card. A multi-tag card plus reveal-and-keep
+// let the same hand pay every sequence. Potion Ingredients is the only wildcard.
+const INGREDIENT_CYCLE: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "R1", "R2"];
+{
+  let cursor = 0;
+  for (const card of CARD_DEFS) {
+    if (card.id === "potion_ingredients" || card.id === "major_arcana") {
+      card.ingredients = [];
+      continue;
+    }
+    card.ingredients = [INGREDIENT_CYCLE[cursor % INGREDIENT_CYCLE.length]!];
+    cursor += 1;
+  }
+}
 
 export function getCardDef(id: string): CardDef {
   const c = CARD_DEFS.find((x) => x.id === id);

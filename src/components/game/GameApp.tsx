@@ -397,6 +397,13 @@ export function GameApp() {
           </p>
         </div>
       )}
+      {state.phase === "gameover" && !winner && (
+        <div className="relative z-20 mx-4 mt-4 rounded-xl border border-rose-500/50 bg-rose-950/40 p-4 text-center">
+          <p className="font-[family-name:var(--font-display)] text-2xl text-rose-100">
+            Madness takes the board. No contender remains.
+          </p>
+        </div>
+      )}
 
       <div className="relative z-10 mx-auto grid min-h-0 w-full max-w-[90rem] flex-1 gap-3 overflow-hidden px-3 py-3 lg:grid-cols-[minmax(0,1fr)_300px]">
         <section className="min-h-0 space-y-3 overflow-y-auto pr-1">
@@ -466,7 +473,7 @@ export function GameApp() {
                 </p>
                 <p className="mt-1 text-[0.65rem] text-stone-400">
                   Recipe: {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ")} · No Sanity toll.
-                  Reveal the cards to the table; they stay in hand. You may drink and cast in the same turn.
+                  Reveal the cards; they stay in hand. The next sequence uses different ingredients.
                 </p>
                 <p
                   className={cn(
@@ -514,7 +521,17 @@ export function GameApp() {
           <ActionChip label="Standard" used={state.actionsUsed.standard} extra={state.extraStandard} />
           <ActionChip label="Sequence" used={state.actionsUsed.sequence} />
           <ActionChip label="Attack" used={state.actionsUsed.attack} />
-          {myTurn && (
+          {myTurn && human.sanityBroken && (
+            <>
+              <p className="text-xs text-rose-200">
+                You are lost. End the turn. The body strikes for 1 HP on each of your Begins until your HP is gone.
+              </p>
+              <Button size="sm" variant="ghost" onClick={onEnd}>
+                End Turn
+              </Button>
+            </>
+          )}
+          {myTurn && !human.sanityBroken && (
             <>
               <Button size="sm" className="bg-amber-700 hover:bg-amber-600" disabled={!selectedCard} onClick={onPlayCard}>
                 Play Card
@@ -659,8 +676,8 @@ function DesignNotes({ onBack }: { onBack: () => void }) {
               <em>persists across turns</em> until Ascension (bank + sticky lock).
             </li>
             <li>
-              <strong className="text-stone-100">Madness</strong> at 0 Sanity is a brilliant
-              fail-forward: you become a board hazard, not just eliminated.
+              <strong className="text-stone-100">Madness</strong> at 0 Sanity removes you as a
+              contender. The body keeps dealing 1 HP to everyone until its own HP is gone.
             </li>
             <li>
               Your revised 16/4 Spell vs Utility split (and equipment interactors) is the right

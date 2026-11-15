@@ -124,9 +124,58 @@ export function announceSteal(
     title: `${to.name} stole ${d.name}`,
     subjectName: from.name,
     cards: [cardSnapshot(card)],
-    detail: `Taken from ${from.name}'s hand.`,
+    detail: `Taken from ${from.name}.`,
   });
   log(state, `${to.name} steals ${d.name} from ${from.name}!`, "ascend");
+}
+
+function detachEquipped(owner: PlayerState, card: CardInstance) {
+  if (owner.weapon?.instanceId === card.instanceId) owner.weapon = undefined;
+  else if (owner.artifact?.instanceId === card.instanceId) owner.artifact = undefined;
+  else owner.charms = owner.charms.filter((c) => c.instanceId !== card.instanceId);
+}
+
+/** Bribe takes a common equipped piece. Error's Theft takes the highest-value one. */
+function stealEquipped(
+  state: GameState,
+  thief: PlayerState,
+  target: PlayerState,
+  mode: "common" | "best",
+): boolean {
+  const pieces: { card: CardInstance; score: number }[] = [];
+  const push = (card: CardInstance | undefined, kind: "weapon" | "charm" | "artifact") => {
+    if (!card) return;
+    const rare = kind === "artifact" || getCardDef(card.defId).rarity === "rare";
+    let score = 0;
+    if (mode === "common") {
+      score = rare ? -1 : kind === "weapon" ? 2 : 1;
+    } else if (kind === "weapon" && rare) score = 6;
+    else if (kind === "artifact") score = 5;
+    else if (kind === "charm" && rare) score = 4;
+    else if (kind === "weapon") score = 2;
+    else score = 1;
+    if (score > 0) pieces.push({ card, score });
+  };
+  push(target.weapon, "weapon");
+  for (const c of target.charms) push(c, "charm");
+  push(target.artifact, "artifact");
+  pieces.sort((a, b) => b.score - a.score);
+  const pick = pieces[0]?.card;
+  if (!pick) {
+    log(
+      state,
+      mode === "common"
+        ? `${target.name} has no common Weapon or Charm to bribe.`
+        : `${target.name} has nothing equipped to steal.`,
+      "system",
+    );
+    return false;
+  }
+  detachEquipped(target, pick);
+  thief.hand.push(pick);
+  thief.turnFlags.stoleResource = true;
+  announceSteal(state, pick, target, thief);
+  return true;
 }
 
 function log(state: GameState, text: string, tone: GameLogEntry["tone"] = "neutral") {
@@ -402,18 +451,39 @@ export function dealDamage(
 }
 
 function updateMadness(p: PlayerState, state: GameState) {
-  const immune =
-    p.status.madnessImmune ||
-    p.charms.some((c) => getCardDef(c.defId).charm?.madnessImmune);
-  if (p.sanity === 0 && !immune) {
-    if (!p.mad) {
+  if (!p.alive || p.sanityBroken) {
+    if (p.sanityBroken) {
+      p.sanity = 0;
       p.mad = true;
-      log(state, `${p.name} descends into Madness!`, "system");
     }
-  } else if (p.sanity > 0 && p.mad) {
-    p.mad = false;
-    log(state, `${p.name} claws back to Sanity.`, "heal");
+    return;
   }
+  if (p.sanity > 0) {
+    if (p.mad) {
+      p.mad = false;
+      log(state, `${p.name} claws back to Sanity.`, "heal");
+    }
+    return;
+  }
+  const anchored =
+    !p.sanityAnchorUsed &&
+    (p.status.madnessImmune ||
+      p.charms.some((c) => getCardDef(c.defId).charm?.madnessImmune));
+  if (anchored) {
+    p.sanity = 1;
+    p.sanityAnchorUsed = true;
+    p.mad = false;
+    log(state, `${p.name}'s Cogitation holds at 1 Sanity.`, "heal");
+    return;
+  }
+  p.sanity = 0;
+  p.mad = true;
+  p.sanityBroken = true;
+  log(
+    state,
+    `${p.name} falls to 0 Sanity and is lost. The body still strikes everyone for 1 HP until it falls.`,
+    "damage",
+  );
 }
 
 function checkElimination(
@@ -466,16 +536,7 @@ function checkElimination(
     target.hand = [];
   }
 
-  const living = alivePlayers(state);
-  if (living.length === 1) {
-    state.winnerId = living[0]!.id;
-    state.winReason = "lastStanding";
-    state.phase = "gameover";
-    log(state, `${living[0]!.name} is the Last One Standing!`, "ascend");
-  } else if (living.length === 0) {
-    state.phase = "gameover";
-    log(state, "All have fallen into the fog…", "system");
-  }
+  resolveMatch(state);
 }
 
 type TrapTrigger =
@@ -680,19 +741,37 @@ function isGameOver(state: GameState): boolean {
   return phase === "gameover";
 }
 
-/** If only one (or zero) living players remain, lock the win immediately. */
-function ensureLastStanding(state: GameState) {
+/**
+ * A sanity-broken body is still alive and still hitting. They cannot win.
+ * The match ends when one contender is the only one left alive, or when no contender remains.
+ */
+function resolveMatch(state: GameState) {
   if (isGameOver(state)) return;
   const living = alivePlayers(state);
-  if (living.length === 1) {
-    state.winnerId = living[0]!.id;
-    state.winReason = "lastStanding";
-    state.phase = "gameover";
-    log(state, `${living[0]!.name} is the Last One Standing!`, "ascend");
-  } else if (living.length === 0) {
+  const racing = living.filter((p) => !p.sanityBroken);
+  if (living.length === 0) {
     state.phase = "gameover";
     log(state, "All have fallen into the fog…", "system");
+    return;
   }
+  if (racing.length === 0) {
+    state.phase = "gameover";
+    state.winReason = "madness";
+    state.winnerId = undefined;
+    log(state, "No contender remains. Madness takes the board.", "system");
+    return;
+  }
+  if (racing.length === 1 && living.length === 1) {
+    state.winnerId = racing[0]!.id;
+    state.winReason = "lastStanding";
+    state.phase = "gameover";
+    log(state, `${racing[0]!.name} is the Last One Standing!`, "ascend");
+  }
+}
+
+/** If only one (or zero) living players remain, lock the win immediately. */
+function ensureLastStanding(state: GameState) {
+  resolveMatch(state);
 }
 
 export function runBeginPhase(state: GameState, rng: Rng) {
@@ -700,6 +779,23 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   const p = currentPlayer(state);
   if (!p.alive) {
     advanceTurn(state, rng);
+    return;
+  }
+
+  if (p.sanityBroken) {
+    log(state, `${p.name} is lost. The body deals 1 HP to everyone.`, "damage");
+    for (const t of alivePlayers(state)) {
+      if (t.id === p.id) continue;
+      dealDamage(state, p, t, 1, { unblockable: true }, rng);
+      if (isGameOver(state)) return;
+    }
+    if (p.alive) {
+      dealDamage(state, p, p, 1, { unblockable: true }, rng);
+      if (isGameOver(state)) return;
+    }
+    resolveMatch(state);
+    if (isGameOver(state)) return;
+    runEndPhase(state, rng);
     return;
   }
 
@@ -825,27 +921,6 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   }
   p.status.noPassiveSp = false;
 
-  // Madness check
-  updateMadness(p, state);
-  if (p.mad) {
-    log(state, `${p.name} is Mad — skipping Draw/Action; frenzied assault!`, "damage");
-    // Discard random
-    if (p.hand.length > 0) {
-      const idx = rng.int(p.hand.length);
-      const [card] = p.hand.splice(idx, 1);
-      if (card) discardToPile(state, card);
-    }
-    // Deal base attack to all including self
-    for (const t of alivePlayers(state)) {
-      dealDamage(state, p, t, 1, {}, rng);
-      if (isGameOver(state)) return;
-    }
-    ensureLastStanding(state);
-    if (isGameOver(state)) return;
-    runEndPhase(state, rng);
-    return;
-  }
-
   if (p.status.stunned || p.status.skipAction) {
     log(state, `${p.name} is Stunned and loses their Action Phase.`, "system");
     p.status.stunned = false;
@@ -960,6 +1035,7 @@ export function playCardFromHand(
   rng: Rng,
 ): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
+  if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
   if (state.phase !== "action") return { ok: false, error: "Not action phase" };
   const idx = p.hand.findIndex((c) => c.instanceId === cardInstanceId);
   if (idx < 0) return { ok: false, error: "Card not in hand" };
@@ -1269,30 +1345,7 @@ function resolveCardEffect(
       return;
     }
     case "bribe":
-      if (target) {
-        const piece = target.weapon ?? target.charms[0];
-        if (piece) {
-          if (target.weapon?.instanceId === piece.instanceId) target.weapon = undefined;
-          else target.charms = target.charms.filter((c) => c.instanceId !== piece.instanceId);
-          p.hand.push(piece);
-          p.turnFlags.stoleResource = true;
-          announceSteal(state, piece, target, p);
-          const give = p.hand.find((c) => {
-            if (c.instanceId === piece.instanceId) return false;
-            const t = getCardDef(c.defId).type;
-            return t === "weapon" || t === "charm";
-          });
-          if (give) {
-            p.hand = p.hand.filter((c) => c.instanceId !== give.instanceId);
-            target.hand.push(give);
-            log(
-              state,
-              `${p.name} bribes with ${getCardDef(give.defId).name}.`,
-              "system",
-            );
-          }
-        }
-      }
+      if (target) stealEquipped(state, p, target, "common");
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
       return;
@@ -1337,18 +1390,7 @@ function resolveCardEffect(
       discardToPile(state, card);
       return;
     case "errors_theft":
-      if (target) {
-        const piece = target.weapon ?? target.charms[0];
-        if (piece) {
-          if (target.weapon?.instanceId === piece.instanceId) target.weapon = undefined;
-          else target.charms = target.charms.filter((c) => c.instanceId !== piece.instanceId);
-          p.hand.push(piece);
-          p.turnFlags.stoleResource = true;
-          announceSteal(state, piece, target, p);
-        } else {
-          log(state, `${target.name} has no Weapon or Charm to steal.`, "system");
-        }
-      }
+      if (target) stealEquipped(state, p, target, "best");
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
       return;
@@ -1641,6 +1683,7 @@ export function performAttack(
   rng: Rng,
 ): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
+  if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
   if (!canUseBucket(state, "attack")) return { ok: false, error: "Attack already used" };
   const target = state.players.find((x) => x.id === targetId);
   if (!target?.alive) return { ok: false, error: "Invalid target" };
@@ -1777,6 +1820,7 @@ export function castSequenceAbility(
   rng: Rng,
 ): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
+  if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
   if (!canUseBucket(state, "sequence"))
     return { ok: false, error: "Sequence action already used" };
   const seq = getSequence(p.pathwayId, p.sequence);
@@ -1806,6 +1850,7 @@ export function contendArtifact(
   rng: Rng,
 ): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
+  if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
   if (!canUseBucket(state, "standard"))
     return { ok: false, error: "Standard action already used" };
   const target = state.players.find((x) => x.id === targetId);
@@ -3172,6 +3217,7 @@ export function attemptAscension(
   rng: Rng,
 ): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
+  if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
   if (state.phase !== "action") return { ok: false, error: "Not your action" };
   if (state.potionDrunk) return { ok: false, error: "Potion already drunk this turn" };
   if (p.sequence <= 0) return { ok: false, error: "Already Sequence 0" };

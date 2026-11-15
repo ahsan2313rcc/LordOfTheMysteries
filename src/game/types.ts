@@ -202,6 +202,10 @@ export interface PlayerState {
   actingMet: boolean;
   alive: boolean;
   mad: boolean;
+  /** Lost at 0 Sanity. Still deals 1 HP to everyone on their Begin until HP reaches 0. */
+  sanityBroken?: boolean;
+  /** Cogitation Technique already prevented one break. */
+  sanityAnchorUsed?: boolean;
   universalReagent?: boolean;
   lastingBlock?: number; // Groselle etc.
   /** Soft status from high abilities */
@@ -270,7 +274,7 @@ export interface GameState {
   /** Latest reveals for UI modals (newest first). */
   reveals: RevealEvent[];
   winnerId?: string;
-  winReason?: "lastStanding" | "apotheosis";
+  winReason?: "lastStanding" | "apotheosis" | "madness";
   pending?: PendingChoice;
   selectedCardId?: string;
   selectedTargetId?: string;

@@ -17,7 +17,7 @@ import type { GameState, PlayerState } from "./types";
 
 function score(state: GameState, myId: string): number {
   const me = state.players.find((p) => p.id === myId);
-  if (!me?.alive) return -100000;
+  if (!me?.alive || me.sanityBroken) return -100000;
   if (state.phase === "gameover" && state.winnerId === myId) return 100000;
   if (state.phase === "gameover") return -80000;
 
@@ -28,15 +28,14 @@ function score(state: GameState, myId: string): number {
   // One Sequence step outranks a finished recipe, so drinking beats sitting on the cards.
   s += (9 - me.sequence) * 200;
   if (me.actingMet) s += 24;
-  s += me.hp * 8 + me.sanity * 3.2 + Math.min(me.sp, 12) * 0.7;
+  s += me.hp * 8 + me.sanity * 6 + Math.min(me.sp, 12) * 0.7;
   s += Math.min(me.hand.length, 7) * 1.1;
   if (me.weapon && !me.status.weaponDisabled) s += 18;
   s += me.charms.length * 5;
   if (me.artifact) s += 12;
   if (me.trap) s += 6;
-  if (me.mad) s -= 50;
   if (me.hp <= 6) s -= 18;
-  if (me.sanity <= 3) s -= 14;
+  if (me.sanity <= 3) s -= 28;
 
   const recipe = matchRecipe(me);
   if (recipe && recipe.needed.length > 0) {
@@ -52,7 +51,10 @@ function score(state: GameState, myId: string): number {
     if (o.actingMet) s -= 10;
     if (o.weapon && !o.status.weaponDisabled) s -= 8;
     if (o.hp <= 4) s += 16;
-    if (o.mad) s += 6;
+    if (o.sanityBroken) {
+      s += 36;
+      s -= o.hp * 4;
+    } else if (o.sanity <= 3) s += 14;
     if (state.arcanaConcealment && o.revealed) s += 16;
   }
   if (state.arcanaConcealment && !me.revealed) s += 28;
@@ -112,7 +114,13 @@ export function runAiTurn(state: GameState): GameState {
   const s = state;
   let guard = 0;
 
-  while (s.phase === "action" && currentPlayer(s).alive && !currentPlayer(s).isHuman && guard < 14) {
+  while (
+    s.phase === "action" &&
+    currentPlayer(s).alive &&
+    !currentPlayer(s).sanityBroken &&
+    !currentPlayer(s).isHuman &&
+    guard < 14
+  ) {
     guard += 1;
     const p = currentPlayer(s);
     const myId = p.id;
