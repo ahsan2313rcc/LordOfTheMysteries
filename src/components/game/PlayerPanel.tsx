@@ -93,6 +93,19 @@ export function PlayerPanel({
         {player.universalReagent && <Chip>Reagent</Chip>}
       </div>
 
+      {player.hand.some((c) => c.revealed) && (
+        <div className="mt-2">
+          <p className="text-[0.6rem] uppercase tracking-wider text-amber-400/80">Shown for potions</p>
+          <div className="mt-1 flex flex-wrap gap-1">
+            {player.hand
+              .filter((c) => c.revealed)
+              .map((c) => (
+                <CardView key={c.instanceId} card={c} compact disabled />
+              ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-2 space-y-0.5 text-[0.68rem] leading-snug text-stone-300">
         <p>Weapon: {player.weapon ? getCardDef(player.weapon.defId).name : "—"}</p>
         <p>

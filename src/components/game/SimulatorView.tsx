@@ -9,7 +9,7 @@ import { useMemo, useState } from "react";
 export function SimulatorView({ onBack }: { onBack: () => void }) {
   const [players, setPlayers] = useState<2 | 4>(4);
   const [games, setGames] = useState(24);
-  const [concealment, setConcealment] = useState(true);
+  const [concealment, setConcealment] = useState(false);
   const [report, setReport] = useState<SimReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");

@@ -72,9 +72,10 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             </li>
             <li>
               <strong className="text-stone-100">Drink a potion</strong> when your Acting Condition
-              is locked and the recipe is in hand. Potions cost no Sanity. Drinking does not spend
-              the Sequence action, so you may cast and drink on the same turn. Acting progress
-              sticks until you drink, then resets for the new Sequence.
+              is locked and the recipe is in hand. Potions cost no Sanity. Show those cards to
+              every player; they stay in your hand, marked as revealed, and can be played or shown
+              again. Drinking does not spend the Sequence action, so you may cast and drink on the
+              same turn. Acting progress sticks until you drink, then resets for the new Sequence.
             </li>
           </ul>
         </section>
@@ -106,7 +107,7 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             Variant — Arcana Concealment
           </h2>
           <p className="text-sm leading-relaxed">
-            Turn this on when you deal. The deck gains one Major Arcana per player. Everyone starts
+            Off unless you check it when you deal. The deck gains one Major Arcana per player. Everyone starts
             concealed. Play an Arcana, choose a player, and their board opens: hand, trap, and
             equipment. They can be attacked. You stay concealed. You become exposed only when you
             attack an exposed player. A concealed player cannot be the target of an Attack. Spells,

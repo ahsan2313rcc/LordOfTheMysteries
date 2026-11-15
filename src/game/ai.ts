@@ -25,8 +25,9 @@ function score(state: GameState, myId: string): number {
   if (opps.length === 0) return 100000;
 
   let s = 0;
-  s += (9 - me.sequence) * 70;
-  if (me.actingMet) s += 28;
+  // One Sequence step outranks a finished recipe, so drinking beats sitting on the cards.
+  s += (9 - me.sequence) * 200;
+  if (me.actingMet) s += 24;
   s += me.hp * 8 + me.sanity * 3.2 + Math.min(me.sp, 12) * 0.7;
   s += Math.min(me.hand.length, 7) * 1.1;
   if (me.weapon && !me.status.weaponDisabled) s += 18;
@@ -38,10 +39,9 @@ function score(state: GameState, myId: string): number {
   if (me.sanity <= 3) s -= 14;
 
   const recipe = matchRecipe(me);
-  if (recipe) {
+  if (recipe && recipe.needed.length > 0) {
     const have = recipe.needed.length - recipe.remaining.length;
-    s += have * 16;
-    if (recipe.canPay && me.actingMet) s += 55;
+    s += (have / recipe.needed.length) * 80;
   }
 
   for (const o of opps) {
@@ -129,7 +129,7 @@ export function runAiTurn(state: GameState): GameState {
       }
     };
 
-    if (!s.potionDrunk && p.actingMet) {
+    if (!s.potionDrunk && matchRecipe(p)?.canPay) {
       consider((g) => attemptAscension(g, getRng(g)).ok);
     }
 

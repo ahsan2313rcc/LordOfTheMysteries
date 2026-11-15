@@ -112,6 +112,8 @@ export interface PathwayDef {
 export interface CardInstance {
   instanceId: string;
   defId: string;
+  /** Shown to the table after it was revealed for a potion. Stays in hand. */
+  revealed?: boolean;
 }
 
 export interface StatusFlags {

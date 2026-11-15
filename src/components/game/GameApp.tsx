@@ -34,7 +34,7 @@ export function GameApp() {
   const [screen, setScreen] = useState<Screen>("title");
   const [pathwayId, setPathwayId] = useState(PATHWAYS[0]!.id);
   const [aiCount, setAiCount] = useState(1);
-  const [concealment, setConcealment] = useState(true);
+  const [concealment, setConcealment] = useState(false);
   const [state, setState] = useState<GameState | null>(null);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
@@ -466,7 +466,7 @@ export function GameApp() {
                 </p>
                 <p className="mt-1 text-[0.65rem] text-stone-400">
                   Recipe: {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ")} · No Sanity toll.
-                  You may drink and cast in the same turn.
+                  Reveal the cards to the table; they stay in hand. You may drink and cast in the same turn.
                 </p>
                 <p
                   className={cn(

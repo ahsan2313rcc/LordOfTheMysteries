@@ -91,6 +91,9 @@ export function CardView({
       {compact && (
         <p className="mt-1 text-[0.55rem] leading-snug text-stone-400">{def.text}</p>
       )}
+      {card.revealed && (
+        <p className="mt-1 text-[0.5rem] uppercase tracking-wider text-amber-300/90">Shown</p>
+      )}
     </button>
   );
 }

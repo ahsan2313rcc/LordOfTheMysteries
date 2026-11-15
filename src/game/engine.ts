@@ -904,20 +904,16 @@ export function runEndPhase(state: GameState, rng: Rng) {
   p.status.onceEvadeUsed = false;
   if (!p.rustSourceId) p.status.weaponDisabled = false;
 
-  // Hand limit — discard non-recipe cards first when Acting is locked
+  // Hand limit — keep cards that are currently matched to the potion.
   const lim = handLimit(p);
   const recipe = matchRecipe(p);
-  const needed = new Set(recipe?.remaining ?? []);
+  const keep = new Set(recipe?.discardInstanceIds ?? []);
   while (p.hand.length > lim) {
-    let idx = p.hand.length - 1;
-    if (p.actingMet && needed.size > 0) {
-      const soft = p.hand.findIndex((c) => {
-        if (c.defId === "potion_ingredients") return false;
-        const ings = getCardDef(c.defId).ingredients;
-        return !ings.some((ing) => needed.has(ing));
-      });
-      if (soft >= 0) idx = soft;
-    }
+    let idx = p.hand.findIndex(
+      (c) => !keep.has(c.instanceId) && c.defId !== "potion_ingredients",
+    );
+    if (idx < 0) idx = p.hand.findIndex((c) => !keep.has(c.instanceId));
+    if (idx < 0) idx = p.hand.length - 1;
     const [card] = p.hand.splice(idx, 1);
     if (card) {
       discardToPile(state, card);
@@ -3214,13 +3210,21 @@ export function attemptAscension(
     };
   }
 
-  // Discard matched ingredient cards
-  for (const id of recipe.discardInstanceIds) {
-    const idx = p.hand.findIndex((c) => c.instanceId === id);
-    if (idx >= 0) {
-      const [c] = p.hand.splice(idx, 1);
-      if (c) discardToPile(state, c);
-    }
+  // Show the recipe. The cards stay in hand and can be played or shown again.
+  const shown = recipe.discardInstanceIds
+    .map((id) => p.hand.find((c) => c.instanceId === id))
+    .filter((c): c is CardInstance => !!c);
+  for (const c of shown) c.revealed = true;
+  if (shown.length) {
+    const names = shown.map((c) => getCardDef(c.defId).name).join(", ");
+    pushReveal(state, {
+      kind: "hand",
+      title: `${p.name} shows the potion`,
+      subjectName: p.name,
+      cards: shown.map(cardSnapshot),
+      detail: `Revealed to the table for Sequence ${nextSeq} — ${next.title}. These cards stay in hand.`,
+    });
+    log(state, `${p.name} reveals ${names} for the potion. The ingredients stay in hand.`, "ascend");
   }
   if (recipe.universalUsed) p.universalReagent = false;
 

@@ -42,7 +42,9 @@ npm run test:cards      # card text matches engine behavior
 
 The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, from 8 games up to 1024, then shows pathway win rates, which cards get played, and a step-through chronicle. **Rules** on the title screen is the current ruleset.
 
-**Arcana Concealment** is an optional variant (on by default). The deck gains one Major Arcana per player. Playing it exposes a chosen player and their board. You stay concealed until you attack an exposed player. Abilities, items, and potion recipes are unchanged.
+Potions do not discard their ingredients. You reveal those cards to the table and keep them.
+
+**Arcana Concealment** is an optional variant, off unless you check it. The deck gains one Major Arcana per player. Playing it exposes a chosen player and their board. You stay concealed until you attack an exposed player.
 
 ### Balance snapshot (4-player AI sims)
 

@@ -95,6 +95,8 @@ console.log("Ascension clears bank");
   const r = attemptAscension(state, getRng(state));
   assert(r.ok, `ascend ok (${r.error ?? "ok"})`);
   assert(p.sequence === 8, "now Seq 8");
+  assert(p.hand.length === 2, "ingredients stay in hand");
+  assert(p.hand.every((c) => c.revealed), "ingredients are revealed to the table");
   assert(p.sanity === before, "potion costs no Sanity");
   assert(!state.actionsUsed.sequence, "potion leaves the Sequence action free");
   assert(!p.actingMet, "actingMet cleared for new Sequence");
