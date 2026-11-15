@@ -1,11 +1,12 @@
 /**
  * Cards must do what their text says. Run: npx tsx scripts/test-card-fidelity.ts
  */
-import { CARD_DEFS, getCardDef } from "../src/game/cards";
+import { buildMainDeckCounts, CARD_DEFS, getCardDef } from "../src/game/cards";
 import {
   activateArtifactPower,
   createGame,
   currentPlayer,
+  drawCards,
   endTurn,
   performAttack,
   playCardFromHand,
@@ -198,6 +199,44 @@ function give(state: GameState, p: PlayerState, defId: string) {
   check(
     "error's theft takes the rare weapon",
     !foe.weapon && me.hand.some((c) => c.defId === "creeping_hunger"),
+  );
+}
+
+{
+  const counts = buildMainDeckCounts();
+  const total = counts.reduce((n, c) => n + c.copies, 0);
+  check("base deck is 80 cards", total === 80, String(total));
+  check("no card is duplicated", counts.every((c) => c.copies <= 1));
+  check(
+    "major arcana is outside the base deck",
+    counts.find((c) => c.defId === "major_arcana")?.copies === 0,
+  );
+  const state = createGame({
+    humanPathwayId: "fool",
+    aiPathwayIds: ["sun"],
+    seed: 42,
+    humanName: "Tester",
+  });
+  const me = currentPlayer(state);
+  const seen = new Map<string, number>();
+  for (const c of [...state.deck, ...state.players.flatMap((p) => p.hand)]) {
+    seen.set(c.defId, (seen.get(c.defId) ?? 0) + 1);
+  }
+  check(
+    "a dealt game contains each card once",
+    seen.size === 80 && [...seen.values()].every((n) => n === 1),
+    `${seen.size} kinds`,
+  );
+  const last = state.deck.pop()!;
+  state.discard = state.deck;
+  state.deck = [last];
+  const discarded = state.discard.length;
+  drawCards(state, me, 1, getRng(state));
+  check("drawing the last card reshuffles the discard", state.deck.length === discarded, String(state.deck.length));
+  check(
+    "the card just drawn stays in hand",
+    me.hand.some((c) => c.instanceId === last.instanceId) &&
+      !state.deck.some((c) => c.instanceId === last.instanceId),
   );
 }
 

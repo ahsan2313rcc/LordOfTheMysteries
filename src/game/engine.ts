@@ -227,6 +227,14 @@ function ensureDeck(state: GameState, rng: Rng) {
   }
 }
 
+/** Draw one card. Drawing the last card immediately reshuffles the discard. */
+function drawOne(state: GameState, rng: Rng): CardInstance | undefined {
+  ensureDeck(state, rng);
+  const card = state.deck.pop();
+  if (card && state.deck.length === 0) ensureDeck(state, rng);
+  return card;
+}
+
 export function drawCards(
   state: GameState,
   player: PlayerState,
@@ -235,8 +243,7 @@ export function drawCards(
   extra = false,
 ) {
   for (let i = 0; i < n; i++) {
-    ensureDeck(state, rng);
-    const card = state.deck.pop();
+    const card = drawOne(state, rng);
     if (!card) break;
     player.hand.push(card);
     if ((player.drawPoison ?? 0) > 0) {
@@ -1942,8 +1949,7 @@ export function activateArtifactPower(
     case "die_probability": {
       const drawn: CardInstance[] = [];
       for (let i = 0; i < 2; i++) {
-        ensureDeck(state, rng);
-        const c = state.deck.pop();
+        const c = drawOne(state, rng);
         if (!c) break;
         p.hand.push(c);
         drawn.push(c);
@@ -2492,6 +2498,7 @@ function resolveAbility(
         seen.push(c);
       }
       state.deck.push(...seen);
+      if (state.deck.length === 0) ensureDeck(state, rng);
       p.turnFlags.playedSpells += 1;
       break;
     }
@@ -2532,6 +2539,7 @@ function resolveAbility(
         if (getCardDef(top.defId).type === "trap") {
           state.deck.pop();
           discardToPile(state, top);
+          if (state.deck.length === 0) ensureDeck(state, rng);
           log(state, "Premonition discards a Trap from the top.", "system");
         }
       }
@@ -2687,6 +2695,7 @@ function resolveAbility(
         if (getCardDef(top.defId).type === "utility") {
           state.deck.pop();
           p.hand.push(top);
+          if (state.deck.length === 0) ensureDeck(state, rng);
           p.turnFlags.drewExtra = true;
           log(state, `${p.name} brews ${getCardDef(top.defId).name} into hand.`, "heal");
         }

@@ -903,20 +903,10 @@ export function getCardDef(id: string): CardDef {
   return c;
 }
 
-/** Build a shuffled multi-copy deck (~56+ cards). */
+/** One of each playable card. Major Arcana is added per player only in that variant. */
 export function buildMainDeckCounts(): { defId: string; copies: number }[] {
   return CARD_DEFS.map((c) => ({
     defId: c.id,
-    // Potion Ingredients are the economy unlock for mid/late recipes — seed a few more.
-    copies:
-      c.id === "major_arcana"
-        ? 0
-        : c.id === "potion_ingredients"
-          ? 4
-          : c.rarity === "rare"
-            ? 1
-            : c.type === "artifact"
-              ? 1
-              : 2,
+    copies: c.id === "major_arcana" ? 0 : 1,
   }));
 }

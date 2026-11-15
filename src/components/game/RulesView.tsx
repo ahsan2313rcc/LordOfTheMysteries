@@ -33,6 +33,8 @@ export function RulesView({ onBack }: { onBack: () => void }) {
           <p className="text-sm leading-relaxed">
             Each Beyonder starts at Sequence 9 with 20 HP, 20 Sanity, 0 Spirituality, and 3 cards.
             HP and Sanity both cap at 20. Spirituality caps at 20 and stays in your pool between turns.
+            The deck is 80 cards, one of each. Nothing is duplicated. When the last card is drawn,
+            the discard is shuffled into a new deck.
           </p>
         </section>
 
