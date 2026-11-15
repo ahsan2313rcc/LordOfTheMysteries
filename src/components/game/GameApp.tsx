@@ -18,16 +18,17 @@ import {
   playCardFromHand,
   sacrificeRequiem,
 } from "@/game/engine";
-import { getSequence, INGREDIENT_NAMES, PATHWAYS } from "@/game/pathways";
+import { abilitySanityCost, getSequence, INGREDIENT_NAMES, PATHWAYS } from "@/game/pathways";
 import type { GameState } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { CardView } from "./CardView";
 import { PlayerPanel } from "./PlayerPanel";
 import { RevealModal } from "./RevealModal";
+import { RulesView } from "./RulesView";
 import { SimulatorView } from "./SimulatorView";
 
-type Screen = "title" | "setup" | "play" | "design" | "sim";
+type Screen = "title" | "setup" | "play" | "design" | "sim" | "rules";
 
 export function GameApp() {
   const [screen, setScreen] = useState<Screen>("title");
@@ -221,6 +222,9 @@ export function GameApp() {
             <Button size="lg" variant="outline" onClick={() => setScreen("sim")}>
               AI Simulator
             </Button>
+            <Button size="lg" variant="outline" onClick={() => setScreen("rules")}>
+              Rules
+            </Button>
             <Button
               size="lg"
               variant="outline"
@@ -237,6 +241,10 @@ export function GameApp() {
 
   if (screen === "design") {
     return <DesignNotes onBack={() => setScreen("title")} />;
+  }
+
+  if (screen === "rules") {
+    return <RulesView onBack={() => setScreen(state ? "play" : "title")} />;
   }
 
   if (screen === "setup") {
@@ -307,7 +315,7 @@ export function GameApp() {
                   <p className="mt-1 text-xs text-stone-400">{p.theme}</p>
                   <p className="mt-3 text-[0.7rem] text-stone-300">
                     <span className="text-amber-500/90">{s9.title}:</span> {s9.abilityName} (
-                    {s9.abilityCost} SP) — {s9.abilityText}
+                    {abilitySanityCost(9)} Sanity) — {s9.abilityText}
                   </p>
                   <p className="mt-2 text-[0.65rem] text-stone-500">
                     Acting: {s9.actingCondition}
@@ -348,6 +356,9 @@ export function GameApp() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={() => setScreen("rules")}>
+            Rules
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setScreen("setup")}>
             New Game
           </Button>
@@ -390,7 +401,8 @@ export function GameApp() {
                 </p>
                 <p className="mt-1 text-sm text-stone-300">
                   Ability: <span className="text-cyan-300">{seq.abilityName}</span> (
-                  {seq.abilityCost} SP) — {seq.abilityText}
+                  {abilitySanityCost(human.sequence)} Sanity) — {seq.abilityText}{" "}
+                  <span className="text-stone-500">· Begin grants {seq.spGain} SP</span>
                 </p>
               </div>
               <span
@@ -431,8 +443,8 @@ export function GameApp() {
                   Potion → Seq {human.sequence - 1} {nextSeq.title}
                 </p>
                 <p className="mt-1 text-[0.65rem] text-stone-400">
-                  Recipe: {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ")} · Toll{" "}
-                  {nextSeq.sanityToll} Sanity
+                  Recipe: {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ")} · No Sanity toll.
+                  You may drink and cast in the same turn.
                 </p>
                 <p
                   className={cn(

@@ -7,7 +7,7 @@ import {
 } from "./acting";
 import { matchRecipe } from "./ascension";
 import { buildMainDeckCounts, getCardDef } from "./cards";
-import { getPathway, getSequence, spGainFor } from "./pathways";
+import { abilitySanityCost, getPathway, getSequence, spGainFor } from "./pathways";
 import { createRng, type Rng } from "./rng";
 import type {
   ActionBucket,
@@ -646,6 +646,7 @@ export function createGame(opts: {
     currentPlayerIndex: 0,
     phase: "begin",
     actionsUsed: { standard: false, sequence: false, attack: false },
+    potionDrunk: false,
     turnNumber: 1,
     // Seed as "taken" so the opening Begin does not grant free recovery.
     cycleDamage: Object.fromEntries(
@@ -699,6 +700,7 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   p.turnFlags = emptyFlags();
   state.actionsUsed = { standard: false, sequence: false, attack: false };
   state.extraStandard = 0;
+  state.potionDrunk = false;
 
   // Groselle-style lasting Block expires at the start of your next Begin
   if ((p.lastingBlock ?? 0) > 0) {
@@ -1709,6 +1711,10 @@ export function performAttack(
 
   p.status.unblockableAttack = false;
   state.actionsUsed.attack = true;
+  if (state.simPlays) {
+    state.simAttacks = (state.simAttacks ?? 0) + 1;
+    if (!sanity) state.simHpDealt = (state.simHpDealt ?? 0) + dealt;
+  }
   noteActing(state, p);
   if (state.simPlays && p.weapon && !p.status.weaponDisabled) {
     state.simPlays.push({
@@ -1717,6 +1723,7 @@ export function performAttack(
       pathwayId: p.pathwayId,
       turn: state.turnNumber,
       damage: dealt,
+      swing: true,
     });
   }
   return { ok: true };
@@ -1731,8 +1738,13 @@ export function castSequenceAbility(
   if (!canUseBucket(state, "sequence"))
     return { ok: false, error: "Sequence action already used" };
   const seq = getSequence(p.pathwayId, p.sequence);
-  if (seq.abilityCost > 0 && !paySp(p, seq.abilityCost, state))
-    return { ok: false, error: "Not enough SP" };
+  const sanityCost = abilitySanityCost(p.sequence);
+  if (p.sanity < sanityCost) return { ok: false, error: "Not enough Sanity" };
+  if (sanityCost > 0) {
+    p.sanity -= sanityCost;
+    updateMadness(p, state);
+    log(state, `${p.name} pays ${sanityCost} Sanity to cast ${seq.abilityName}.`, "system");
+  }
 
   const target =
     (targetId && state.players.find((x) => x.id === targetId)) ||
@@ -3118,8 +3130,8 @@ export function attemptAscension(
   rng: Rng,
 ): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
-  if (!canUseBucket(state, "sequence"))
-    return { ok: false, error: "Sequence action already used" };
+  if (state.phase !== "action") return { ok: false, error: "Not your action" };
+  if (state.potionDrunk) return { ok: false, error: "Potion already drunk this turn" };
   if (p.sequence <= 0) return { ok: false, error: "Already Sequence 0" };
 
   // Sticky Acting: bank progress from prior turns OR live turn flags count.
@@ -3142,7 +3154,7 @@ export function attemptAscension(
       discardToPile(state, owner.trap);
       owner.trap = undefined;
       log(state, `${owner.name}'s Fate Siphon rejects the potion!`, "damage");
-      state.actionsUsed.sequence = true;
+      state.potionDrunk = true;
       return { ok: false, error: "Ascension failed — Fate Siphon" };
     }
   }
@@ -3156,11 +3168,6 @@ export function attemptAscension(
     };
   }
 
-  const toll = recipe.toll;
-  if (p.sanity < toll) {
-    return { ok: false, error: `Need ${toll} Sanity (have ${p.sanity})` };
-  }
-
   // Discard matched ingredient cards
   for (const id of recipe.discardInstanceIds) {
     const idx = p.hand.findIndex((c) => c.instanceId === id);
@@ -3171,10 +3178,9 @@ export function attemptAscension(
   }
   if (recipe.universalUsed) p.universalReagent = false;
 
-  dealDamage(state, p, p, toll, { type: "sanity", unblockable: true }, rng);
   p.turnFlags.drankPotion = true;
   p.sequence = nextSeq;
-  state.actionsUsed.sequence = true;
+  state.potionDrunk = true;
 
   // New Sequence → clear locked Acting; must fulfill the next condition fresh.
   resetActingForNewSequence(p);

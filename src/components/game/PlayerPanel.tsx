@@ -1,7 +1,7 @@
 "use client";
 
 import { getCardDef } from "@/game/cards";
-import { getPathway, getSequence } from "@/game/pathways";
+import { abilitySanityCost, getPathway, getSequence } from "@/game/pathways";
 import type { PlayerState } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { CardView } from "./CardView";
@@ -60,7 +60,7 @@ export function PlayerPanel({
       </div>
 
       <p className="mt-1 text-[0.65rem] text-stone-500">
-        Hand {player.hand.length} · {seq.abilityName} ({seq.abilityCost} SP)
+        Hand {player.hand.length} · {seq.abilityName} ({abilitySanityCost(player.sequence)} SAN)
       </p>
 
       <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">

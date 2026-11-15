@@ -1,16 +1,17 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { runSimulation, type GameReplay, type SimReport } from "@/game/simulate";
+import { runSimulationAsync, type GameReplay, type SimReport } from "@/game/simulate";
 import { PATHWAYS } from "@/game/pathways";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
 export function SimulatorView({ onBack }: { onBack: () => void }) {
   const [players, setPlayers] = useState<2 | 4>(4);
-  const [games, setGames] = useState(12);
+  const [games, setGames] = useState(24);
   const [report, setReport] = useState<SimReport | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState("");
   const [tab, setTab] = useState<"cards" | "arcana" | "replay">("arcana");
   const [replayIdx, setReplayIdx] = useState(0);
   const [logCursor, setLogCursor] = useState(0);
@@ -18,16 +19,18 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
   const replay: GameReplay | null = report?.replays[replayIdx] ?? null;
   const visibleLog = useMemo(() => replay?.log.slice(0, logCursor + 1) ?? [], [replay, logCursor]);
 
-  function run() {
+  async function run() {
     setBusy(true);
-    setTimeout(() => {
-      const result = runSimulation({ players, games, seed: 7000 + players * 13 });
-      setReport(result);
-      setReplayIdx(0);
-      setLogCursor(0);
-      setBusy(false);
-      setTab("arcana");
-    }, 30);
+    setProgress(`0 / ${games}`);
+    const result = await runSimulationAsync(
+      { players, games, seed: 7000 + players * 13, keepReplays: 12 },
+      (done, total) => setProgress(`${done} / ${total}`),
+    );
+    setReport(result);
+    setReplayIdx(0);
+    setLogCursor(0);
+    setBusy(false);
+    setTab("arcana");
   }
 
   const playedCards = report?.cards.filter((c) => c.plays > 0) ?? [];
@@ -74,29 +77,33 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                 onChange={(e) => setGames(Number(e.target.value))}
               >
                 <option value={8}>8</option>
-                <option value={12}>12</option>
                 <option value={24}>24</option>
+                <option value={64}>64</option>
+                <option value={256}>256</option>
+                <option value={1024}>1024</option>
               </select>
             </label>
-            <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={run}>
-              {busy ? "Simulating…" : "Run AIs"}
+            <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run()}>
+              {busy ? progress : "Run AIs"}
             </Button>
           </div>
         </div>
 
         {!report && (
           <p className="rounded-xl border border-stone-700/60 bg-stone-950/70 p-6 text-sm text-stone-400">
-            Choose a table size and run. Two-player games stress 1v1 pathway matchups. Four-player
-            games show free-for-all pressure, where combat usually beats Apotheosis.
+            Choose a table size and run. 1024 games keep the page responsive and store the first 12
+            chronicles. Two-player games stress 1v1 matchups. Four-player games show free-for-all pressure.
           </p>
         )}
 
         {report && (
           <>
-            <div className="grid gap-2 sm:grid-cols-4">
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <Stat label="Finished" value={`${report.finished}/${report.games}`} />
               <Stat label="Timeouts" value={String(report.timeouts)} />
               <Stat label="Avg turns" value={report.avgTurns.toFixed(0)} />
+              <Stat label="Attacks" value={report.avgAttacks.toFixed(1)} />
+              <Stat label="HP dealt" value={report.avgHpDealt.toFixed(0)} />
               <Stat label="Table" value={`${report.players} players`} />
             </div>
 

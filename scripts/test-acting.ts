@@ -91,11 +91,18 @@ console.log("Ascension clears bank");
     { instanceId: "a", defId: "executioners_axe" }, // has C6
     { instanceId: "b", defId: "requiem_charm" }, // has C8
   ];
+  const before = p.sanity;
   const r = attemptAscension(state, getRng(state));
   assert(r.ok, `ascend ok (${r.error ?? "ok"})`);
   assert(p.sequence === 8, "now Seq 8");
+  assert(p.sanity === before, "potion costs no Sanity");
+  assert(!state.actionsUsed.sequence, "potion leaves the Sequence action free");
   assert(!p.actingMet, "actingMet cleared for new Sequence");
   assert(!p.actingBank.attackedWithWeapon, "bank reset");
+  const cast = castSequenceAbility(state, state.players[1]!.id, getRng(state));
+  assert(cast.ok, `ability after potion (${cast.error ?? "ok"})`);
+  assert(p.sanity === before - 1, "Sequence 8 ability costs 1 Sanity");
+  assert(state.actionsUsed.sequence, "ability spends the Sequence action");
 }
 
 console.log("Fool Divination locks Seq 9");

@@ -25,16 +25,17 @@ function score(state: GameState, myId: string): number {
   if (opps.length === 0) return 100000;
 
   let s = 0;
-  s += (9 - me.sequence) * 110;
-  if (me.actingMet) s += 36;
-  s += me.hp * 4 + me.sanity * 2.2 + Math.min(me.sp, 14) * 1.15;
-  s += Math.min(me.hand.length, 7) * 1.3;
-  if (me.weapon && !me.status.weaponDisabled) s += 14;
-  s += me.charms.length * 6;
-  if (me.artifact) s += 14;
-  if (me.trap) s += 8;
-  if (me.mad) s -= 40;
-  if (me.hp <= 4) s -= 22;
+  s += (9 - me.sequence) * 70;
+  if (me.actingMet) s += 28;
+  s += me.hp * 8 + me.sanity * 3.2 + Math.min(me.sp, 12) * 0.7;
+  s += Math.min(me.hand.length, 7) * 1.1;
+  if (me.weapon && !me.status.weaponDisabled) s += 18;
+  s += me.charms.length * 5;
+  if (me.artifact) s += 12;
+  if (me.trap) s += 6;
+  if (me.mad) s -= 50;
+  if (me.hp <= 6) s -= 18;
+  if (me.sanity <= 3) s -= 14;
 
   const recipe = matchRecipe(me);
   if (recipe) {
@@ -44,30 +45,57 @@ function score(state: GameState, myId: string): number {
   }
 
   for (const o of opps) {
-    s -= o.hp * 4.6;
-    s -= o.sanity * 1.1;
-    s -= (9 - o.sequence) * 55;
-    s -= Math.min(o.sp, 10) * 0.45;
-    if (o.actingMet) s -= 14;
-    if (o.weapon && !o.status.weaponDisabled) s -= 6;
-    if (o.mad) s += 8;
+    s -= o.hp * 11;
+    s -= o.sanity * 1.4;
+    s -= (9 - o.sequence) * 36;
+    s -= Math.min(o.sp, 10) * 0.35;
+    if (o.actingMet) s -= 10;
+    if (o.weapon && !o.status.weaponDisabled) s -= 8;
+    if (o.hp <= 4) s += 16;
+    if (o.mad) s += 6;
   }
-  s += (state.players.length - 1 - opps.length) * 80;
+  s += (state.players.length - 1 - opps.length) * 90;
   return s;
+}
+
+function cloneForSearch(state: GameState): GameState {
+  const clone = structuredClone(state);
+  clone.log = clone.log.slice(-2);
+  clone.reveals = [];
+  return clone;
+}
+
+/** Apply a line, take a free swing if one is left, then let the next player swing back. */
+function exchangeScore(state: GameState, myId: string, apply: (g: GameState) => boolean): number | null {
+  const clone = cloneForSearch(state);
+  if (!apply(clone)) return null;
+  if (clone.phase === "action" && currentPlayer(clone).id === myId && !clone.actionsUsed.attack) {
+    const prey = opponentsOf(clone, myId).sort((a, b) => a.hp - b.hp)[0];
+    if (prey) performAttack(clone, prey.id, getRng(clone));
+  }
+  if (clone.phase === "action" && currentPlayer(clone).id === myId && !isOver(clone)) {
+    endTurn(clone, getRng(clone));
+  }
+  if (clone.phase === "action" && currentPlayer(clone).id !== myId) {
+    const me = clone.players.find((p) => p.id === myId);
+    if (me?.alive && !clone.actionsUsed.attack) performAttack(clone, myId, getRng(clone));
+  }
+  return score(clone, myId);
+}
+
+function isOver(state: GameState): boolean {
+  return (state.phase as string) === "gameover";
 }
 
 type Wish = "hp" | "sanity" | "sp";
 
 function tryAction(state: GameState, myId: string, apply: (s: GameState) => boolean): number | null {
-  const clone = structuredClone(state);
-  // Keep RNG inputs stable across candidates without cloning the whole chronicle.
-  clone.log = clone.log.slice(-2);
-  clone.reveals = [];
-  const before = `${state.actionsUsed.standard}${state.actionsUsed.sequence}${state.actionsUsed.attack}${state.extraStandard ?? 0}`;
+  const clone = cloneForSearch(state);
+  const before = `${state.actionsUsed.standard}${state.actionsUsed.sequence}${state.actionsUsed.attack}${state.extraStandard ?? 0}${state.potionDrunk ? 1 : 0}`;
   const ok = apply(clone);
   if (!ok) return null;
-  const after = `${clone.actionsUsed.standard}${clone.actionsUsed.sequence}${clone.actionsUsed.attack}${clone.extraStandard ?? 0}`;
-  const tempo = before !== after || clone.phase !== "action" || clone.turnNumber !== state.turnNumber ? 2.5 : 0;
+  const after = `${clone.actionsUsed.standard}${clone.actionsUsed.sequence}${clone.actionsUsed.attack}${clone.extraStandard ?? 0}${clone.potionDrunk ? 1 : 0}`;
+  const tempo = before !== after || clone.phase !== "action" || clone.turnNumber !== state.turnNumber ? 3 : 0;
   return score(clone, myId) + tempo;
 }
 
@@ -93,7 +121,7 @@ export function runAiTurn(state: GameState): GameState {
       }
     };
 
-    if (!s.actionsUsed.sequence && p.actingMet) {
+    if (!s.potionDrunk && p.actingMet) {
       consider((g) => attemptAscension(g, getRng(g)).ok);
     }
 
@@ -154,6 +182,18 @@ export function runAiTurn(state: GameState): GameState {
     }
 
     if (!plan.run) break;
+
+    if (!s.actionsUsed.attack && opps.length) {
+      const swing = (g: GameState) => {
+        const prey = opponentsOf(g, myId).sort((a, b) => a.hp - b.hp)[0];
+        return prey ? performAttack(g, prey.id, getRng(g)).ok : false;
+      };
+      const chosen = plan.run;
+      const swung = exchangeScore(s, myId, swing);
+      const held = exchangeScore(s, myId, chosen);
+      if (swung != null && (held == null || swung > held + 0.5)) plan.run = swing;
+    }
+
     plan.run(s);
   }
 

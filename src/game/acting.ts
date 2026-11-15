@@ -123,7 +123,7 @@ export function evaluateActing(player: PlayerState): boolean {
     case "gain_block":
       return f.evadedOrBlocked;
     case "mastery_attack":
-      return f.attackedWithWeapon || (f.dealtDamage && f.spSpent >= 1);
+      return f.attackedWithWeapon || (f.dealtDamage && f.cardsPlayed >= 1);
     case "weapon_attack":
       return f.attackedWithWeapon;
     case "cast_provoke":
@@ -410,7 +410,7 @@ export function actingProgressItems(player: PlayerState): ActingProgressItem[] {
       add("block", "Gain Block", f.evadedOrBlocked);
       break;
     case "mastery_attack":
-      add("atk", "Attack (Mastery or Weapon)", f.attackedWithWeapon || (f.dealtDamage && f.spSpent >= 1));
+      add("atk", "Attack (Mastery or Weapon)", f.attackedWithWeapon || (f.dealtDamage && f.cardsPlayed >= 1));
       break;
     case "cast_provoke":
       add("prov", "Cast Provoke", f.forcedSkip || f.evadedOrBlocked);

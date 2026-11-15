@@ -87,13 +87,15 @@ export interface SequenceDef {
   title: string;
   spGain: number;
   abilityName: string;
+  /** Historical SP figure. Casting pays abilitySanityCost(sequence), not this number. */
   abilityCost: number;
   abilityText: string;
   abilityId: string;
   actingCondition: string;
   actingId: string;
   recipe: Ingredient[];
-  sanityToll: number; // cost to ascend TO this sequence from previous
+  /** Unused. Potions no longer charge Sanity. */
+  sanityToll: number;
 }
 
 export interface PathwayDef {
@@ -269,6 +271,10 @@ export interface GameState {
   selectedTargetId?: string;
   seed: number;
   extraStandard?: number;
+  /** Potion drinking is separate from the Sequence action, once per turn. */
+  potionDrunk?: boolean;
+  simAttacks?: number;
+  simHpDealt?: number;
   /** Present only while the balance simulator is recording a match. */
   simPlays?: {
     defId: string;

@@ -71,8 +71,8 @@ export function matchRecipe(player: PlayerState): RecipeMatch | null {
     remaining,
     discardInstanceIds,
     universalUsed,
-    canPay: remaining.length === 0 && player.sanity >= next.sanityToll,
-    toll: next.sanityToll,
+    canPay: remaining.length === 0,
+    toll: 0,
     missingLabels: remaining.map((r) => INGREDIENT_NAMES[r] ?? r),
   };
 }
@@ -102,13 +102,6 @@ export function ascensionReady(player: PlayerState): {
       acting,
       recipe: false,
       reason: `Missing: ${recipe.missingLabels.join(", ")}`,
-    };
-  }
-  if (player.sanity < recipe.toll) {
-    return {
-      acting,
-      recipe: false,
-      reason: `Need ${recipe.toll} Sanity (have ${player.sanity})`,
     };
   }
   return { acting, recipe: true, reason: "Ready to drink potion" };

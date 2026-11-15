@@ -1437,3 +1437,11 @@ export function getSequence(pathwayId: string, sequence: number) {
 export function spGainFor(pathwayId: string, sequence: number): number {
   return getSequence(pathwayId, sequence).spGain;
 }
+
+/** Sanity paid to cast the pathway ability. Bands of three: 1, then 2, then 3 (18 total if cast once per Sequence 9→1). */
+export function abilitySanityCost(sequence: number): number {
+  if (sequence >= 7) return 1;
+  if (sequence >= 4) return 2;
+  if (sequence >= 1) return 3;
+  return 0;
+}

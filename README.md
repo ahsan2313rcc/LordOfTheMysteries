@@ -26,7 +26,8 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - Reveal modal for hand peeks, deck peeks, Trap reveals, and card steals
 - Full turn loop: Begin → Draw → Action (Standard / Sequence / Attack) → End
 - Card pool: Weapons, Spells, Utilities, Charms, Traps, Artifacts (revised 16C/4R spell & utility split)
-- Ascension with **sticky Acting Conditions** (early Seq completable via Pathway ability; progress banks until you drink)
+- Ascension with **sticky Acting Conditions** (progress banks until you drink). Potions cost no Sanity, and you may cast and drink on the same turn.
+- Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). Spirituality pays for cards: commons 1, rares 4, artifacts 6. The basic attack is free.
 - Passive recovery: +1 HP if no HP taken, +1 Sanity if no Sanity taken, SP every turn from Pathway/Seq
 - Artifact powers + Contention (steal)
 - Madness, Block / Evade, lasting Block, traps as interrupts, AI opponents (1–3)
@@ -39,7 +40,7 @@ npm run sim:four        # 24× auto 4-player games → length & economy metrics
 npm run test:cards      # card text matches engine behavior
 ```
 
-The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, then shows pathway win rates, which cards get played, and a step-through chronicle of each match.
+The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, from 8 games up to 1024, then shows pathway win rates, which cards get played, and a step-through chronicle. **Rules** on the title screen is the current ruleset.
 
 ### Balance snapshot (4-player AI sims)
 
