@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: lordofthemysteries
+    runtime: node
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: npm start
+    autoDeployTrigger: commit

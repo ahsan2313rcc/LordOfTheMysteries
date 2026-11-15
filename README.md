@@ -2,6 +2,15 @@
 
 A browser card-game prototype inspired by *Lord of the Mysteries*: choose a Pathway, manage HP / Sanity / Spirituality, drink potions to climb Sequences, and win by **Last Man Standing** or **Apotheosis** (Sequence 0).
 
+## Play on Render
+
+The live service must run a production build. `next dev` opens a hot-reload socket at `/_next/hmr`; Render answers that socket with 502, the page never hydrates, and Begin Ritual stays on the title.
+
+Build command: `npm install --include=dev && npm run build`  
+Start command: `npm start`
+
+`npm run dev` does the same when Render sets `RENDER=true`, so a service still pointed at the dev script serves the built app.
+
 ## Play locally
 
 ```bash
