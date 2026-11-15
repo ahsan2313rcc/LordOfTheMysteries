@@ -224,7 +224,7 @@ export function GameApp() {
               className="bg-amber-600 text-stone-950 hover:bg-amber-500"
               onClick={() => setScreen("setup")}
             >
-              Begin Ritual
+              Begin
             </Button>
             <Button size="lg" variant="outline" onClick={() => setScreen("sim")}>
               AI Simulator

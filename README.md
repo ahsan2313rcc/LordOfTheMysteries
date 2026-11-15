@@ -4,7 +4,7 @@ A browser card-game prototype inspired by *Lord of the Mysteries*: choose a Path
 
 ## Play on Render
 
-The live service must run a production build. `next dev` opens a hot-reload socket at `/_next/hmr`; Render answers that socket with 502, the page never hydrates, and Begin Ritual stays on the title.
+The live service must run a production build. `next dev` opens a hot-reload socket at `/_next/hmr`; Render answers that socket with 502, the page never hydrates, and Begin stays on the title.
 
 Build command: `npm install --include=dev && npm run build`  
 Start command: `npm start`
