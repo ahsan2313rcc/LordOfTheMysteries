@@ -16,6 +16,7 @@ import {
   getRng,
   performAttack,
   playCardFromHand,
+  sacrificeRequiem,
 } from "@/game/engine";
 import { getSequence, INGREDIENT_NAMES, PATHWAYS } from "@/game/pathways";
 import type { GameState } from "@/game/types";
@@ -24,8 +25,9 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { CardView } from "./CardView";
 import { PlayerPanel } from "./PlayerPanel";
 import { RevealModal } from "./RevealModal";
+import { SimulatorView } from "./SimulatorView";
 
-type Screen = "title" | "setup" | "play" | "design";
+type Screen = "title" | "setup" | "play" | "design" | "sim";
 
 export function GameApp() {
   const [screen, setScreen] = useState<Screen>("title");
@@ -164,13 +166,21 @@ export function GameApp() {
     });
   }
 
-  function onArtifactPower() {
+  function onArtifactPower(wish?: "hp" | "sanity" | "sp") {
     if (!state) return;
     const rng = getRng(state);
     const target = selectedTarget ?? undefined;
     apply((s) => {
-      const r = activateArtifactPower(s, target, rng);
+      const r = activateArtifactPower(s, target, rng, wish);
       if (!r.ok) return r.error ?? "Cannot activate";
+    });
+  }
+
+  function onRequiem() {
+    if (!state) return;
+    apply((s) => {
+      const r = sacrificeRequiem(s);
+      if (!r.ok) return r.error ?? "Cannot shatter Requiem";
     });
   }
 
@@ -207,6 +217,9 @@ export function GameApp() {
               onClick={() => setScreen("setup")}
             >
               Begin Ritual
+            </Button>
+            <Button size="lg" variant="outline" onClick={() => setScreen("sim")}>
+              AI Simulator
             </Button>
             <Button
               size="lg"
@@ -308,6 +321,10 @@ export function GameApp() {
     );
   }
 
+  if (screen === "sim") {
+    return <SimulatorView onBack={() => setScreen("title")} />;
+  }
+
   // Play screen
   if (!state || !human) return null;
   const seq = getSequence(human.pathwayId, human.sequence);
@@ -317,7 +334,7 @@ export function GameApp() {
     : null;
 
   return (
-    <main className="relative min-h-screen pb-36">
+    <main className="relative flex min-h-screen flex-col lg:h-screen lg:overflow-hidden">
       <div className="fog-layer opacity-40" aria-hidden />
       <header className="relative z-10 flex flex-wrap items-center justify-between gap-3 border-b border-stone-800/80 bg-stone-950/70 px-4 py-3 backdrop-blur">
         <div>
@@ -349,9 +366,9 @@ export function GameApp() {
         </div>
       )}
 
-      <div className="relative z-10 mx-auto grid max-w-7xl gap-4 px-4 py-4 lg:grid-cols-[1fr_320px]">
-        <section className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
+      <div className="relative z-10 mx-auto grid min-h-0 w-full max-w-[90rem] flex-1 gap-3 overflow-hidden px-3 py-3 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <section className="min-h-0 space-y-3 overflow-y-auto pr-1">
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
             {state.players.map((p) => (
               <PlayerPanel
                 key={p.id}
@@ -404,9 +421,8 @@ export function GameApp() {
               ))}
             </ul>
             <p className="mt-2 text-[0.65rem] text-stone-500">
-              Early Sequences: complete Acting with your Pathway ability (sometimes + Attack) in
-              one turn. Progress also banks across turns until you Ascend. Mid/high Sequences get
-              harder as abilities grow stronger.
+              Acting banks across turns until you drink. Click a seat to target them, or target
+              yourself for Aegis of Mind&apos;s Sanity Block.
             </p>
 
             {nextSeq && humanActing.ready && (
@@ -431,66 +447,13 @@ export function GameApp() {
               </div>
             )}
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            <ActionChip
-              label="Standard"
-              used={state.actionsUsed.standard}
-              extra={state.extraStandard}
-            />
-            <ActionChip label="Sequence" used={state.actionsUsed.sequence} />
-            <ActionChip label="Attack" used={state.actionsUsed.attack} />
-          </div>
-
-          {myTurn && (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                className="bg-amber-700 hover:bg-amber-600"
-                disabled={!selectedCard}
-                onClick={onPlayCard}
-              >
-                Play Card
-              </Button>
-              <Button size="sm" variant="secondary" onClick={onAbility}>
-                Cast Ability
-              </Button>
-              <Button size="sm" variant="secondary" onClick={onAttack}>
-                Attack Target
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className={cn(
-                  "border-amber-600/50 text-amber-200",
-                  humanActing.ready?.acting &&
-                    humanActing.ready?.recipe &&
-                    "border-emerald-500/70 text-emerald-200",
-                )}
-                onClick={onAscend}
-              >
-                Drink Potion
-              </Button>
-              {human.artifact && (
-                <Button size="sm" variant="outline" onClick={onArtifactPower}>
-                  Artifact Power
-                </Button>
-              )}
-              <Button size="sm" variant="outline" onClick={onContend}>
-                Contend Artifact
-              </Button>
-              <Button size="sm" variant="ghost" onClick={onEnd}>
-                End Turn
-              </Button>
-            </div>
-          )}
         </section>
 
-        <aside className="rounded-xl border border-stone-700/50 bg-stone-950/80 p-3">
+        <aside className="flex min-h-0 flex-col rounded-xl border border-stone-700/50 bg-stone-950/80 p-3">
           <p className="font-[family-name:var(--font-display)] text-sm text-amber-100">
             Chronicle
           </p>
-          <ul className="mt-2 max-h-[28rem] space-y-1.5 overflow-y-auto text-xs">
+          <ul className="mt-2 min-h-0 flex-1 space-y-1.5 overflow-y-auto text-xs">
             {state.log.map((e) => (
               <li
                 key={e.id}
@@ -512,38 +475,94 @@ export function GameApp() {
         </aside>
       </div>
 
-      {/* Hand dock */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-amber-900/30 bg-stone-950/95 px-3 py-3 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-end gap-2 overflow-x-auto pb-1">
+      <div className="z-30 shrink-0 border-t border-stone-800 bg-stone-950/95 px-3 py-2">
+        <div className="mb-2 flex flex-wrap items-center gap-2">
+          <ActionChip label="Standard" used={state.actionsUsed.standard} extra={state.extraStandard} />
+          <ActionChip label="Sequence" used={state.actionsUsed.sequence} />
+          <ActionChip label="Attack" used={state.actionsUsed.attack} />
+          {myTurn && (
+            <>
+              <Button size="sm" className="bg-amber-700 hover:bg-amber-600" disabled={!selectedCard} onClick={onPlayCard}>
+                Play Card
+              </Button>
+              <Button size="sm" variant="secondary" onClick={onAbility}>
+                Cast Ability
+              </Button>
+              <Button size="sm" variant="secondary" onClick={onAttack}>
+                Attack Target
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className={cn(
+                  "border-amber-600/50 text-amber-200",
+                  humanActing.ready?.acting && humanActing.ready?.recipe && "border-emerald-500/70 text-emerald-200",
+                )}
+                onClick={onAscend}
+              >
+                Drink Potion
+              </Button>
+              {human.artifact?.defId === "wishing_lamp" ? (
+                <>
+                  <Button size="sm" variant="outline" onClick={() => onArtifactPower("hp")}>Wish: 2 HP</Button>
+                  <Button size="sm" variant="outline" onClick={() => onArtifactPower("sanity")}>Wish: 2 Sanity</Button>
+                  <Button size="sm" variant="outline" onClick={() => onArtifactPower("sp")}>Wish: 3 SP</Button>
+                </>
+              ) : (
+                human.artifact && (
+                  <Button size="sm" variant="outline" onClick={() => onArtifactPower()}>
+                    Artifact Power
+                  </Button>
+                )
+              )}
+              {human.charms.some((c) => c.defId === "requiem_charm") && (
+                <Button size="sm" variant="outline" onClick={onRequiem}>
+                  Shatter Requiem (+1 HP)
+                </Button>
+              )}
+              <Button size="sm" variant="outline" onClick={() => setSelectedTarget(human.id)}>
+                Target Yourself
+              </Button>
+              <Button size="sm" variant="outline" onClick={onContend}>
+                Contend Artifact
+              </Button>
+              <Button size="sm" variant="ghost" onClick={onEnd}>
+                End Turn
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="z-30 max-h-[40vh] shrink-0 overflow-y-auto border-t border-amber-900/40 bg-stone-950 px-3 py-2">
+        {selectedCard && (
+          <p className="mb-2 text-xs leading-relaxed text-stone-300">
+            {(() => {
+              const c = human.hand.find((x) => x.instanceId === selectedCard);
+              if (!c) return "Card left your hand.";
+              const d = getCardDef(c.defId);
+              const tgt = state.players.find((p) => p.id === selectedTarget);
+              return `${d.name} · ${d.type} · ${d.spCost} SP — ${d.text}${tgt ? ` → ${tgt.name}` : " · choose a target"}`;
+            })()}
+          </p>
+        )}
+        <div className="flex items-end gap-2 overflow-x-auto pb-1">
           {human.hand.map((c) => (
             <CardView
               key={c.instanceId}
               card={c}
               selected={selectedCard === c.instanceId}
               disabled={!myTurn}
-              onClick={() => setSelectedCard(c.instanceId)}
+              onClick={() => myTurn && setSelectedCard(c.instanceId)}
             />
           ))}
           {human.hand.length === 0 && (
-            <p className="py-6 text-sm text-stone-500">Empty hand — draw of fate awaits.</p>
+            <p className="py-4 text-sm text-stone-500">Empty hand — the draw phase will refill it.</p>
           )}
         </div>
-        {selectedCard && (
-          <p className="mx-auto mt-1 max-w-7xl text-[0.7rem] text-stone-400">
-            Selected:{" "}
-            {(() => {
-              const c = human.hand.find((x) => x.instanceId === selectedCard);
-              return c ? getCardDef(c.defId).name : "—";
-            })()}
-            {selectedTarget
-              ? ` → ${state.players.find((p) => p.id === selectedTarget)?.name}`
-              : " · click a player to target"}
-          </p>
-        )}
       </div>
 
       {toast && (
-        <div className="fixed bottom-40 left-1/2 z-40 -translate-x-1/2 rounded-full border border-amber-700/50 bg-stone-950 px-4 py-2 text-sm text-amber-100 shadow-xl">
+        <div className="fixed left-1/2 top-16 z-40 -translate-x-1/2 rounded-full border border-amber-700/50 bg-stone-950 px-4 py-2 text-sm text-amber-100">
           {toast}
         </div>
       )}

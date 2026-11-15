@@ -57,10 +57,10 @@ export function CardView({
       className={cn(
         "group relative shrink-0 rounded-md border bg-gradient-to-b text-left shadow-lg transition duration-200",
         TYPE_HUE[def.type] ?? TYPE_HUE.utility,
-        compact ? "h-28 w-[4.6rem] p-1.5" : "h-40 w-[7.2rem] p-2.5",
+        compact ? "min-h-36 w-[5.6rem] p-1.5" : "min-h-52 w-[9rem] p-2.5",
         !disabled && "hover:-translate-y-2 hover:shadow-amber-900/30",
-        selected && "ring-2 ring-amber-400 -translate-y-3",
-        disabled && "opacity-50 cursor-not-allowed",
+        selected && "ring-2 ring-amber-400 -translate-y-2",
+        disabled && "cursor-default",
       )}
     >
       <div className="flex items-start justify-between gap-1">
@@ -81,18 +81,14 @@ export function CardView({
       </p>
       {!compact && (
         <>
-          <p className="mt-2 text-[0.65rem] leading-snug text-stone-300/90 line-clamp-4">
-            {def.text}
-          </p>
-          <p className="mt-auto pt-2 text-[0.5rem] text-stone-500 line-clamp-1">
+          <p className="mt-2 text-[0.68rem] leading-snug text-stone-200/90">{def.text}</p>
+          <p className="mt-auto pt-2 text-[0.5rem] leading-snug text-stone-500">
             {def.ingredients.map((i) => INGREDIENT_NAMES[i] ?? i).join(" · ")}
           </p>
         </>
       )}
       {compact && (
-        <p className="mt-1 text-[0.55rem] leading-snug text-stone-400 line-clamp-3">
-          {def.text}
-        </p>
+        <p className="mt-1 text-[0.55rem] leading-snug text-stone-400">{def.text}</p>
       )}
     </button>
   );

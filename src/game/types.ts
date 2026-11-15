@@ -127,6 +127,8 @@ export interface StatusFlags {
   madnessImmune?: boolean;
   onceEvadeUsed?: boolean;
   weaponDisabled?: boolean;
+  /** Spell/Utility was negated by Concealment Boundary (this play only). */
+  fizzleSpell?: boolean;
 }
 
 export interface TurnTracking {
@@ -207,6 +209,11 @@ export interface PlayerState {
   ignoreArtifactDrawback?: boolean;
   nextCardTax?: number;
   markedBonusAttack?: number; // extra damage on next attack received from marker
+  /** Lingering debuffs that last until the source player's next Begin. */
+  rustSourceId?: string;
+  shriekSourceId?: string;
+  shareSourceId?: string;
+  requiemUsed?: boolean;
 }
 
 export interface GameLogEntry {
@@ -262,4 +269,15 @@ export interface GameState {
   selectedTargetId?: string;
   seed: number;
   extraStandard?: number;
+  /** Present only while the balance simulator is recording a match. */
+  simPlays?: {
+    defId: string;
+    playerId: string;
+    pathwayId: string;
+    turn: number;
+    damage: number;
+    /** swing = weapon attack credit; omitted = the card was played from hand */
+    swing?: boolean;
+  }[];
+  simBuf?: number;
 }

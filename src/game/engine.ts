@@ -199,7 +199,26 @@ export function drawCards(
 }
 
 function discardToPile(state: GameState, card: CardInstance) {
+  if (state.discard.some((c) => c.instanceId === card.instanceId)) return;
+  state.deck = state.deck.filter((c) => c.instanceId !== card.instanceId);
   state.discard.push(card);
+}
+
+function cardSearchScore(p: PlayerState, defId: string): number {
+  const d = getCardDef(defId);
+  const recipe = matchRecipe(p);
+  let s = 0;
+  if (recipe && p.actingMet) {
+    if (defId === "potion_ingredients" && recipe.remaining.some((r) => r.startsWith("C"))) s += 50;
+    s += recipe.remaining.filter((r) => d.ingredients.includes(r)).length * 20;
+  }
+  if (d.type === "weapon" && !p.weapon) s += 8;
+  if (d.type === "trap" && !p.trap) s += 6;
+  if (d.type === "charm" && p.charms.length < 2) s += 5;
+  if (d.type === "spell") s += 4;
+  if (d.type === "utility") s += 3;
+  if (d.rarity === "rare") s += 2;
+  return s;
 }
 
 export function paySp(player: PlayerState, cost: number, state: GameState): boolean {
@@ -236,7 +255,7 @@ export function dealDamage(
       }
     }
   }
-  if (opts.ranged) {
+  if (opts.ranged && !opts.unblockable && !opts.ignoreEvade) {
     for (const c of target.charms) {
       if (getCardDef(c.defId).charm?.rangedEvade) {
         log(state, `${target.name}'s Sunbird Charm evades the ranged attack.`, "system");
@@ -251,8 +270,9 @@ export function dealDamage(
     target.turnFlags.evadedOrBlocked = true;
     target.turnFlags.negatedAttack = true;
     log(state, `${target.name} Evades the attack!`, "system");
-    maybeTriggerTraps(state, target, "evade", rng);
-    return 0;
+    const nullified = maybeTriggerTraps(state, target, "evade", rng);
+    if (!nullified) return 0;
+    log(state, `Distorted Space nullifies the Evade — the blow lands.`, "damage");
   }
 
   // Once-per-cycle charm evade
@@ -334,6 +354,7 @@ export function dealDamage(
       "damage",
     );
     checkElimination(state, target, source, rng);
+    if (state.simPlays && source && dmg > 0) state.simBuf = (state.simBuf ?? 0) + dmg;
     return dmg;
   }
 
@@ -376,6 +397,7 @@ export function dealDamage(
     source.turnFlags.causedMadness += 1;
     noteActing(state, source);
   }
+  if (state.simPlays && source && dmg > 0) state.simBuf = (state.simBuf ?? 0) + dmg;
   return dmg;
 }
 
@@ -467,17 +489,33 @@ type TrapTrigger =
   | "equipRare"
   | "endTurn";
 
+function destroyEquipped(state: GameState, actor: PlayerState, instanceId?: string) {
+  if (!instanceId) return;
+  if (actor.weapon?.instanceId === instanceId) {
+    discardToPile(state, actor.weapon);
+    actor.weapon = undefined;
+    return;
+  }
+  const charm = actor.charms.find((c) => c.instanceId === instanceId);
+  if (charm) {
+    actor.charms = actor.charms.filter((c) => c.instanceId !== instanceId);
+    discardToPile(state, charm);
+  }
+}
+
 export function maybeTriggerTraps(
   state: GameState,
   actor: PlayerState,
   trigger: TrapTrigger,
   rng: Rng,
-  meta?: { targetId?: string },
-) {
+  meta?: { targetId?: string; equippedId?: string; skipDefIds?: string[] },
+): boolean {
+  let nullifyEvade = false;
   for (const owner of state.players) {
     if (!owner.alive || !owner.trap || owner.id === actor.id) continue;
     const def = getCardDef(owner.trap.defId);
     if (def.trap?.trigger !== trigger) continue;
+    if (meta?.skipDefIds?.includes(def.id)) continue;
     if (owner.sp < 1) continue; // pay 1 SP to trigger
     owner.sp -= 1;
     const trapCard = owner.trap;
@@ -492,14 +530,32 @@ export function maybeTriggerTraps(
           owner.status.evade += 1;
           dealDamage(state, owner, actor, 1, { unblockable: true }, rng);
         } else if (def.id === "mind_prison") {
-          // negate handled by caller via return; apply sanity
           dealDamage(state, owner, actor, 1, { type: "sanity", unblockable: true }, rng);
         }
         break;
       case "spell":
-        actor.status.stunned = true;
-        if (def.id === "concealment_boundary") {
+        if (def.id === "sun_flare") {
+          actor.status.stunned = true;
+          actor.status.fizzleSpell = true;
+          log(state, `${actor.name} is Stunned — the Spell fizzles.`, "system");
+        } else if (def.id === "concealment_boundary") {
+          actor.status.fizzleSpell = true;
           dealDamage(state, owner, actor, 1, { unblockable: true }, rng);
+          log(state, `${def.name} negates ${actor.name}'s Spell or Utility.`, "system");
+        }
+        break;
+      case "equip":
+        if (def.id === "grafted_chains") {
+          destroyEquipped(state, actor, meta?.equippedId);
+          actor.sp = Math.max(0, actor.sp - 1);
+          log(state, `${actor.name}'s equipment is discarded and they lose 1 SP.`, "damage");
+        }
+        break;
+      case "equipRare":
+        if (def.id === "sefirah_rejection") {
+          destroyEquipped(state, actor, meta?.equippedId);
+          dealDamage(state, owner, actor, 2, { unblockable: true }, rng);
+          log(state, `${def.name} destroys the Rare and strikes for 2.`, "damage");
         }
         break;
       case "draw2":
@@ -509,26 +565,28 @@ export function maybeTriggerTraps(
         const steal = Math.min(2, actor.sp);
         actor.sp -= steal;
         owner.sp = Math.min(20, owner.sp + steal);
+        log(state, `${owner.name} siphons ${steal} SP.`, "damage");
         break;
       }
       case "evade":
+        if (def.id === "distorted_space") nullifyEvade = true;
         dealDamage(state, owner, actor, 1, { unblockable: true }, rng);
         break;
       case "endTurn": {
         for (const c of actor.hand) discardToPile(state, c);
         actor.hand = [];
         drawCards(state, actor, 3, rng, true);
+        log(state, `${actor.name}'s hand loops — discarded, then drew 3.`, "system");
         break;
       }
       case "ascension":
-        // fail handled by ascend()
         break;
       default:
         break;
     }
     discardToPile(state, trapCard);
-    void meta;
   }
+  return nullifyEvade;
 }
 
 export function createGame(opts: {
@@ -688,6 +746,24 @@ export function runBeginPhase(state: GameState, rng: Rng) {
     if (isGameOver(state)) return;
   }
   p.ignoreArtifactDrawback = false;
+  p.requiemUsed = false;
+
+  // Lingering effects last until the source player's next Begin.
+  for (const pl of state.players) {
+    if (pl.rustSourceId === p.id) {
+      pl.rustSourceId = undefined;
+      pl.status.weaponDisabled = false;
+    }
+    if (pl.shriekSourceId === p.id) {
+      pl.shriekSourceId = undefined;
+      pl.status.attackModifier = 0;
+      pl.status.blockModifier = 0;
+    }
+  }
+  if (p.shareSourceId === p.id) {
+    p.shareSourceId = undefined;
+    p.status.damageShareWith = undefined;
+  }
 
   // Sword of Silver passive
   if (p.weapon && p.weapon.defId === "sword_silver") {
@@ -723,8 +799,8 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   {
     let gain = spGainFor(p.pathwayId, p.sequence);
     if (p.status.noPassiveSp) {
-      gain = Math.max(0, gain - 1);
-      log(state, `${p.name}'s Spirit is strained (−1 SP generation).`, "system");
+      gain = 0;
+      log(state, `${p.name} generates no passive SP (Spirit Bullet).`, "system");
     }
     if (gain > 0) {
       p.sp = Math.min(20, p.sp + gain);
@@ -805,16 +881,18 @@ export function runEndPhase(state: GameState, rng: Rng) {
   maybeTriggerTraps(state, p, "endTurn", rng);
   if (isGameOver(state)) return;
 
-  // Reset temporary combat status
+  // Reset temporary combat status. Lingering debuffs survive until their source's Begin.
   p.status.block = 0;
   p.status.sanityBlock = 0;
   p.status.evade = 0;
-  p.status.attackModifier = 0;
-  p.status.blockModifier = 0;
   p.status.unblockableAttack = false;
-  p.status.damageShareWith = undefined;
+  if (!p.shriekSourceId) {
+    p.status.attackModifier = 0;
+    p.status.blockModifier = 0;
+  }
+  if (!p.shareSourceId) p.status.damageShareWith = undefined;
   p.status.onceEvadeUsed = false;
-  p.status.weaponDisabled = false;
+  if (!p.rustSourceId) p.status.weaponDisabled = false;
 
   // Hand limit — discard non-recipe cards first when Acting is locked
   const lim = handLimit(p);
@@ -912,21 +990,34 @@ export function playCardFromHand(
     log(state, `${p.name} pays +${tax} SP tax.`, "system");
   }
 
-  // Spell traps
-  if (def.type === "spell") {
-    maybeTriggerTraps(state, p, "spell", rng);
-    if (p.status.stunned) {
-      // card still spent
+  // Spell / Utility traps (Sun Flare is spells only; Concealment hits both)
+  if (def.type === "spell" || def.type === "utility") {
+    maybeTriggerTraps(state, p, "spell", rng, {
+      skipDefIds: def.type === "utility" ? ["sun_flare"] : undefined,
+    });
+    if (p.status.stunned || p.status.fizzleSpell) {
+      p.status.fizzleSpell = false;
       p.hand.splice(idx, 1);
       discardToPile(state, card);
       markStandard(state);
-      log(state, `${p.name}'s Spell was interrupted by a Trap!`, "system");
+      if (state.simPlays) {
+        state.simPlays.push({
+          defId: def.id,
+          playerId: p.id,
+          pathwayId: p.pathwayId,
+          turn: state.turnNumber,
+          damage: state.simBuf ?? 0,
+        });
+        state.simBuf = 0;
+      }
+      log(state, `${p.name}'s ${def.type} was negated by a Trap.`, "system");
       return { ok: true };
     }
   }
 
   p.hand.splice(idx, 1);
   p.turnFlags.cardsPlayed += 1;
+  state.simBuf = 0;
 
   const target =
     (targetId && state.players.find((x) => x.id === targetId)) ||
@@ -935,6 +1026,16 @@ export function playCardFromHand(
   resolveCardEffect(state, p, card, def.effectId, target, rng);
   markStandard(state);
   noteActing(state, p);
+  if (state.simPlays) {
+    state.simPlays.push({
+      defId: def.id,
+      playerId: p.id,
+      pathwayId: p.pathwayId,
+      turn: state.turnNumber,
+      damage: state.simBuf ?? 0,
+    });
+    state.simBuf = 0;
+  }
   return { ok: true };
 }
 
@@ -961,8 +1062,10 @@ function resolveCardEffect(
     case "equip_weapon": {
       if (p.weapon) discardToPile(state, p.weapon);
       p.weapon = card;
-      maybeTriggerTraps(state, p, "equip", rng);
-      if (def.rarity === "rare") maybeTriggerTraps(state, p, "equipRare", rng);
+      maybeTriggerTraps(state, p, "equip", rng, { equippedId: card.instanceId });
+      if (def.rarity === "rare") {
+        maybeTriggerTraps(state, p, "equipRare", rng, { equippedId: card.instanceId });
+      }
       log(state, `${p.name} equips ${def.name}.`, "system");
       return;
     }
@@ -972,11 +1075,10 @@ function resolveCardEffect(
         discardToPile(state, old);
       }
       p.charms.push(card);
-      maybeTriggerTraps(state, p, "equip", rng);
-      if (def.rarity === "rare") maybeTriggerTraps(state, p, "equipRare", rng);
-      // Apply passive block to status for clarity
-      p.status.block += def.charm?.block ?? 0;
-      p.status.sanityBlock += def.charm?.sanityBlock ?? 0;
+      maybeTriggerTraps(state, p, "equip", rng, { equippedId: card.instanceId });
+      if (def.rarity === "rare") {
+        maybeTriggerTraps(state, p, "equipRare", rng, { equippedId: card.instanceId });
+      }
       log(state, `${p.name} equips charm ${def.name}.`, "system");
       return;
     }
@@ -1047,6 +1149,8 @@ function resolveCardEffect(
       if (target) {
         target.status.attackModifier -= 1;
         target.status.blockModifier -= 1;
+        target.shriekSourceId = p.id;
+        log(state, `${target.name} is shrouded until ${p.name}'s next Begin (−1 Attack, −1 Block).`, "system");
       }
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
@@ -1054,7 +1158,8 @@ function resolveCardEffect(
     case "spirit_entanglement":
       if (target) {
         p.status.damageShareWith = target.id;
-        log(state, `${p.name} entangles fate with ${target.name}.`, "system");
+        p.shareSourceId = p.id;
+        log(state, `${p.name} entangles fate with ${target.name} until their next Begin.`, "system");
       }
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
@@ -1175,7 +1280,8 @@ function resolveCardEffect(
     case "rust_ruin":
       if (target?.weapon) {
         target.status.weaponDisabled = true;
-        log(state, `${target.name}'s weapon rusts to uselessness.`, "system");
+        target.rustSourceId = p.id;
+        log(state, `${target.name}'s weapon deals 0 until ${p.name}'s next Begin.`, "system");
       }
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
@@ -1298,7 +1404,13 @@ function resolveCardEffect(
       return;
     }
     case "aegis_mind":
-      p.status.block += 2;
+      if (target?.id === p.id) {
+        p.status.sanityBlock += 2;
+        log(state, `${p.name} shields their mind (+2 Sanity Block).`, "heal");
+      } else {
+        p.status.block += 2;
+        log(state, `${p.name} raises Aegis (+2 Block).`, "heal");
+      }
       p.turnFlags.playedUtility = true;
       discardToPile(state, card);
       return;
@@ -1307,9 +1419,19 @@ function resolveCardEffect(
       ensureDeck(state, rng);
       const top = state.deck.splice(-4);
       if (top.length) {
-        const keep = top.pop()!;
+        const ranked = [...top].sort(
+          (a, b) => cardSearchScore(p, b.defId) - cardSearchScore(p, a.defId),
+        );
+        const keep = ranked[0]!;
+        const rest = top.filter((c) => c.instanceId !== keep.instanceId);
         p.hand.push(keep);
-        state.deck = [...top, ...state.deck];
+        state.deck = [...rest, ...state.deck];
+        pushReveal(state, {
+          kind: "deck",
+          title: "Dreamwalker — Top 4",
+          cards: top.map(cardSnapshot),
+          detail: `Kept ${getCardDef(keep.defId).name}. The rest go to the bottom.`,
+        });
       }
       p.turnFlags.playedUtility = true;
       discardToPile(state, card);
@@ -1319,9 +1441,19 @@ function resolveCardEffect(
       p.turnFlags.usedDiscard = true;
       const top = state.discard.splice(-3);
       if (top.length) {
-        const keep = top.pop()!;
+        const ranked = [...top].sort(
+          (a, b) => cardSearchScore(p, b.defId) - cardSearchScore(p, a.defId),
+        );
+        const keep = ranked[0]!;
+        const rest = top.filter((c) => c.instanceId !== keep.instanceId);
         p.hand.push(keep);
-        state.deck.push(...top);
+        state.deck.push(...rest);
+        pushReveal(state, {
+          kind: "deck",
+          title: "Deep Scavenge — Discard",
+          cards: top.map(cardSnapshot),
+          detail: `Kept ${getCardDef(keep.defId).name}. The rest return to the top of the deck.`,
+        });
       }
       p.turnFlags.playedUtility = true;
       discardToPile(state, card);
@@ -1330,9 +1462,19 @@ function resolveCardEffect(
     case "divination_card": {
       p.turnFlags.lookedAtDeck = true;
       ensureDeck(state, rng);
-      // rearrange randomly then draw (AI-friendly)
       const top = state.deck.splice(-3);
-      state.deck.push(...rng.shuffle(top));
+      const ranked = [...top].sort(
+        (a, b) => cardSearchScore(p, b.defId) - cardSearchScore(p, a.defId),
+      );
+      state.deck.push(...ranked.reverse());
+      pushReveal(state, {
+        kind: "deck",
+        title: "Divination — Rearranged",
+        cards: top.map(cardSnapshot),
+        detail: ranked[0]
+          ? `${getCardDef(ranked[0].defId).name} set on top, then drawn.`
+          : "The deck is thin.",
+      });
       drawCards(state, p, 1, rng, true);
       p.turnFlags.playedUtility = true;
       discardToPile(state, card);
@@ -1384,10 +1526,14 @@ function resolveCardEffect(
     }
     case "historical_projection": {
       p.turnFlags.usedDiscard = true;
-      const idx = state.discard.findIndex((c) => {
-        const t = getCardDef(c.defId).type;
-        return t === "weapon" || t === "charm";
-      });
+      let idx = -1;
+      for (let i = state.discard.length - 1; i >= 0; i--) {
+        const t = getCardDef(state.discard[i]!.defId).type;
+        if (t === "weapon" || t === "charm") {
+          idx = i;
+          break;
+        }
+      }
       if (idx >= 0) {
         const [c] = state.discard.splice(idx, 1);
         if (c) {
@@ -1399,6 +1545,13 @@ function resolveCardEffect(
             if (p.charms.length >= 2) discardToPile(state, p.charms.shift()!);
             p.charms.push(c);
           }
+          pushReveal(state, {
+            kind: "info",
+            title: "Historical Projection",
+            cards: [cardSnapshot(c)],
+            detail: `Equipped ${d.name} from the discard for 0 SP.`,
+          });
+          log(state, `${p.name} projects ${d.name} from history.`, "system");
         }
       }
       p.turnFlags.playedUtility = true;
@@ -1420,12 +1573,21 @@ function resolveCardEffect(
       return;
     case "sefirah_aura": {
       ensureDeck(state, rng);
-      for (let i = 0; i < 2; i++) {
-        if (!state.deck.length) break;
-        const c = state.deck.pop()!;
-        p.hand.push(c);
+      const ranked = [...state.deck].sort(
+        (a, b) => cardSearchScore(p, b.defId) - cardSearchScore(p, a.defId),
+      );
+      const take = ranked.slice(0, 2);
+      const ids = new Set(take.map((c) => c.instanceId));
+      state.deck = rng.shuffle(state.deck.filter((c) => !ids.has(c.instanceId)));
+      for (const c of take) p.hand.push(c);
+      if (take.length) {
+        pushReveal(state, {
+          kind: "deck",
+          title: "Sefirah Castle's Aura — Searched",
+          cards: take.map(cardSnapshot),
+          detail: "Two cards pulled from the deck. The rest are shuffled.",
+        });
       }
-      state.deck = rng.shuffle(state.deck);
       p.turnFlags.playedUtility = true;
       discardToPile(state, card);
       return;
@@ -1446,16 +1608,15 @@ export function performAttack(
   const target = state.players.find((x) => x.id === targetId);
   if (!target?.alive) return { ok: false, error: "Invalid target" };
 
-  // Trap on attacked
+  const armed = p.weapon && !p.status.weaponDisabled ? getCardDef(p.weapon.defId) : null;
+  const ignoreTraps = !!armed?.weapon?.ignoreTrap;
+  // Trap on attacked (Poisoned Revolver ignores traps)
   let negated = false;
-  if (target.trap) {
+  if (!ignoreTraps && target.trap) {
     const td = getCardDef(target.trap.defId);
     if (td.trap?.trigger === "attacked" && target.sp >= 1) {
       maybeTriggerTraps(state, p, "attacked", rng);
-      if (td.id === "mind_prison" || td.id === "shadow_snare") {
-        // shadow_snare still allows attack unless evade consumed; mind_prison negates
-        if (td.id === "mind_prison") negated = true;
-      }
+      if (td.id === "mind_prison") negated = true;
     }
   }
   if (negated) {
@@ -1498,8 +1659,13 @@ export function performAttack(
           unblockable: true,
         }, rng);
       }
-      if (w.id === "assassins_blade" && target.status.block + charmBlock(target) === 0) {
-        dmg = 2;
+      if (w.id === "assassins_blade") {
+        const blk =
+          target.status.block +
+          (target.lastingBlock ?? 0) +
+          charmBlock(target) +
+          target.status.blockModifier;
+        if (blk <= 0) dmg = 2;
       }
       p.turnFlags.attackedWithWeapon = true;
     }
@@ -1531,12 +1697,28 @@ export function performAttack(
     discardToPile(state, target.hand.pop()!);
   }
   if (dealt > 0 && w?.weapon?.kicker === "revealTrap" && target.trap) {
-    log(state, `${target.name}'s Trap is revealed: ${getCardDef(target.trap.defId).name}`, "system");
+    const td = getCardDef(target.trap.defId);
+    pushReveal(state, {
+      kind: "trap",
+      title: `Unshadowed Spear — ${target.name}'s Trap`,
+      cards: [cardSnapshot(target.trap)],
+      detail: td.text,
+    });
+    log(state, `${target.name}'s Trap is revealed: ${td.name}`, "system");
   }
 
   p.status.unblockableAttack = false;
   state.actionsUsed.attack = true;
   noteActing(state, p);
+  if (state.simPlays && p.weapon && !p.status.weaponDisabled) {
+    state.simPlays.push({
+      defId: p.weapon.defId,
+      playerId: p.id,
+      pathwayId: p.pathwayId,
+      turn: state.turnNumber,
+      damage: dealt,
+    });
+  }
   return { ok: true };
 }
 
@@ -1605,10 +1787,26 @@ export function contendArtifact(
 }
 
 /** Activate equipped Artifact power (still Standard, 0 extra SP beyond equip). */
+/** Destroy Requiem Charm to heal 1. Free, once per turn. */
+export function sacrificeRequiem(state: GameState): { ok: boolean; error?: string } {
+  const p = currentPlayer(state);
+  if (state.phase !== "action") return { ok: false, error: "Not your action" };
+  if (p.requiemUsed) return { ok: false, error: "Requiem already used this turn" };
+  const idx = p.charms.findIndex((c) => c.defId === "requiem_charm");
+  if (idx < 0) return { ok: false, error: "No Requiem Charm" };
+  const [c] = p.charms.splice(idx, 1);
+  if (c) discardToPile(state, c);
+  p.requiemUsed = true;
+  p.hp = Math.min(p.maxHp, p.hp + 1);
+  log(state, `${p.name} shatters Requiem Charm to heal 1.`, "heal");
+  return { ok: true };
+}
+
 export function activateArtifactPower(
   state: GameState,
   targetId: string | undefined,
   rng: Rng,
+  wish?: "hp" | "sanity" | "sp",
 ): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
   if (!p.artifact) return { ok: false, error: "No Artifact equipped" };
@@ -1625,15 +1823,53 @@ export function activateArtifactPower(
       log(state, `${p.name} gains 3 lasting Block from Groselle's Travels.`, "heal");
       break;
     case "wishing_lamp": {
-      // Choose heal 2 by default
-      p.hp = Math.min(p.maxHp, p.hp + 2);
-      p.turnFlags.healedHp += 2;
-      log(state, `${p.name} wishes for healing.`, "heal");
+      const mode =
+        wish ??
+        (p.maxHp - p.hp >= 2 ? "hp" : 20 - p.sanity >= 2 ? "sanity" : "sp");
+      if (mode === "sanity") {
+        p.sanity = Math.min(20, p.sanity + 2);
+        updateMadness(p, state);
+        log(state, `${p.name} wishes for 2 Sanity.`, "heal");
+      } else if (mode === "sp") {
+        p.sp = Math.min(20, p.sp + 3);
+        log(state, `${p.name} wishes for 3 SP.`, "system");
+      } else {
+        p.hp = Math.min(p.maxHp, p.hp + 2);
+        p.turnFlags.healedHp += 2;
+        log(state, `${p.name} wishes for 2 HP.`, "heal");
+      }
       break;
     }
-    case "die_probability":
-      drawCards(state, p, 2, rng, true);
+    case "die_probability": {
+      const drawn: CardInstance[] = [];
+      for (let i = 0; i < 2; i++) {
+        ensureDeck(state, rng);
+        const c = state.deck.pop();
+        if (!c) break;
+        p.hand.push(c);
+        drawn.push(c);
+      }
+      p.turnFlags.drewExtra = true;
+      const equip = drawn.find((c) => {
+        const t = getCardDef(c.defId).type;
+        return t === "weapon" || t === "charm";
+      });
+      if (equip) {
+        const d = getCardDef(equip.defId);
+        p.hand = p.hand.filter((c) => c.instanceId !== equip.instanceId);
+        if (d.type === "weapon") {
+          if (p.weapon) discardToPile(state, p.weapon);
+          p.weapon = equip;
+        } else {
+          if (p.charms.length >= 2) discardToPile(state, p.charms.shift()!);
+          p.charms.push(equip);
+        }
+        log(state, `${p.name} rolls the Die and freely equips ${d.name}.`, "system");
+      } else {
+        log(state, `${p.name} draws 2 from the Die of Probability.`, "system");
+      }
       break;
+    }
     case "mirror_arrodes":
       if (target) {
         const piece = target.weapon ?? target.charms[0];

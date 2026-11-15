@@ -59,30 +59,48 @@ export function PlayerPanel({
         </div>
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2 text-center text-xs">
+      <p className="mt-1 text-[0.65rem] text-stone-500">
+        Hand {player.hand.length} · {seq.abilityName} ({seq.abilityCost} SP)
+      </p>
+
+      <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
         <Stat label="HP" value={player.hp} max={player.maxHp} color="text-rose-300" />
         <Stat label="SAN" value={player.sanity} max={20} color="text-violet-300" />
         <Stat label="SP" value={player.sp} max={20} color="text-cyan-300" />
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-1 text-[0.6rem] text-stone-400">
+      <div className="mt-2 flex flex-wrap gap-1 text-[0.65rem] text-stone-300">
         {player.status.block > 0 && <Chip>Block {player.status.block}</Chip>}
-        {(player.lastingBlock ?? 0) > 0 && (
-          <Chip>Lasting {player.lastingBlock}</Chip>
-        )}
+        {(player.lastingBlock ?? 0) > 0 && <Chip>Lasting {player.lastingBlock}</Chip>}
+        {player.status.sanityBlock > 0 && <Chip>S.Block {player.status.sanityBlock}</Chip>}
         {player.status.evade > 0 && <Chip>Evade {player.status.evade}</Chip>}
+        {player.status.weaponDisabled && <Chip>Weapon rusted</Chip>}
         {player.trap && <Chip>Trap set</Chip>}
-        {player.weapon && <Chip>{getCardDef(player.weapon.defId).name}</Chip>}
+        {player.universalReagent && <Chip>Reagent</Chip>}
       </div>
 
-      {(player.weapon || player.charms.length > 0 || player.artifact) && (
+      <div className="mt-2 space-y-0.5 text-[0.68rem] leading-snug text-stone-300">
+        <p>Weapon: {player.weapon ? getCardDef(player.weapon.defId).name : "—"}</p>
+        <p>
+          Charms:{" "}
+          {player.charms.length
+            ? player.charms.map((c) => getCardDef(c.defId).name).join(", ")
+            : "—"}
+        </p>
+        <p>Artifact: {player.artifact ? getCardDef(player.artifact.defId).name : "—"}</p>
+        <p>Trap: {player.trap ? (player.isHuman ? getCardDef(player.trap.defId).name : "face down") : "—"}</p>
+      </div>
+
+      {(player.weapon || player.charms.length > 0 || player.artifact || player.trap) && (
         <div className="mt-2 flex flex-wrap gap-1">
           {player.weapon && <CardView card={player.weapon} compact disabled />}
           {player.charms.map((c) => (
             <CardView key={c.instanceId} card={c} compact disabled />
           ))}
           {player.artifact && <CardView card={player.artifact} compact disabled />}
-          {player.trap && <CardView card={player.trap} compact faceDown disabled />}
+          {player.trap && (
+            <CardView card={player.trap} compact faceDown={!player.isHuman} disabled />
+          )}
         </div>
       )}
 
@@ -111,10 +129,13 @@ function Stat({
   const pct = Math.max(0, Math.min(100, (value / max) * 100));
   return (
     <div>
-      <p className={cn("font-[family-name:var(--font-display)] text-base", color)}>{value}</p>
+      <p className={cn("font-[family-name:var(--font-display)] text-lg", color)}>{value}</p>
       <p className="text-[0.55rem] uppercase tracking-wider text-stone-500">{label}</p>
-      <div className="mt-1 h-1 overflow-hidden rounded bg-stone-800">
-        <div className={cn("h-full rounded bg-current opacity-70", color)} style={{ width: `${pct}%` }} />
+      <div className="mt-1 h-1.5 overflow-hidden rounded bg-stone-700">
+        <div
+          className={cn("h-full rounded bg-current", color)}
+          style={{ width: `${value > 0 ? Math.max(pct, 8) : 0}%` }}
+        />
       </div>
     </div>
   );

@@ -9,6 +9,7 @@
     "lint": "eslint",
     "test:acting": "tsx scripts/test-acting.ts",
     "test:passives": "tsx scripts/test-passives-acting.ts",
+    "test:cards": "tsx scripts/test-card-fidelity.ts",
     "sim:four": "tsx scripts/sim-four-player.ts"
   },
   "dependencies": {

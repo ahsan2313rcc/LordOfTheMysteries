@@ -27,7 +27,10 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 npm run test:acting     # sticky Acting Condition regression tests
 npm run test:passives   # SP / HP / Sanity passives + early Acting
 npm run sim:four        # 24× auto 4-player games → length & economy metrics
+npm run test:cards      # card text matches engine behavior
 ```
+
+The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, then shows pathway win rates, which cards get played, and a step-through chronicle of each match.
 
 ### Balance snapshot (4-player AI sims)
 
