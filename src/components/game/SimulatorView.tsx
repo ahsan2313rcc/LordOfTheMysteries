@@ -9,6 +9,7 @@ import { useMemo, useState } from "react";
 export function SimulatorView({ onBack }: { onBack: () => void }) {
   const [players, setPlayers] = useState<2 | 4>(4);
   const [games, setGames] = useState(24);
+  const [concealment, setConcealment] = useState(true);
   const [report, setReport] = useState<SimReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
@@ -23,7 +24,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
     setBusy(true);
     setProgress(`0 / ${games}`);
     const result = await runSimulationAsync(
-      { players, games, seed: 7000 + players * 13, keepReplays: 12 },
+      { players, games, seed: 7000 + players * 13, keepReplays: 12, arcanaConcealment: concealment },
       (done, total) => setProgress(`${done} / ${total}`),
     );
     setReport(result);
@@ -83,6 +84,14 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                 <option value={1024}>1024</option>
               </select>
             </label>
+            <label className="flex items-center gap-2 pb-1 text-xs text-stone-300">
+              <input
+                type="checkbox"
+                checked={concealment}
+                onChange={(e) => setConcealment(e.target.checked)}
+              />
+              Arcana Concealment
+            </label>
             <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run()}>
               {busy ? progress : "Run AIs"}
             </Button>
@@ -102,6 +111,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               <Stat label="Finished" value={`${report.finished}/${report.games}`} />
               <Stat label="Timeouts" value={String(report.timeouts)} />
               <Stat label="Avg turns" value={report.avgTurns.toFixed(0)} />
+              <Stat label="Avg seq" value={report.avgSequence.toFixed(1)} />
               <Stat label="Attacks" value={report.avgAttacks.toFixed(1)} />
               <Stat label="HP dealt" value={report.avgHpDealt.toFixed(0)} />
               <Stat label="Table" value={`${report.players} players`} />

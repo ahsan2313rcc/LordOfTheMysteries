@@ -869,6 +869,17 @@ export const CARD_DEFS: CardDef[] = [
     ingredients: ["C2", "C6", "C8", "R2"],
     effectId: "equip_artifact",
   },
+
+  {
+    id: "major_arcana",
+    name: "Major Arcana",
+    type: "arcana",
+    rarity: "rare",
+    spCost: 0,
+    text: "Expose a player and their board. You stay concealed until you attack an exposed player.",
+    ingredients: [],
+    effectId: "reveal_arcana",
+  },
 ];
 
 export function getCardDef(id: string): CardDef {
@@ -883,12 +894,14 @@ export function buildMainDeckCounts(): { defId: string; copies: number }[] {
     defId: c.id,
     // Potion Ingredients are the economy unlock for mid/late recipes — seed a few more.
     copies:
-      c.id === "potion_ingredients"
-        ? 4
-        : c.rarity === "rare"
-          ? 1
-          : c.type === "artifact"
+      c.id === "major_arcana"
+        ? 0
+        : c.id === "potion_ingredients"
+          ? 4
+          : c.rarity === "rare"
             ? 1
-            : 2,
+            : c.type === "artifact"
+              ? 1
+              : 2,
   }));
 }

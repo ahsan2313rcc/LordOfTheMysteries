@@ -594,6 +594,8 @@ export function createGame(opts: {
   aiPathwayIds: string[];
   seed?: number;
   humanName?: string;
+  /** One Major Arcana per player. Concealed players cannot be attack targets. */
+  arcanaConcealment?: boolean;
 }): GameState {
   const seed = opts.seed ?? Date.now();
   const rng = createRng(seed);
@@ -603,6 +605,10 @@ export function createGame(opts: {
   let deck: CardInstance[] = [];
   for (const { defId, copies } of counts) {
     for (let i = 0; i < copies; i++) deck.push(makeCard(defId));
+  }
+  const seatCount = 1 + opts.aiPathwayIds.length;
+  if (opts.arcanaConcealment) {
+    for (let i = 0; i < seatCount; i++) deck.push(makeCard("major_arcana"));
   }
   deck = rng.shuffle(deck);
 
@@ -628,6 +634,7 @@ export function createGame(opts: {
       alive: true,
       mad: false,
       lastingBlock: 0,
+      revealed: opts.arcanaConcealment ? false : undefined,
     };
   });
 
@@ -655,6 +662,7 @@ export function createGame(opts: {
     log: [],
     reveals: [],
     seed,
+    arcanaConcealment: !!opts.arcanaConcealment,
   };
 
   log(
@@ -1061,6 +1069,37 @@ function resolveCardEffect(
   const def = getCardDef(card.defId);
 
   switch (effectId) {
+    case "reveal_arcana": {
+      if (!target) return;
+      const already = !!target.revealed;
+      target.revealed = true;
+      const board = [
+        ...target.hand,
+        ...(target.trap ? [target.trap] : []),
+        ...(target.weapon ? [target.weapon] : []),
+        ...(target.artifact ? [target.artifact] : []),
+        ...target.charms,
+      ];
+      pushReveal(state, {
+        kind: "hand",
+        title: already ? `${target.name}'s board` : `${target.name} is exposed`,
+        subjectName: target.name,
+        cards: board.map(cardSnapshot),
+        detail: already
+          ? "Already exposed. Hand, trap, and equipment are shown."
+          : "Direct attacks may target them. Attacking them exposes you. Abilities and items are unchanged.",
+      });
+      const selfNote = p.revealed ? "" : ` ${p.name} stays concealed.`;
+      log(
+        state,
+        already
+          ? `${p.name} reads ${target.name}'s board again.`
+          : `${p.name} plays an Arcana and exposes ${target.name}.${selfNote}`,
+        "system",
+      );
+      discardToPile(state, card);
+      return;
+    }
     case "equip_weapon": {
       if (p.weapon) discardToPile(state, p.weapon);
       p.weapon = card;
@@ -1609,6 +1648,13 @@ export function performAttack(
   if (!canUseBucket(state, "attack")) return { ok: false, error: "Attack already used" };
   const target = state.players.find((x) => x.id === targetId);
   if (!target?.alive) return { ok: false, error: "Invalid target" };
+  if (state.arcanaConcealment && !target.revealed) {
+    return { ok: false, error: "That Beyonder is still concealed" };
+  }
+  if (state.arcanaConcealment && !p.revealed) {
+    p.revealed = true;
+    log(state, `${p.name} attacks ${target.name} and steps out of concealment.`, "system");
+  }
 
   const armed = p.weapon && !p.status.weaponDisabled ? getCardDef(p.weapon.defId) : null;
   const ignoreTraps = !!armed?.weapon?.ignoreTrap;

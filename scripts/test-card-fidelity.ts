@@ -6,6 +6,7 @@ import {
   activateArtifactPower,
   createGame,
   currentPlayer,
+  performAttack,
   playCardFromHand,
   getRng,
 } from "../src/game/engine";
@@ -107,6 +108,35 @@ function give(state: GameState, p: PlayerState, defId: string) {
     ids.includes("potion_ingredients"),
     ids.join(","),
   );
+}
+
+// Arcana Concealment: one card per player, expose a board, reveal yourself only by attacking them
+{
+  const state = createGame({
+    humanPathwayId: "fool",
+    aiPathwayIds: ["sun"],
+    seed: 5,
+    humanName: "Tester",
+    arcanaConcealment: true,
+  });
+  const arcana = state.deck.filter((c) => c.defId === "major_arcana").length
+    + state.players.reduce((n, p) => n + p.hand.filter((c) => c.defId === "major_arcana").length, 0);
+  check("arcana count equals players", arcana === 2, String(arcana));
+  const me = currentPlayer(state);
+  const foe = state.players.find((p) => p.id !== me.id)!;
+  me.sp = 5;
+  check("both start concealed", !me.revealed && !foe.revealed);
+  const missed = performAttack(state, foe.id, getRng(state));
+  check("cannot attack a concealed player", !missed.ok);
+  check("failed attack does not expose the attacker", !me.revealed);
+  const card = give(state, me, "major_arcana");
+  const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
+  check("arcana play exposes the target", played.ok && !!foe.revealed, played.error);
+  check("playing an arcana leaves you concealed", !me.revealed);
+  check("their board was shown", (state.reveals[0]?.cards.length ?? 0) > 0);
+  const swing = performAttack(state, foe.id, getRng(state));
+  check("attacking an exposed player is legal", swing.ok, swing.error);
+  check("the attacker is now exposed", !!me.revealed);
 }
 
 console.log(failed ? `\n${failed} fidelity checks failed` : "\nAll card fidelity checks passed.");

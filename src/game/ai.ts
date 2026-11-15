@@ -53,7 +53,9 @@ function score(state: GameState, myId: string): number {
     if (o.weapon && !o.status.weaponDisabled) s -= 8;
     if (o.hp <= 4) s += 16;
     if (o.mad) s += 6;
+    if (state.arcanaConcealment && o.revealed) s += 16;
   }
+  if (state.arcanaConcealment && !me.revealed) s += 28;
   s += (state.players.length - 1 - opps.length) * 90;
   return s;
 }
@@ -70,7 +72,7 @@ function exchangeScore(state: GameState, myId: string, apply: (g: GameState) => 
   const clone = cloneForSearch(state);
   if (!apply(clone)) return null;
   if (clone.phase === "action" && currentPlayer(clone).id === myId && !clone.actionsUsed.attack) {
-    const prey = opponentsOf(clone, myId).sort((a, b) => a.hp - b.hp)[0];
+    const prey = warTargets(clone, myId).sort((a, b) => a.hp - b.hp)[0];
     if (prey) performAttack(clone, prey.id, getRng(clone));
   }
   if (clone.phase === "action" && currentPlayer(clone).id === myId && !isOver(clone)) {
@@ -85,6 +87,12 @@ function exchangeScore(state: GameState, myId: string, apply: (g: GameState) => 
 
 function isOver(state: GameState): boolean {
   return (state.phase as string) === "gameover";
+}
+
+function warTargets(state: GameState, myId: string): PlayerState[] {
+  const opps = opponentsOf(state, myId);
+  if (!state.arcanaConcealment) return opps;
+  return opps.filter((o) => o.revealed);
 }
 
 type Wish = "hp" | "sanity" | "sp";
@@ -159,7 +167,7 @@ export function runAiTurn(state: GameState): GameState {
     }
 
     if (!s.actionsUsed.attack) {
-      for (const t of opps) consider((g) => performAttack(g, t.id, getRng(g)).ok);
+      for (const t of warTargets(s, myId)) consider((g) => performAttack(g, t.id, getRng(g)).ok);
     }
 
     if (!s.actionsUsed.standard || (s.extraStandard ?? 0) > 0) {
@@ -173,7 +181,12 @@ export function runAiTurn(state: GameState): GameState {
           }
           continue;
         }
-        const pool = d.type === "utility" || d.id === "aegis_mind" ? targets : opps;
+        const pool =
+          d.id === "major_arcana"
+            ? opps
+            : d.type === "utility" || d.id === "aegis_mind"
+              ? targets
+              : opps;
         const list = pool.length ? pool : targets;
         for (const t of list) {
           consider((g) => playCardFromHand(g, card.instanceId, t.id, getRng(g)).ok);
@@ -183,9 +196,9 @@ export function runAiTurn(state: GameState): GameState {
 
     if (!plan.run) break;
 
-    if (!s.actionsUsed.attack && opps.length) {
+    if (!s.actionsUsed.attack && warTargets(s, myId).length) {
       const swing = (g: GameState) => {
-        const prey = opponentsOf(g, myId).sort((a, b) => a.hp - b.hp)[0];
+        const prey = warTargets(g, myId).sort((a, b) => a.hp - b.hp)[0];
         return prey ? performAttack(g, prey.id, getRng(g)).ok : false;
       };
       const chosen = plan.run;

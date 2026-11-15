@@ -4,7 +4,8 @@ export type CardType =
   | "utility"
   | "charm"
   | "trap"
-  | "artifact";
+  | "artifact"
+  | "arcana";
 
 export type Rarity = "common" | "rare";
 export type Ingredient =
@@ -216,6 +217,8 @@ export interface PlayerState {
   shriekSourceId?: string;
   shareSourceId?: string;
   requiemUsed?: boolean;
+  /** Arcana Concealment variant: false until an Arcana exposes this player, or they attack an exposed player. */
+  revealed?: boolean;
 }
 
 export interface GameLogEntry {
@@ -286,4 +289,6 @@ export interface GameState {
     swing?: boolean;
   }[];
   simBuf?: number;
+  /** Variant: Major Arcana cards (one per player) expose a board. Attacks cannot target a concealed player. */
+  arcanaConcealment?: boolean;
 }

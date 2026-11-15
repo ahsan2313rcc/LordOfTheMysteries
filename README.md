@@ -42,6 +42,8 @@ npm run test:cards      # card text matches engine behavior
 
 The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, from 8 games up to 1024, then shows pathway win rates, which cards get played, and a step-through chronicle. **Rules** on the title screen is the current ruleset.
 
+**Arcana Concealment** is an optional variant (on by default). The deck gains one Major Arcana per player. Playing it exposes a chosen player and their board. You stay concealed until you attack an exposed player. Abilities, items, and potion recipes are unchanged.
+
 ### Balance snapshot (4-player AI sims)
 
 Typical finished game: **~100–110 turns** (~25–28 full rounds), always ends by **Last Standing**. Critical economy bottleneck is **potion recipe assembly** (Acting locks easily; ingredients do not). Sanity tolls rarely block. Apotheosis (Seq 0) is rare in free-for-alls — combat resolves first.

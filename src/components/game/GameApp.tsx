@@ -34,6 +34,7 @@ export function GameApp() {
   const [screen, setScreen] = useState<Screen>("title");
   const [pathwayId, setPathwayId] = useState(PATHWAYS[0]!.id);
   const [aiCount, setAiCount] = useState(1);
+  const [concealment, setConcealment] = useState(true);
   const [state, setState] = useState<GameState | null>(null);
   const [selectedCard, setSelectedCard] = useState<string | null>(null);
   const [selectedTarget, setSelectedTarget] = useState<string | null>(null);
@@ -93,6 +94,7 @@ export function GameApp() {
       humanPathwayId: pathwayId,
       aiPathwayIds: aiIds,
       humanName: "Ahasan",
+      arcanaConcealment: concealment,
     });
     setState(g);
     setSelectedCard(null);
@@ -110,6 +112,11 @@ export function GameApp() {
 
   function onPlayCard() {
     if (!state || !selectedCard) return;
+    const held = currentPlayer(state).hand.find((c) => c.instanceId === selectedCard);
+    if (held && getCardDef(held.defId).id === "major_arcana" && !selectedTarget) {
+      flash("Choose who the Arcana exposes");
+      return;
+    }
     const rng = getRng(state);
     const cardId = selectedCard;
     const target = selectedTarget ?? undefined;
@@ -284,7 +291,20 @@ export function GameApp() {
             <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" onClick={startGame}>
               Deal the Arcana
             </Button>
+            <label className="flex items-center gap-2 text-sm text-stone-300">
+              <input
+                type="checkbox"
+                checked={concealment}
+                onChange={(e) => setConcealment(e.target.checked)}
+              />
+              Arcana Concealment
+            </label>
           </div>
+          <p className="mt-2 max-w-2xl text-xs leading-relaxed text-stone-500">
+            Variant: the deck gains one Major Arcana per player. Play it to expose someone and their
+            board. You stay concealed until you attack an exposed player. Abilities and items are
+            unchanged, and potions still need their recipes.
+          </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {PATHWAYS.map((p) => {
@@ -353,6 +373,7 @@ export function GameApp() {
             Phase: {state.phase}
             {me ? ` · ${me.name}'s turn` : ""}
             {pending ? " · resolving…" : ""}
+            {state.arcanaConcealment ? " · Arcana Concealment" : ""}
           </p>
         </div>
         <div className="flex gap-2">
@@ -387,6 +408,7 @@ export function GameApp() {
                 active={me?.id === p.id}
                 selected={selectedTarget === p.id}
                 onSelect={() => setSelectedTarget(p.id)}
+                concealment={!!state.arcanaConcealment}
                 showHand={!p.isHuman && false}
               />
             ))}

@@ -102,6 +102,19 @@ export function RulesView({ onBack }: { onBack: () => void }) {
         </section>
 
         <section className="space-y-2">
+          <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-200">
+            Variant — Arcana Concealment
+          </h2>
+          <p className="text-sm leading-relaxed">
+            Turn this on when you deal. The deck gains one Major Arcana per player. Everyone starts
+            concealed. Play an Arcana, choose a player, and their board opens: hand, trap, and
+            equipment. They can be attacked. You stay concealed. You become exposed only when you
+            attack an exposed player. A concealed player cannot be the target of an Attack. Spells,
+            abilities, and items still do exactly what they say, and potions still need their recipes.
+          </p>
+        </section>
+
+        <section className="space-y-2">
           <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-200">Cards</h2>
           <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
             <li>Weapons, charms, and artifacts stay equipped. A new one of the same kind replaces the old.</li>

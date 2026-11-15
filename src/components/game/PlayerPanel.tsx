@@ -12,12 +12,14 @@ export function PlayerPanel({
   selected,
   onSelect,
   showHand,
+  concealment,
 }: {
   player: PlayerState;
   active?: boolean;
   selected?: boolean;
   onSelect?: () => void;
   showHand?: boolean;
+  concealment?: boolean;
 }) {
   const pathway = getPathway(player.pathwayId);
   const seq = getSequence(player.pathwayId, player.sequence);
@@ -49,6 +51,18 @@ export function PlayerPanel({
           {player.mad && (
             <span className="rounded bg-rose-900/80 px-1.5 py-0.5 text-[0.6rem] uppercase tracking-wide text-rose-100">
               Mad
+            </span>
+          )}
+          {concealment && (
+            <span
+              className={cn(
+                "rounded px-1.5 py-0.5 text-[0.55rem] uppercase tracking-wide",
+                player.revealed
+                  ? "bg-rose-950/80 text-rose-200"
+                  : "bg-stone-800 text-stone-300",
+              )}
+            >
+              {player.revealed ? "Exposed" : "Concealed"}
             </span>
           )}
           {player.actingMet && (

@@ -58,6 +58,7 @@ export interface SimReport {
   avgTurns: number;
   avgAttacks: number;
   avgHpDealt: number;
+  avgSequence: number;
   cards: CardStat[];
   pathways: PathwayStat[];
   replays: GameReplay[];
@@ -74,13 +75,19 @@ function shuffleIds(seed: number): string[] {
   return arr;
 }
 
-export function playAiGame(seed: number, players: 2 | 4, maxTurns = 280): GameReplay {
+export function playAiGame(
+  seed: number,
+  players: 2 | 4,
+  maxTurns = 280,
+  arcanaConcealment = false,
+): GameReplay {
   const ids = shuffleIds(seed);
   const state: GameState = createGame({
     humanPathwayId: ids[0]!,
     aiPathwayIds: ids.slice(1, players),
     seed,
     humanName: "Seat 1",
+    arcanaConcealment,
   });
   for (const p of state.players) p.isHuman = false;
   state.simPlays = [];
@@ -144,6 +151,7 @@ function emptyReport(players: number): SimReport {
     avgTurns: 0,
     avgAttacks: 0,
     avgHpDealt: 0,
+    avgSequence: 9,
     cards: [...cardMap.values()],
     pathways: PATHWAYS.map((p) => ({
       id: p.id,
@@ -197,6 +205,10 @@ function finalize(report: SimReport, attackSum: number, hpSum: number) {
   // avgTurns must cover dropped games too — stored on a side field during absorb.
   report.avgAttacks = report.games ? attackSum / report.games : 0;
   report.avgHpDealt = report.games ? hpSum / report.games : 0;
+  const seats = report.pathways.reduce((n, p) => n + p.games, 0);
+  report.avgSequence = seats
+    ? report.pathways.reduce((n, p) => n + p.avgSequence * p.games, 0) / seats
+    : 9;
   for (const c of report.cards) {
     c.damagePerPlay = c.plays ? c.damage / c.plays : 0;
     c.winRateWhenPlayed = c.plays ? c.winPlays / c.plays : 0;
@@ -211,6 +223,7 @@ export function runSimulation(opts: {
   seed?: number;
   /** Chronicle replays kept for the viewer. Stats still cover every game. */
   keepReplays?: number;
+  arcanaConcealment?: boolean;
 }): SimReport {
   const report = emptyReport(opts.players);
   const keep = opts.keepReplays ?? opts.games;
@@ -219,7 +232,7 @@ export function runSimulation(opts: {
   let hpSum = 0;
   const base = opts.seed ?? 4100;
   for (let i = 0; i < opts.games; i++) {
-    const game = playAiGame(base + i * 97, opts.players);
+    const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment);
     const keepThis = report.replays.length < keep;
     if (!keepThis) {
       game.log = [];
@@ -241,6 +254,7 @@ export async function runSimulationAsync(
     games: number;
     seed?: number;
     keepReplays?: number;
+    arcanaConcealment?: boolean;
   },
   onProgress?: (done: number, total: number) => void,
 ): Promise<SimReport> {
@@ -251,7 +265,7 @@ export async function runSimulationAsync(
   let hpSum = 0;
   const base = opts.seed ?? 4100;
   for (let i = 0; i < opts.games; i++) {
-    const game = playAiGame(base + i * 97, opts.players);
+    const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment);
     const keepThis = report.replays.length < keep;
     if (!keepThis) game.log = [];
     absorb(report, game, keepThis);
