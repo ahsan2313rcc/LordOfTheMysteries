@@ -114,6 +114,8 @@ export interface CardInstance {
   defId: string;
   /** Shown to the table after it was revealed for a potion. Stays in hand. */
   revealed?: boolean;
+  /** Sequence the card was shown from. It cannot pay the next potion. */
+  potionSeq?: number;
 }
 
 export interface StatusFlags {

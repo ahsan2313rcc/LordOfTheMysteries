@@ -33,8 +33,8 @@ export function RulesView({ onBack }: { onBack: () => void }) {
           <p className="text-sm leading-relaxed">
             Each Beyonder starts at Sequence 9 with 20 HP, 20 Sanity, 0 Spirituality, and 3 cards.
             HP and Sanity both cap at 20. Spirituality caps at 20 and stays in your pool between turns.
-            The deck is 80 cards, one of each. Nothing is duplicated. When the last card is drawn,
-            the discard is shuffled into a new deck.
+            The deck is 78 cards, one of each: 56 common cards and 22 rare cards, two of them relics.
+            Nothing is duplicated. When the last card is drawn, the discard is shuffled into a new deck.
           </p>
         </section>
 
@@ -76,8 +76,8 @@ export function RulesView({ onBack }: { onBack: () => void }) {
               <strong className="text-stone-100">Drink a potion</strong> when your Acting Condition
               is locked and the recipe is in hand. Potions cost no Sanity. Show those cards to
               every player; they stay in your hand, marked as revealed, and can be played or shown
-              again. The next sequence asks for none of the same ingredients, and each card is only
-              one ingredient, so the cards you just showed cannot pay the following potion. Drinking
+              again. The next sequence asks for different ingredients, and a card you just showed
+              cannot pay that next potion. Drinking
               does not spend the Sequence action, so you may cast and drink on the same turn. Acting
               progress sticks until you drink, then resets for the new Sequence.
             </li>
@@ -137,9 +137,9 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             <li>Traps sit face down and interrupt the printed moment: an attack, a spell, an equip, a potion.</li>
             <li>Hand limit is 7. Extra cards discard at the end of your turn. Slumber Charm raises the limit by 2.</li>
             <li>
-              Each card is one potion ingredient. Odd sequences use Spirit Gold, Nightmare Grass,
-              Astral Crystal, Deep Sea Amber, and Transcendent Core. Even sequences use the other
-              five. Two steps in a row never share a material. Potion Ingredients fills one common slot.
+              A common card carries two common ingredients. A rare card carries three, except the
+              two relics, which carry two copies of one rare ingredient. Two sequences in a row never
+              ask for the same ingredient. Potion Ingredients fills one common slot.
             </li>
             <li>
               Bribe steals a common equipped Weapon or Charm. Error&apos;s Theft steals the best

@@ -266,7 +266,14 @@ function cardSearchScore(p: PlayerState, defId: string): number {
   let s = 0;
   if (recipe && p.actingMet) {
     if (defId === "potion_ingredients" && recipe.remaining.some((r) => r.startsWith("C"))) s += 50;
-    s += recipe.remaining.filter((r) => d.ingredients.includes(r)).length * 20;
+    const bag = [...d.ingredients];
+    for (const tag of recipe.remaining) {
+      const at = bag.indexOf(tag);
+      if (at >= 0) {
+        bag.splice(at, 1);
+        s += 20;
+      }
+    }
   }
   if (d.type === "weapon" && !p.weapon) s += 8;
   if (d.type === "trap" && !p.trap) s += 6;
@@ -1277,6 +1284,7 @@ function resolveCardEffect(
       return;
     case "spirit_entanglement":
       if (target) {
+        dealDamage(state, p, target, 2, {}, rng);
         p.status.damageShareWith = target.id;
         p.shareSourceId = p.id;
         log(state, `${p.name} entangles fate with ${target.name} until their next Begin.`, "system");
@@ -1314,8 +1322,20 @@ function resolveCardEffect(
       return;
     case "spirit_world_guide":
       if (target && p.hand.length && target.hand.length) {
-        const mineIdx = rng.int(p.hand.length);
-        const theirsIdx = rng.int(target.hand.length);
+        let mineIdx = 0;
+        let theirsIdx = 0;
+        for (let i = 1; i < p.hand.length; i++) {
+          if (cardSearchScore(p, p.hand[i]!.defId) < cardSearchScore(p, p.hand[mineIdx]!.defId)) {
+            mineIdx = i;
+          }
+        }
+        for (let i = 1; i < target.hand.length; i++) {
+          if (
+            cardSearchScore(p, target.hand[i]!.defId) > cardSearchScore(p, target.hand[theirsIdx]!.defId)
+          ) {
+            theirsIdx = i;
+          }
+        }
         const mine = p.hand[mineIdx]!;
         const theirs = target.hand[theirsIdx]!;
         p.hand[mineIdx] = theirs;
@@ -1370,6 +1390,7 @@ function resolveCardEffect(
             detail: `${target.name} discards ${getCardDef(c.defId).name}.`,
           });
         }
+        dealDamage(state, p, target, 2, { type: "sanity" }, rng);
       }
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
@@ -1432,13 +1453,14 @@ function resolveCardEffect(
     // Utilities
     case "shadow_hiding":
       p.status.evade += 1;
+      p.status.block += 2;
       p.status.unblockableAttack = true;
       p.turnFlags.playedUtility = true;
       discardToPile(state, card);
       return;
     case "paper_figurine":
       p.status.evade += 1;
-      drawCards(state, p, 1, rng, true);
+      drawCards(state, p, 2, rng, true);
       p.turnFlags.playedUtility = true;
       discardToPile(state, card);
       return;
@@ -1530,15 +1552,16 @@ function resolveCardEffect(
         const ranked = [...top].sort(
           (a, b) => cardSearchScore(p, b.defId) - cardSearchScore(p, a.defId),
         );
-        const keep = ranked[0]!;
-        const rest = top.filter((c) => c.instanceId !== keep.instanceId);
-        p.hand.push(keep);
+        const kept = ranked.slice(0, Math.min(2, ranked.length));
+        const keptIds = new Set(kept.map((c) => c.instanceId));
+        const rest = top.filter((c) => !keptIds.has(c.instanceId));
+        for (const c of kept) p.hand.push(c);
         state.deck.push(...rest);
         pushReveal(state, {
           kind: "deck",
           title: "Deep Scavenge — Discard",
           cards: top.map(cardSnapshot),
-          detail: `Kept ${getCardDef(keep.defId).name}. The rest return to the top of the deck.`,
+          detail: `Kept ${kept.map((c) => getCardDef(c.defId).name).join(" and ")}. The rest return to the top of the deck.`,
         });
       }
       p.turnFlags.playedUtility = true;
@@ -1738,9 +1761,7 @@ export function performAttack(
       unblockable = unblockable || !!w.weapon.unblockable;
       ignoreBlock = w.weapon.ignoreBlock ?? 0;
       ignoreEvade = !!w.weapon.unblockable;
-      sanity =
-        !!w.weapon.sanityDamage ||
-        p.charms.some((c) => getCardDef(c.defId).charm?.weaponSanity);
+      sanity = !!w.weapon.sanityDamage;
       if (w.weapon.swingSpCost && !paySp(p, w.weapon.swingSpCost, state)) {
         return { ok: false, error: "Need SP to swing" };
       }
@@ -1784,6 +1805,14 @@ export function performAttack(
     rng,
   );
 
+  if (
+    dealt > 0 &&
+    !sanity &&
+    w?.weapon &&
+    p.charms.some((c) => getCardDef(c.defId).charm?.weaponSanity)
+  ) {
+    dealDamage(state, p, target, 1, { type: "sanity", unblockable: true }, rng);
+  }
   if (dealt > 0 && w?.weapon?.kicker === "lifesteal") {
     p.hp = Math.min(p.maxHp, p.hp + 1);
   }
@@ -1903,8 +1932,8 @@ export function sacrificeRequiem(state: GameState): { ok: boolean; error?: strin
   const [c] = p.charms.splice(idx, 1);
   if (c) discardToPile(state, c);
   p.requiemUsed = true;
-  p.hp = Math.min(p.maxHp, p.hp + 1);
-  log(state, `${p.name} shatters Requiem Charm to heal 1.`, "heal");
+  p.hp = Math.min(p.maxHp, p.hp + 3);
+  log(state, `${p.name} shatters Requiem Charm to heal 3.`, "heal");
   return { ok: true };
 }
 
@@ -3269,7 +3298,10 @@ export function attemptAscension(
   const shown = recipe.discardInstanceIds
     .map((id) => p.hand.find((c) => c.instanceId === id))
     .filter((c): c is CardInstance => !!c);
-  for (const c of shown) c.revealed = true;
+  for (const c of shown) {
+    c.revealed = true;
+    c.potionSeq = p.sequence;
+  }
   if (shown.length) {
     const names = shown.map((c) => getCardDef(c.defId).name).join(", ");
     pushReveal(state, {

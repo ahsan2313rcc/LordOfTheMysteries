@@ -1412,34 +1412,103 @@ const CORE_PATHWAYS: PathwayDef[] = [
 export const PATHWAYS: PathwayDef[] = [...CORE_PATHWAYS, ...EXTRA_PATHWAYS];
 
 /**
- * Odd sequences (9, 7, 5, 3, 1) and even sequences draw from two disjoint sets,
- * so two potions in a row never share an ingredient. Pathways rotate which
- * slice of the set they ask for, but the tags themselves live on the shared deck.
+ * Potion stored on the destination sequence.
+ * 9→8 is one common. Only 8 commons exist, so that step repeats across pathways.
+ * Every later step is a different multiset on every pathway, and it shares no
+ * ingredient with the potion just before it. Rare copies are always of one
+ * rare, alternating, because the next potion is not allowed to use the same one.
  */
-const ODD_INGREDIENTS: Ingredient[] = ["C1", "C2", "C3", "C4", "R1"];
-const EVEN_INGREDIENTS: Ingredient[] = ["C5", "C6", "C7", "C8", "R2"];
-const RECIPE_LENGTH: Record<number, number> = {
-  9: 2,
-  8: 2,
-  7: 3,
-  6: 3,
-  5: 4,
-  4: 3,
-  3: 4,
-  2: 5,
-  1: 5,
-};
+const RECIPE_COMMONS: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
+const RECIPE_LEVELS: { seq: number; commons: number; rares: number }[] = [
+  { seq: 8, commons: 1, rares: 0 },
+  { seq: 7, commons: 2, rares: 0 },
+  { seq: 6, commons: 2, rares: 0 },
+  { seq: 5, commons: 3, rares: 0 },
+  { seq: 4, commons: 3, rares: 0 },
+  { seq: 3, commons: 3, rares: 1 },
+  { seq: 2, commons: 2, rares: 2 },
+  { seq: 1, commons: 3, rares: 2 },
+  { seq: 0, commons: 2, rares: 3 },
+];
 
-for (const [pi, pathway] of PATHWAYS.entries()) {
-  for (const seq of pathway.sequences) {
-    if (seq.sequence <= 0) {
-      seq.recipe = [];
-      continue;
+function commonMultisets(k: number): Ingredient[][] {
+  const out: Ingredient[][] = [];
+  const walk = (start: number, left: number, acc: Ingredient[]) => {
+    if (left === 0) {
+      out.push(acc.slice());
+      return;
     }
-    const pool = seq.sequence % 2 === 1 ? ODD_INGREDIENTS : EVEN_INGREDIENTS;
-    const n = RECIPE_LENGTH[seq.sequence] ?? 2;
-    const start = (pi * 3 + seq.sequence) % pool.length;
-    seq.recipe = Array.from({ length: n }, (_, k) => pool[(start + k) % pool.length]!);
+    for (let i = start; i < RECIPE_COMMONS.length; i++) {
+      acc.push(RECIPE_COMMONS[i]!);
+      walk(i, left - 1, acc);
+      acc.pop();
+    }
+  };
+  walk(0, k, []);
+  return out;
+}
+
+function assignCommons(count: number, banned: Set<Ingredient>[]): Ingredient[][] {
+  const load = new Map<string, number>();
+  const used = new Set<string>();
+  const order = banned
+    .map((block, i) => ({ i, free: RECIPE_COMMONS.filter((tag) => !block.has(tag)).length }))
+    .sort((a, b) => a.free - b.free || a.i - b.i);
+  const result = new Array<Ingredient[]>(banned.length);
+  for (const { i } of order) {
+    let best: Ingredient[] | null = null;
+    let bestScore = Infinity;
+    for (const ms of commonMultisets(count)) {
+      const key = ms.join(",");
+      if (used.has(key) || ms.some((tag) => banned[i]!.has(tag))) continue;
+      const distinct = new Set(ms).size;
+      const tally = new Map<string, number>();
+      for (const tag of ms) tally.set(tag, (tally.get(tag) ?? 0) + 1);
+      let max = 0;
+      let sum = 0;
+      for (const [tag, n] of tally) {
+        const next = (load.get(tag) ?? 0) + n;
+        max = Math.max(max, next);
+        sum += next * next;
+      }
+      const score = (count - distinct) * 100000 + max * 1000 + sum;
+      if (score < bestScore) {
+        best = ms;
+        bestScore = score;
+      }
+    }
+    if (!best) throw new Error(`No distinct recipe for pathway ${i} asking for ${count} commons`);
+    result[i] = best;
+    used.add(best.join(","));
+    for (const tag of best) load.set(tag, (load.get(tag) ?? 0) + 1);
+  }
+  return result;
+}
+
+{
+  const banned = PATHWAYS.map(() => new Set<Ingredient>());
+  for (const pathway of PATHWAYS) {
+    const top = pathway.sequences.find((s) => s.sequence === 9);
+    if (top) top.recipe = [];
+  }
+  let rareStep = 0;
+  for (const level of RECIPE_LEVELS) {
+    const commons =
+      level.commons === 1
+        ? PATHWAYS.map((_, i) => [RECIPE_COMMONS[i % RECIPE_COMMONS.length]!])
+        : assignCommons(level.commons, banned);
+    PATHWAYS.forEach((pathway, pi) => {
+      const seq = pathway.sequences.find((s) => s.sequence === level.seq);
+      if (!seq) return;
+      const tags = [...commons[pi]!];
+      if (level.rares > 0) {
+        const rare: Ingredient = (pi + rareStep) % 2 === 0 ? "R1" : "R2";
+        for (let n = 0; n < level.rares; n++) tags.push(rare);
+      }
+      seq.recipe = tags;
+      banned[pi] = new Set(tags);
+    });
+    if (level.rares > 0) rareStep += 1;
   }
 }
 

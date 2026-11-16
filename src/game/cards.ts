@@ -218,7 +218,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "spell",
     rarity: "common",
     spCost: 1,
-    text: "Until your next turn, half the damage you take (round up) hits the target too.",
+    text: "Deal 2. Until your next turn, half the damage you take (round up) hits the target too.",
     ingredients: ["C2", "C3", "C5"],
     effectId: "spirit_entanglement",
   },
@@ -258,7 +258,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "spell",
     rarity: "common",
     spCost: 1,
-    text: "Swap 1 card with a random card from an opponent's hand.",
+    text: "Give an opponent your least useful card and take their best card.",
     ingredients: ["C5", "C7", "C8"],
     effectId: "spirit_world_guide",
   },
@@ -288,7 +288,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "spell",
     rarity: "common",
     spCost: 1,
-    text: "Look at opponent's hand; force discard 1.",
+    text: "Look at opponent's hand, force discard 1, and deal 2 Sanity.",
     ingredients: ["C4", "C5", "C6", "R1"],
     effectId: "astrology",
   },
@@ -350,7 +350,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "utility",
     rarity: "common",
     spCost: 1,
-    text: "Gain Evade; your Attack is Unblockable this turn.",
+    text: "Gain Evade and 2 Block. Your Attack is Unblockable this turn.",
     ingredients: ["C1", "C4", "C8"],
     effectId: "shadow_hiding",
   },
@@ -360,7 +360,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "utility",
     rarity: "common",
     spCost: 1,
-    text: "Gain Evade, then draw 1.",
+    text: "Gain Evade, then draw 2.",
     ingredients: ["C1", "C6", "C8"],
     effectId: "paper_figurine",
   },
@@ -450,7 +450,7 @@ export const CARD_DEFS: CardDef[] = [
     type: "utility",
     rarity: "common",
     spCost: 1,
-    text: "Look at top 3 discard; keep 1, rest on top of deck.",
+    text: "Look at top 3 of the discard; keep 2, rest on top of the deck.",
     ingredients: ["C3", "C6", "C8"],
     effectId: "deep_scavenge",
   },
@@ -552,9 +552,9 @@ export const CARD_DEFS: CardDef[] = [
     type: "charm",
     rarity: "common",
     spCost: 1,
-    text: "+0 Block. Hand limit +2.",
+    text: "+1 Block. Hand limit +2.",
     ingredients: ["C2", "C4", "C7"],
-    charm: { block: 0, perk: "Hand limit +2", handLimitBonus: 2 },
+    charm: { block: 1, perk: "Hand limit +2", handLimitBonus: 2 },
     effectId: "equip_charm",
   },
   {
@@ -563,9 +563,9 @@ export const CARD_DEFS: CardDef[] = [
     type: "charm",
     rarity: "common",
     spCost: 1,
-    text: "+2 Block. May destroy this to heal 1.",
+    text: "+2 Block. May destroy this to heal 3.",
     ingredients: ["C2", "C4", "C8"],
-    charm: { block: 2, perk: "Destroy to heal 1" },
+    charm: { block: 2, perk: "Destroy to heal 3" },
     effectId: "equip_charm",
   },
   {
@@ -629,12 +629,12 @@ export const CARD_DEFS: CardDef[] = [
     type: "charm",
     rarity: "common",
     spCost: 1,
-    text: "+1 Sanity Block. Weapons deal Sanity.",
+    text: "+1 Block, +1 Sanity Block. Weapon hits also deal 1 Sanity.",
     ingredients: ["C2", "C6", "C7"],
     charm: {
-      block: 0,
+      block: 1,
       sanityBlock: 1,
-      perk: "Weapons → Sanity",
+      perk: "Weapon hits +1 Sanity",
       weaponSanity: true,
     },
     effectId: "equip_charm",
@@ -840,16 +840,6 @@ export const CARD_DEFS: CardDef[] = [
     effectId: "equip_artifact",
   },
   {
-    id: "groselle",
-    name: "Groselle's Travels",
-    type: "artifact",
-    rarity: "rare",
-    spCost: 6,
-    text: "Drawback: −3 SP or −1 Sanity. Power: Gain 3 lasting Block.",
-    ingredients: ["C2", "C5", "C7", "R1"],
-    effectId: "equip_artifact",
-  },
-  {
     id: "wishing_lamp",
     name: "Magic Wishing Lamp",
     type: "artifact",
@@ -859,17 +849,6 @@ export const CARD_DEFS: CardDef[] = [
     ingredients: ["C5", "C7", "C8", "R2"],
     effectId: "equip_artifact",
   },
-  {
-    id: "die_probability",
-    name: "Die of Probability",
-    type: "artifact",
-    rarity: "rare",
-    spCost: 6,
-    text: "Drawback: draw 1 — Spell/Trap stuns you. Power: draw 2; equip free.",
-    ingredients: ["C2", "C6", "C8", "R2"],
-    effectId: "equip_artifact",
-  },
-
   {
     id: "major_arcana",
     name: "Major Arcana",
@@ -882,19 +861,54 @@ export const CARD_DEFS: CardDef[] = [
   },
 ];
 
-// One ingredient identity per card. A multi-tag card plus reveal-and-keep
-// let the same hand pay every sequence. Potion Ingredients is the only wildcard.
-const INGREDIENT_CYCLE: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8", "R1", "R2"];
+/**
+ * 78-card printing.
+ * 55 common cards carry a pair of common ingredients (all 28 pairs, C7+C8 once
+ * and every other pair twice). Potion Ingredients is the 56th common and stays
+ * a wildcard. 16 rare cards carry two copies of one common plus one rare.
+ * 4 rare cards carry a mixed pair plus one rare. The two relics carry two
+ * copies of one rare and nothing else.
+ */
+const COMMON_TAGS: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"];
 {
-  let cursor = 0;
-  for (const card of CARD_DEFS) {
-    if (card.id === "potion_ingredients" || card.id === "major_arcana") {
-      card.ingredients = [];
-      continue;
+  const pairs: Ingredient[][] = [];
+  for (let i = 0; i < COMMON_TAGS.length; i++) {
+    for (let j = i + 1; j < COMMON_TAGS.length; j++) {
+      pairs.push([COMMON_TAGS[i]!, COMMON_TAGS[j]!]);
     }
-    card.ingredients = [INGREDIENT_CYCLE[cursor % INGREDIENT_CYCLE.length]!];
-    cursor += 1;
   }
+  const commons = CARD_DEFS.filter((c) => c.rarity === "common" && c.id !== "potion_ingredients");
+  commons.forEach((card, index) => {
+    card.ingredients = [...pairs[index < pairs.length ? index : index - pairs.length]!];
+  });
+
+  const rares = CARD_DEFS.filter(
+    (c) => c.rarity === "rare" && c.id !== "major_arcana" && c.type !== "artifact",
+  );
+  rares.forEach((card, index) => {
+    if (index < 16) {
+      const tag = COMMON_TAGS[Math.floor(index / 2)]!;
+      const rare: Ingredient = index % 2 === 0 ? "R1" : "R2";
+      card.ingredients = [tag, tag, rare];
+    } else {
+      const mixed: [Ingredient, Ingredient, Ingredient][] = [
+        ["C1", "C2", "R1"],
+        ["C3", "C4", "R1"],
+        ["C5", "C6", "R2"],
+        ["C7", "C8", "R2"],
+      ];
+      card.ingredients = [...mixed[index - 16]!];
+    }
+  });
+
+  const mirror = CARD_DEFS.find((c) => c.id === "mirror_arrodes");
+  const lamp = CARD_DEFS.find((c) => c.id === "wishing_lamp");
+  if (mirror) mirror.ingredients = ["R1", "R1"];
+  if (lamp) lamp.ingredients = ["R2", "R2"];
+  const potion = CARD_DEFS.find((c) => c.id === "potion_ingredients");
+  const arcana = CARD_DEFS.find((c) => c.id === "major_arcana");
+  if (potion) potion.ingredients = [];
+  if (arcana) arcana.ingredients = [];
 }
 
 export function getCardDef(id: string): CardDef {

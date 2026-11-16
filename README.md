@@ -25,14 +25,14 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - **All 22 Arcana Pathways** (Fool through Justiciar), each with Sequences 9→0
 - Reveal modal for hand peeks, deck peeks, Trap reveals, and card steals
 - Full turn loop: Begin → Draw → Action (Standard / Sequence / Attack) → End
-- Deck of 80 unique cards, one copy each. Drawing the last card reshuffles the discard. Major Arcana is added only in the Concealment variant.
+- Deck of 78 unique cards, one copy each (56 common, 22 rare). Drawing the last card reshuffles the discard. Major Arcana is added only in the Concealment variant.
 - Ascension with **sticky Acting Conditions** (progress banks until you drink). Potions cost no Sanity, and you may cast and drink on the same turn.
 - Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). Spirituality pays for cards: commons 1, rares 4, artifacts 6. The basic attack is free.
 - Passive recovery: +1 HP if no HP taken, +1 Sanity if no Sanity taken, SP every turn from Pathway/Seq
 - Artifact powers + Contention (steal)
 - 0 Sanity removes you as a contender. The body deals 1 HP to everyone, including itself, until that HP is gone.
 - A Sequence lead does not win. It pays more Spirituality each Begin and unlocks a stronger ability.
-- Potion recipes alternate two ingredient sets, and each card is a single ingredient. Potion Ingredients fills one common slot.
+- Each pathway has its own potion recipes. Consecutive sequences never share an ingredient, and a card shown for one potion cannot pay the next. Potion Ingredients fills one common slot.
 - Bribe steals a common equipped piece. Error's Theft steals the best equipped piece, rares first.
 - Block / Evade, lasting Block, traps as interrupts, AI opponents (1–3)
 - In-app **Design Notes** with balance verdict and improvement suggestions

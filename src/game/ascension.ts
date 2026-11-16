@@ -34,18 +34,23 @@ export function matchRecipe(player: PlayerState): RecipeMatch | null {
   const discardInstanceIds: string[] = [];
   const used = new Set<string>();
 
-  // Exact ingredient matches first (save wild Potion Ingredients for leftovers).
+  // Every copy printed on a card can fill a slot. A card shown for the previous potion cannot.
   for (const card of player.hand) {
     if (remaining.length === 0) break;
     if (card.defId === "potion_ingredients") continue;
-    const ings = getCardDef(card.defId).ingredients;
+    if (card.potionSeq === player.sequence + 1) continue;
+    const bag = [...getCardDef(card.defId).ingredients];
+    let spent = false;
     for (let r = remaining.length - 1; r >= 0; r--) {
-      if (ings.includes(remaining[r]!) && !used.has(card.instanceId)) {
-        remaining.splice(r, 1);
-        discardInstanceIds.push(card.instanceId);
-        used.add(card.instanceId);
-        break;
-      }
+      const at = bag.indexOf(remaining[r]!);
+      if (at < 0) continue;
+      bag.splice(at, 1);
+      remaining.splice(r, 1);
+      spent = true;
+    }
+    if (spent) {
+      discardInstanceIds.push(card.instanceId);
+      used.add(card.instanceId);
     }
   }
 

@@ -89,16 +89,31 @@ console.log("Ascension clears bank");
   p.sp = 10;
   p.sanity = 20;
   const recipe = getSequence("giant", 8).recipe;
-  p.hand = recipe.map((tag, i) => {
-    const def = CARD_DEFS.find((c) => c.ingredients.length === 1 && c.ingredients[0] === tag);
-    if (!def) throw new Error(`no card for ${tag}`);
-    return { instanceId: `ing-${i}`, defId: def.id };
-  });
+  const need = [...recipe];
+  const hand: { instanceId: string; defId: string }[] = [];
+  const usedDefs = new Set<string>();
+  while (need.length) {
+    const def = CARD_DEFS.find(
+      (c) => !usedDefs.has(c.id) && c.ingredients.some((tag) => need.includes(tag)),
+    );
+    if (!def) throw new Error(`no card for ${need.join(",")}`);
+    usedDefs.add(def.id);
+    hand.push({ instanceId: `ing-${hand.length}`, defId: def.id });
+    const bag = [...def.ingredients];
+    for (let i = need.length - 1; i >= 0; i--) {
+      const at = bag.indexOf(need[i]!);
+      if (at >= 0) {
+        bag.splice(at, 1);
+        need.splice(i, 1);
+      }
+    }
+  }
+  p.hand = hand;
   const before = p.sanity;
   const r = attemptAscension(state, getRng(state));
   assert(r.ok, `ascend ok (${r.error ?? "ok"})`);
   assert(p.sequence === 8, "now Seq 8");
-  assert(p.hand.length === 2, "ingredients stay in hand");
+  assert(p.hand.length === hand.length, "ingredients stay in hand");
   assert(p.hand.every((c) => c.revealed), "ingredients are revealed to the table");
   assert(p.sanity === before, "potion costs no Sanity");
   assert(!state.actionsUsed.sequence, "potion leaves the Sequence action free");

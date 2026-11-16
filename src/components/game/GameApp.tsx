@@ -568,7 +568,7 @@ export function GameApp() {
               )}
               {human.charms.some((c) => c.defId === "requiem_charm") && (
                 <Button size="sm" variant="outline" onClick={onRequiem}>
-                  Shatter Requiem (+1 HP)
+                  Shatter Requiem (+3 HP)
                 </Button>
               )}
               <Button size="sm" variant="outline" onClick={() => setSelectedTarget(human.id)}>

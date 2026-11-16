@@ -143,13 +143,22 @@ function give(state: GameState, p: PlayerState, defId: string) {
 }
 
 {
-  const multi = CARD_DEFS.filter(
-    (c) => c.id !== "potion_ingredients" && c.id !== "major_arcana" && c.ingredients.length !== 1,
+  const commons = CARD_DEFS.filter((c) => c.rarity === "common" && c.id !== "potion_ingredients");
+  const badCommon = commons.filter(
+    (c) => c.ingredients.length !== 2 || c.ingredients.some((tag) => !tag.startsWith("C") || tag === c.ingredients[0] && c.ingredients[1] === tag),
   );
-  check("every card is a single ingredient", multi.length === 0, multi.map((c) => c.id).join(","));
+  check("common cards carry a distinct pair", commons.length === 55 && badCommon.length === 0, String(commons.length));
+  const rares = CARD_DEFS.filter((c) => c.rarity === "rare" && c.type !== "artifact" && c.id !== "major_arcana");
+  const badRare = rares.filter((c) => c.ingredients.length !== 3);
+  check("non-relic rares carry 3 ingredients", rares.length === 20 && badRare.length === 0);
+  check(
+    "relics are two copies of one rare",
+    CARD_DEFS.find((c) => c.id === "mirror_arrodes")?.ingredients.join() === "R1,R1" &&
+      CARD_DEFS.find((c) => c.id === "wishing_lamp")?.ingredients.join() === "R2,R2",
+  );
   let overlap = "";
   for (const pathway of PATHWAYS) {
-    const rows = [...pathway.sequences].filter((s) => s.sequence > 0).sort((a, b) => b.sequence - a.sequence);
+    const rows = [...pathway.sequences].filter((s) => s.sequence <= 8).sort((a, b) => b.sequence - a.sequence);
     for (let i = 0; i < rows.length - 1; i++) {
       const a = new Set(rows[i]!.recipe);
       const shared = rows[i + 1]!.recipe.filter((tag) => a.has(tag));
@@ -157,6 +166,16 @@ function give(state: GameState, p: PlayerState, defId: string) {
     }
   }
   check("consecutive sequences share no ingredients", overlap === "", overlap);
+  let dup = "";
+  for (const seq of [7, 6, 5, 4, 3, 2, 1, 0]) {
+    const seen = new Set<string>();
+    for (const pathway of PATHWAYS) {
+      const key = pathway.sequences.find((s) => s.sequence === seq)!.recipe.join(",");
+      if (seen.has(key)) dup += `${pathway.id}@${seq} `;
+      seen.add(key);
+    }
+  }
+  check("same-level recipes differ from Seq 7 down", dup === "", dup);
 }
 
 {
@@ -205,7 +224,7 @@ function give(state: GameState, p: PlayerState, defId: string) {
 {
   const counts = buildMainDeckCounts();
   const total = counts.reduce((n, c) => n + c.copies, 0);
-  check("base deck is 80 cards", total === 80, String(total));
+  check("base deck is 78 cards", total === 78, String(total));
   check("no card is duplicated", counts.every((c) => c.copies <= 1));
   check(
     "major arcana is outside the base deck",
@@ -224,7 +243,7 @@ function give(state: GameState, p: PlayerState, defId: string) {
   }
   check(
     "a dealt game contains each card once",
-    seen.size === 80 && [...seen.values()].every((n) => n === 1),
+    seen.size === 78 && [...seen.values()].every((n) => n === 1),
     `${seen.size} kinds`,
   );
   const last = state.deck.pop()!;
