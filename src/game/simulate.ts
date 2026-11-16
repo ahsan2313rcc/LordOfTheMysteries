@@ -644,3 +644,101 @@ export async function runSimulationAsync(
 export function replayGame(seed: number, players: 2 | 4): GameReplay {
   return playAiGame(seed, players);
 }
+
+export interface DuelResult {
+  a: string;
+  b: string;
+  seed: number;
+  /** True when pathway `a` took the first turn. */
+  aFirst: boolean;
+  winner: "a" | "b" | null;
+  reason: "hp" | "sanity" | "ascension" | "timeout";
+  turns: number;
+  seqA: number;
+  seqB: number;
+}
+
+/** Five shared seeds. Each pairing is also played with the other seat going first. */
+export const ROUND_ROBIN_SEEDS = [11, 23, 37, 41, 53];
+
+/** One duel. Pathways are fixed; the seed only shuffles the deck. */
+export function playDuel(a: string, b: string, seed: number, aFirst: boolean): DuelResult {
+  const first = aFirst ? a : b;
+  const second = aFirst ? b : a;
+  const state: GameState = createGame({
+    humanPathwayId: first,
+    aiPathwayIds: [second],
+    seed,
+    humanName: "Seat A",
+    arcanaConcealment: false,
+  });
+  state.simQuiet = true;
+  state.simPlays = [];
+  for (const p of state.players) p.isHuman = false;
+
+  let guard = 0;
+  while ((state.phase as string) !== "gameover" && guard < 280) {
+    const before = state.turnNumber;
+    runAiTurn(state);
+    if (state.turnNumber === before && (state.phase as string) !== "gameover") {
+      endTurn(state, getRng(state));
+    }
+    guard += 1;
+  }
+
+  const seatA = aFirst ? state.players[0]! : state.players[1]!;
+  const seatB = aFirst ? state.players[1]! : state.players[0]!;
+  const winnerP = state.players.find((p) => p.id === state.winnerId);
+  let winner: "a" | "b" | null = null;
+  if (winnerP) winner = winnerP.id === seatA.id ? "a" : "b";
+  const reason: DuelResult["reason"] =
+    (state.phase as string) !== "gameover"
+      ? "timeout"
+      : state.winReason === "madness"
+        ? "sanity"
+        : state.winReason === "apotheosis"
+          ? "ascension"
+          : state.winReason === "lastStanding"
+            ? "hp"
+            : "timeout";
+  return {
+    a,
+    b,
+    seed,
+    aFirst,
+    winner,
+    reason,
+    turns: state.turnNumber,
+    seqA: seatA.sequence,
+    seqB: seatB.sequence,
+  };
+}
+
+/**
+ * Every pathway against every pathway, including itself.
+ * Ten games each: five seeds, and each seat goes first once per seed.
+ * That is 253 pairings × 10 = 2,530 duels, shown as a 22×22 table.
+ */
+export async function runRoundRobin(
+  onProgress?: (done: number, total: number) => void,
+): Promise<DuelResult[]> {
+  const ids = PATHWAYS.map((p) => p.id);
+  const pairs: [string, string][] = [];
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i; j < ids.length; j++) pairs.push([ids[i]!, ids[j]!]);
+  }
+  const total = pairs.length * ROUND_ROBIN_SEEDS.length * 2;
+  const out: DuelResult[] = [];
+  let done = 0;
+  for (const [a, b] of pairs) {
+    for (const seed of ROUND_ROBIN_SEEDS) {
+      for (const aFirst of [true, false]) {
+        out.push(playDuel(a, b, seed, aFirst));
+        done += 1;
+        onProgress?.(done, total);
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      }
+    }
+  }
+  return out;
+}

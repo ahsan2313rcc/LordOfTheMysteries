@@ -20,6 +20,7 @@ export function CardView({
   disabled,
   compact,
   faceDown,
+  cost,
   onClick,
 }: {
   card: CardInstance;
@@ -27,6 +28,8 @@ export function CardView({
   disabled?: boolean;
   compact?: boolean;
   faceDown?: boolean;
+  /** Spirituality charged at the player's current sequence. */
+  cost?: number;
   onClick?: () => void;
 }) {
   if (faceDown) {
@@ -74,8 +77,17 @@ export function CardView({
         >
           {def.name}
         </p>
-        <span className="rounded bg-black/40 px-1 text-[0.6rem] text-cyan-200/90">
-          {def.spCost}✦
+        <span
+          className={cn(
+            "rounded bg-black/40 px-1 text-[0.6rem]",
+            cost != null && cost > def.spCost
+              ? "text-rose-200"
+              : cost != null && cost < def.spCost
+                ? "text-emerald-200"
+                : "text-cyan-200/90",
+          )}
+        >
+          {cost ?? def.spCost}✦
         </span>
       </div>
       <p className="mt-0.5 text-[0.55rem] uppercase tracking-wider text-stone-400">

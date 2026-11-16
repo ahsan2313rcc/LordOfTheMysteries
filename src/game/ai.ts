@@ -1,11 +1,12 @@
 import { matchRecipe } from "./ascension";
-import { getCardDef } from "./cards";
+import { getCardDef, playCost } from "./cards";
 import {
   activateArtifactPower,
   attemptAscension,
   castSequenceAbility,
   contendArtifact,
   currentPlayer,
+  drawAsStandard,
   endTurn,
   getRng,
   opponentsOf,
@@ -183,11 +184,15 @@ export function runAiTurn(state: GameState): GameState {
       for (const t of warTargets(s, myId)) consider((g) => performAttack(g, t.id, getRng(g)).ok);
     }
 
+    if (!s.actionsUsed.standard) {
+      consider((g) => drawAsStandard(g, getRng(g)).ok);
+    }
+
     if (!s.actionsUsed.standard || (s.extraStandard ?? 0) > 0) {
       const targets: PlayerState[] = [...opps, p];
       for (const card of p.hand) {
         const d = getCardDef(card.defId);
-        if (p.sp < d.spCost + (p.nextCardTax ?? 0)) continue;
+        if (p.sp < playCost(d, p.sequence) + (p.nextCardTax ?? 0)) continue;
         if (d.type === "trap") {
           if (!p.trap && !s.actionsUsed.attack) {
             consider((g) => playCardFromHand(g, card.instanceId, undefined, getRng(g)).ok);

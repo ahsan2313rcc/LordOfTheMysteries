@@ -1,6 +1,17 @@
 import { getCardDef } from "./cards";
 import { getSequence, INGREDIENT_NAMES } from "./pathways";
-import type { Ingredient, PlayerState } from "./types";
+import type { CardInstance, Ingredient, PlayerState } from "./types";
+
+/** Hand plus equipment. Gear is listed first so a potion spends cards already committed to a slot. */
+export function heldCards(player: PlayerState): CardInstance[] {
+  return [
+    ...(player.weapon ? [player.weapon] : []),
+    ...(player.artifact ? [player.artifact] : []),
+    ...(player.trap ? [player.trap] : []),
+    ...player.charms,
+    ...player.hand,
+  ];
+}
 
 export interface RecipeMatch {
   needed: Ingredient[];
@@ -21,8 +32,9 @@ export function matchRecipe(player: PlayerState): RecipeMatch | null {
   const remaining = [...needed];
   const discardInstanceIds: string[] = [];
 
-  // Every copy printed on a card can fill a slot. A card shown for the previous potion cannot.
-  for (const card of player.hand) {
+  // Equipped cards still pay the potion, so a filled slot does not trap ingredients in hand.
+  // A card shown for the previous potion cannot pay this one.
+  for (const card of heldCards(player)) {
     if (remaining.length === 0) break;
     if (card.potionSeq === player.sequence + 1) continue;
     const bag = [...getCardDef(card.defId).ingredients];

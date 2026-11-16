@@ -291,6 +291,8 @@ export interface GameState {
   simAscensions?: number;
   simAbilities?: number;
   simUnarmed?: number;
+  /** Simulator duels skip the chronicle and reveal popups. */
+  simQuiet?: boolean;
   /** Present only while the balance simulator is recording a match. */
   simPlays?: {
     defId: string;

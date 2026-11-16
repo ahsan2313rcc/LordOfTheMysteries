@@ -1,7 +1,7 @@
 "use client";
 
 import { getCardDef } from "@/game/cards";
-import { abilitySanityCost, getPathway, getSequence } from "@/game/pathways";
+import { abilitySanityCost, curveLabel, getPathway, getSequence, pathwayCurve } from "@/game/pathways";
 import type { PlayerState } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { CardView } from "./CardView";
@@ -43,7 +43,7 @@ export function PlayerPanel({
             {player.name}
           </p>
           <p className="text-[0.7rem] text-stone-400">
-            {pathway.name} · Seq {player.sequence}{" "}
+            {pathway.name} · {curveLabel(pathwayCurve(player.pathwayId))} · Seq {player.sequence}{" "}
             <span style={{ color: pathway.accent }}>{seq.title}</span>
           </p>
         </div>

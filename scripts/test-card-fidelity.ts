@@ -1,7 +1,7 @@
 /**
  * Cards must do what their text says. Run: npx tsx scripts/test-card-fidelity.ts
  */
-import { buildMainDeckCounts, CARD_DEFS, getCardDef } from "../src/game/cards";
+import { buildMainDeckCounts, CARD_DEFS, getCardDef, playCost } from "../src/game/cards";
 import {
   activateArtifactPower,
   createGame,
@@ -144,7 +144,10 @@ function give(state: GameState, p: PlayerState, defId: string) {
   const missed = performAttack(state, foe.id, getRng(state));
   check("cannot attack a concealed player", !missed.ok);
   check("failed attack does not expose the attacker", !me.revealed);
-  me.sp = 6;
+  const blade = getCardDef("slumbering_blade");
+  check("a rare costs more at Sequence 9", playCost(blade, 9) === blade.spCost + 4);
+  check("a rare eases off at Sequence 2", playCost(blade, 2) === blade.spCost - 1);
+  me.sp = playCost(blade, me.sequence);
   const card = give(state, me, "slumbering_blade");
   const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
   check("a rare card exposes the target", played.ok && !!foe.revealed, played.error);

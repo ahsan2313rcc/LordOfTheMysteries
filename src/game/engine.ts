@@ -5,9 +5,9 @@ import {
   refreshActingMet,
   resetActingForNewSequence,
 } from "./acting";
-import { matchRecipe } from "./ascension";
-import { buildMainDeckCounts, getCardDef } from "./cards";
-import { abilitySanityCost, getPathway, getSequence, spGainFor } from "./pathways";
+import { heldCards, matchRecipe } from "./ascension";
+import { buildMainDeckCounts, getCardDef, playCost } from "./cards";
+import { abilitySanityCost, getPathway, getSequence, pathwayCurve, spGainFor } from "./pathways";
 import { createRng, type Rng } from "./rng";
 import type {
   ActionBucket,
@@ -65,6 +65,7 @@ function cardSnapshot(card: CardInstance) {
 
 /** Push a UI reveal so peeks/steals are visible to the human player. */
 export function pushReveal(state: GameState, reveal: Omit<RevealEvent, "id">) {
+  if (state.simQuiet) return;
   state.reveals = [
     { ...reveal, id: uid("reveal") },
     ...(state.reveals ?? []),
@@ -179,6 +180,7 @@ function stealEquipped(
 }
 
 function log(state: GameState, text: string, tone: GameLogEntry["tone"] = "neutral") {
+  if (state.simQuiet) return;
   state.log = [{ id: uid("log"), text, tone }, ...state.log].slice(0, 80);
 }
 
@@ -1001,22 +1003,7 @@ export function runEndPhase(state: GameState, rng: Rng) {
   p.status.onceEvadeUsed = false;
   if (!p.rustSourceId) p.status.weaponDisabled = false;
 
-  // Hand limit — keep cards that are currently matched to the potion.
-  const lim = handLimit(p);
-  const recipe = matchRecipe(p);
-  const keep = new Set(recipe?.discardInstanceIds ?? []);
-  while (p.hand.length > lim) {
-    let idx = p.hand.findIndex(
-      (c) => !keep.has(c.instanceId),
-    );
-    if (idx < 0) idx = p.hand.findIndex((c) => !keep.has(c.instanceId));
-    if (idx < 0) idx = p.hand.length - 1;
-    const [card] = p.hand.splice(idx, 1);
-    if (card) {
-      discardToPile(state, card);
-      log(state, `${p.name} discards down to ${lim}.`, "system");
-    }
-  }
+  trimHand(state, p);
 
   // Bank Acting progress across rounds — does NOT clear actingMet
   const wasMet = p.actingMet;
@@ -1048,6 +1035,37 @@ function advanceTurn(state: GameState, rng: Rng) {
 
 export function canUseBucket(state: GameState, bucket: ActionBucket): boolean {
   return state.phase === "action" && !state.actionsUsed[bucket];
+}
+
+/** Drop cards that are not paying the current potion once the hand is over its limit. */
+function trimHand(state: GameState, p: PlayerState) {
+  const lim = handLimit(p);
+  const recipe = matchRecipe(p);
+  const keep = new Set(recipe?.discardInstanceIds ?? []);
+  while (p.hand.length > lim) {
+    let idx = p.hand.findIndex((c) => !keep.has(c.instanceId));
+    if (idx < 0) idx = p.hand.length - 1;
+    const [card] = p.hand.splice(idx, 1);
+    if (card) {
+      discardToPile(state, card);
+      log(state, `${p.name} sets aside a card to stay at ${lim}.`, "system");
+    }
+  }
+}
+
+/** Spend the Standard action to draw. Playing a card uses this same action, so you choose one. */
+export function drawAsStandard(state: GameState, rng: Rng): { ok: boolean; error?: string } {
+  const p = currentPlayer(state);
+  if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
+  if (!canUseBucket(state, "standard")) return { ok: false, error: "Standard action already used" };
+  const before = p.hand.length;
+  drawCards(state, p, 1, rng, true);
+  if (p.hand.length === before) return { ok: false, error: "Nothing left to draw" };
+  trimHand(state, p);
+  state.actionsUsed.standard = true;
+  log(state, `${p.name} spends the Standard action to draw.`, "system");
+  noteActing(state, p);
+  return { ok: true };
 }
 
 export function playCardFromHand(
@@ -1089,7 +1107,7 @@ export function playCardFromHand(
   }
 
   const tax = p.nextCardTax ?? 0;
-  const totalCost = def.spCost + tax;
+  const totalCost = playCost(def, p.sequence) + tax;
   if (!paySp(p, totalCost, state)) {
     return { ok: false, error: tax ? `Not enough SP (tax +${tax})` : "Not enough SP" };
   }
@@ -1895,7 +1913,7 @@ export function castSequenceAbility(
 
   resolveAbility(state, p, seq.abilityId, target, rng);
   if (state.simPlays) state.simAbilities = (state.simAbilities ?? 0) + 1;
-  if (LATE_PEAK.has(p.pathwayId) && p.sequence <= 6) drawCards(state, p, 1, rng, true);
+  if (pathwayCurve(p.pathwayId) === "late" && p.sequence <= 6) drawCards(state, p, 1, rng, true);
   state.actionsUsed.sequence = true;
   p.turnFlags.cardsPlayed += 1;
   noteActing(state, p);
@@ -2057,33 +2075,6 @@ export function activateArtifactPower(
   noteActing(state, p);
   return { ok: true };
 }
-
-/** Stronger than peers at Sequence 9–6, then they taper. */
-const EARLY_PEAK = new Set([
-  "sun",
-  "tyrant",
-  "giant",
-  "demoness",
-  "chained",
-  "abyss",
-  "priest",
-  "hanged",
-]);
-
-/** Quiet at Sequence 9–7, then they draw and press Sanity harder than peers. */
-const LATE_PEAK = new Set([
-  "mother",
-  "visionary",
-  "wheel",
-  "fool",
-  "door",
-  "hermit",
-  "death",
-  "darkness",
-  "moon",
-  "paragon",
-  "error",
-]);
 
 function resolveAbility(
   state: GameState,
@@ -3337,8 +3328,9 @@ function resolveAbility(
       // Early-peak kits hit harder while Sequences are high and taper off.
       // Late-peak kits barely scratch at Sequence 9, then draw and press Sanity.
       const seqDef = getSequence(p.pathwayId, p.sequence);
-      const early = EARLY_PEAK.has(p.pathwayId);
-      const late = LATE_PEAK.has(p.pathwayId);
+      const curve = pathwayCurve(p.pathwayId);
+      const early = curve === "early";
+      const late = curve === "late";
       const foe = target && target.id !== p.id ? target : undefined;
       if (p.sequence >= 7) {
         if (early && foe) dealDamage(state, p, foe, 2, {}, rng);
@@ -3416,8 +3408,9 @@ export function attemptAscension(
   }
 
   // Show the recipe. The cards stay in hand and can be played or shown again.
+  const owned = heldCards(p);
   const shown = recipe.discardInstanceIds
-    .map((id) => p.hand.find((c) => c.instanceId === id))
+    .map((id) => owned.find((c) => c.instanceId === id))
     .filter((c): c is CardInstance => !!c);
   for (const c of shown) {
     c.revealed = true;
@@ -3430,7 +3423,7 @@ export function attemptAscension(
       title: `${p.name} shows the potion`,
       subjectName: p.name,
       cards: shown.map(cardSnapshot),
-      detail: `Revealed to the table for Sequence ${nextSeq} — ${next.title}. These cards stay in hand.`,
+      detail: `Revealed to the table for Sequence ${nextSeq} — ${next.title}. Shown cards stay where they are: in hand or equipped.`,
     });
     log(state, `${p.name} reveals ${names} for the potion. The ingredients stay in hand.`, "ascend");
   }

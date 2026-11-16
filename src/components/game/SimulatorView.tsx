@@ -2,13 +2,16 @@
 
 import { Button } from "@/components/ui/button";
 import { runSimulationAsync, type GameReplay, type RateStat, type SimReport } from "@/game/simulate";
-import { PATHWAYS } from "@/game/pathways";
+import { PATHWAYS, curveLabel, pathwayCurve } from "@/game/pathways";
+import { MatchupBoard } from "./MatchupBoard";
+import { compareValues, SortTh, useSort } from "./sort-table";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
-type SimTab = "overview" | "arcana" | "items" | "cards" | "replay";
+type SimTab = "matchups" | "overview" | "arcana" | "items" | "cards" | "replay";
 
 const TABS: { id: SimTab; label: string }[] = [
+  { id: "matchups", label: "Matchups" },
   { id: "overview", label: "Overview" },
   { id: "arcana", label: "Arcana" },
   { id: "items", label: "Items" },
@@ -45,7 +48,10 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
   const [report, setReport] = useState<SimReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
-  const [tab, setTab] = useState<SimTab>("overview");
+  const [tab, setTab] = useState<SimTab>("matchups");
+  const arcanaSort = useSort<"name" | "curve" | "games" | "wins" | "winRate" | "avgSequence" | "avgSteps">("winRate");
+  const howSort = useSort<"name" | "wins" | "hpWins" | "sanityWins" | "ascensionWins" | "lowerSeqWins" | "hpComebacks" | "seqComebacks" | "avgWinSequence">("wins");
+  const cardSort = useSort<"name" | "type" | "plays" | "damage" | "damagePerPlay" | "winRateWhenPlayed">("plays");
   const [replayIdx, setReplayIdx] = useState(0);
   const [logCursor, setLogCursor] = useState(0);
 
@@ -130,14 +136,36 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
           </div>
         </div>
 
-        {!report && (
+        <div className="flex flex-wrap gap-2">
+          {TABS.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setTab(item.id)}
+              aria-pressed={tab === item.id}
+              className={cn(
+                "rounded-full border px-3 py-1 text-sm",
+                tab === item.id
+                  ? "border-amber-500 bg-amber-950/50 text-amber-100"
+                  : "border-stone-700 text-stone-400",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "matchups" && <MatchupBoard />}
+
+        {tab !== "matchups" && !report && (
           <p className="rounded-xl border border-stone-700/60 bg-stone-950/70 p-6 text-sm text-stone-400">
             Choose a table size and run. 1024 games keep the page responsive and store the first 12
             chronicles. Two-player games stress 1v1 matchups. Four-player games show free-for-all pressure.
+            Click a column header on any table to sort it.
           </p>
         )}
 
-        {report && (
+        {tab !== "matchups" && report && (
           <>
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <Stat label="Finished" value={`${report.finished}/${report.games}`} />
@@ -148,47 +176,45 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               <Stat label="Potions drunk" value={perGame(report.pace.ascensions, report.games)} />
             </div>
 
-            <div className="flex flex-wrap gap-2">
-              {TABS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setTab(item.id)}
-                  aria-pressed={tab === item.id}
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-sm",
-                    tab === item.id
-                      ? "border-amber-500 bg-amber-950/50 text-amber-100"
-                      : "border-stone-700 text-stone-400",
-                  )}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-
             {tab === "overview" && <Overview report={report} />}
 
             {tab === "arcana" && (
               <div className="flex flex-col gap-4">
               <div className="overflow-x-auto rounded-xl border border-stone-700/60">
-                <table className="w-full min-w-[640px] text-left text-sm">
-                  <thead className="bg-stone-900/80 text-xs uppercase tracking-wide text-stone-500">
+                <table className="w-full min-w-[760px] text-left text-sm">
+                  <thead className="bg-stone-900/80 text-xs">
                     <tr>
-                      <th className="px-3 py-2">Pathway</th>
-                      <th className="px-3 py-2">Games</th>
-                      <th className="px-3 py-2">Wins</th>
-                      <th className="px-3 py-2">Win rate</th>
-                      <th className="px-3 py-2">Avg Seq</th>
-                      <th className="px-3 py-2">Climbed</th>
+                      {(
+                        [
+                          ["name", "Pathway"],
+                          ["curve", "Curve"],
+                          ["games", "Games"],
+                          ["wins", "Wins"],
+                          ["winRate", "Win rate"],
+                          ["avgSequence", "Avg Seq"],
+                          ["avgSteps", "Climbed"],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <SortTh
+                          key={key}
+                          label={label}
+                          active={arcanaSort.key === key}
+                          direction={arcanaSort.direction}
+                          onClick={() => arcanaSort.toggle(key)}
+                        />
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {report.pathways.map((p) => (
+                    {[...report.pathways]
+                      .map((p) => ({ ...p, curve: curveLabel(pathwayCurve(p.id)) }))
+                      .sort((a, b) => compareValues(a[arcanaSort.key], b[arcanaSort.key], arcanaSort.direction))
+                      .map((p) => (
                       <tr key={p.id} className="border-t border-stone-800">
                         <td className="px-3 py-2" style={{ color: PATHWAYS.find((x) => x.id === p.id)?.accent }}>
                           {p.name}
                         </td>
+                        <td className="px-3 py-2 text-stone-400">{p.curve}</td>
                         <td className="px-3 py-2 text-stone-300">{p.games}</td>
                         <td className="px-3 py-2 text-stone-300">{p.wins}</td>
                         <td className="px-3 py-2">
@@ -217,28 +243,42 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                   </tbody>
                 </table>
                 <p className="px-3 py-2 text-xs text-stone-500">
-                  Green is ahead of the pack, rose is lagging. With {report.games} games a pathway
+                  Curve is the design: Early peak is stronger at Sequence 9–6, Late peak is quiet then and stronger from Sequence 6 down, Even holds a similar weight the whole way. Green is ahead of the pack, rose is lagging. With {report.games} games a pathway
                   appears only a handful of times — run 64 or more before treating a gap as a real imbalance.
                   On a 4-player table an even pathway wins about 25% of its games. On a 2-player table, about half.
                 </p>
               </div>
               <div className="overflow-x-auto rounded-xl border border-stone-700/60">
                 <table className="w-full min-w-[860px] text-left text-sm">
-                  <thead className="bg-stone-900/80 text-xs uppercase tracking-wide text-stone-500">
+                  <thead className="bg-stone-900/80 text-xs">
                     <tr>
-                      <th className="px-3 py-2">Pathway</th>
-                      <th className="px-3 py-2">Wins</th>
-                      <th className="px-3 py-2">HP</th>
-                      <th className="px-3 py-2">Sanity</th>
-                      <th className="px-3 py-2">Ascension</th>
-                      <th className="px-3 py-2">Lower seq</th>
-                      <th className="px-3 py-2">HP hole</th>
-                      <th className="px-3 py-2">Caught up</th>
-                      <th className="px-3 py-2">Avg win seq</th>
+                      {(
+                        [
+                          ["name", "Pathway"],
+                          ["wins", "Wins"],
+                          ["hpWins", "HP"],
+                          ["sanityWins", "Sanity"],
+                          ["ascensionWins", "Ascension"],
+                          ["lowerSeqWins", "Lower seq"],
+                          ["hpComebacks", "HP hole"],
+                          ["seqComebacks", "Caught up"],
+                          ["avgWinSequence", "Avg win seq"],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <SortTh
+                          key={key}
+                          label={label}
+                          active={howSort.key === key}
+                          direction={howSort.direction}
+                          onClick={() => howSort.toggle(key)}
+                        />
+                      ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {report.pathways.map((p) => (
+                    {[...report.pathways]
+                      .sort((a, b) => compareValues(a[howSort.key], b[howSort.key], howSort.direction))
+                      .map((p) => (
                       <tr key={`${p.id}-how`} className="border-t border-stone-800">
                         <td className="px-3 py-2" style={{ color: PATHWAYS.find((x) => x.id === p.id)?.accent }}>
                           {p.name}
@@ -280,18 +320,32 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                 <CardTable title="Weaker when played" rows={weak.slice(0, 12)} />
                 <div className="overflow-x-auto rounded-xl border border-stone-700/60 lg:col-span-2">
                   <table className="w-full min-w-[720px] text-left text-sm">
-                    <thead className="bg-stone-900/80 text-xs uppercase tracking-wide text-stone-500">
+                    <thead className="bg-stone-900/80 text-xs">
                       <tr>
-                        <th className="px-3 py-2">Card</th>
-                        <th className="px-3 py-2">Type</th>
-                        <th className="px-3 py-2">Plays</th>
-                        <th className="px-3 py-2">Damage</th>
-                        <th className="px-3 py-2">Dmg / play</th>
-                        <th className="px-3 py-2">Win% when played</th>
+                        {(
+                          [
+                            ["name", "Card"],
+                            ["type", "Type"],
+                            ["plays", "Plays"],
+                            ["damage", "Damage"],
+                            ["damagePerPlay", "Dmg / play"],
+                            ["winRateWhenPlayed", "Win% when played"],
+                          ] as const
+                        ).map(([key, label]) => (
+                          <SortTh
+                            key={key}
+                            label={label}
+                            active={cardSort.key === key}
+                            direction={cardSort.direction}
+                            onClick={() => cardSort.toggle(key)}
+                          />
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {playedCards.map((c) => (
+                      {[...playedCards]
+                        .sort((a, b) => compareValues(a[cardSort.key], b[cardSort.key], cardSort.direction))
+                        .map((c) => (
                         <tr key={c.id} className="border-t border-stone-800">
                           <td className="px-3 py-1.5 text-stone-100">{c.name}</td>
                           <td className="px-3 py-1.5 text-stone-400">
@@ -597,6 +651,7 @@ function Overview({ report }: { report: SimReport }) {
 }
 
 function ItemsPanel({ report }: { report: SimReport }) {
+  const gearSort = useSort<"name" | "slot" | "rarity" | "held" | "holderWinRate" | "plays" | "winRateWhenPlayed">("held");
   const relics = report.gear
     .filter((g) => g.slot === "relic")
     .slice()
@@ -628,19 +683,33 @@ function ItemsPanel({ report }: { report: SimReport }) {
       </div>
       <div className="overflow-x-auto rounded-xl border border-stone-700/60">
         <table className="w-full min-w-[760px] text-left text-sm">
-          <thead className="bg-stone-900/80 text-xs uppercase tracking-wide text-stone-500">
+          <thead className="bg-stone-900/80 text-xs">
             <tr>
-              <th className="px-3 py-2">Item</th>
-              <th className="px-3 py-2">Slot</th>
-              <th className="px-3 py-2">Rarity</th>
-              <th className="px-3 py-2">Held at end</th>
-              <th className="px-3 py-2">Holder win%</th>
-              <th className="px-3 py-2">Plays</th>
-              <th className="px-3 py-2">Win% when played</th>
+              {(
+                [
+                  ["name", "Item"],
+                  ["slot", "Slot"],
+                  ["rarity", "Rarity"],
+                  ["held", "Held at end"],
+                  ["holderWinRate", "Holder win%"],
+                  ["plays", "Plays"],
+                  ["winRateWhenPlayed", "Win% when played"],
+                ] as const
+              ).map(([key, label]) => (
+                <SortTh
+                  key={key}
+                  label={label}
+                  active={gearSort.key === key}
+                  direction={gearSort.direction}
+                  onClick={() => gearSort.toggle(key)}
+                />
+              ))}
             </tr>
           </thead>
           <tbody>
-            {held.map((g) => (
+            {[...held]
+              .sort((a, b) => compareValues(a[gearSort.key], b[gearSort.key], gearSort.direction))
+              .map((g) => (
               <tr key={g.id} className="border-t border-stone-800">
                 <td className="px-3 py-1.5 text-stone-100">{g.name}</td>
                 <td className="px-3 py-1.5 capitalize text-stone-400">{g.slot}</td>

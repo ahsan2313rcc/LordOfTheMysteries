@@ -1578,6 +1578,46 @@ export function spGainFor(pathwayId: string, sequence: number): number {
   return getSequence(pathwayId, sequence).spGain;
 }
 
+export type PathwayCurve = "early" | "late" | "even";
+
+const EARLY_PATHWAYS = new Set([
+  "sun",
+  "tyrant",
+  "giant",
+  "demoness",
+  "chained",
+  "abyss",
+  "priest",
+  "hanged",
+]);
+
+const LATE_PATHWAYS = new Set([
+  "mother",
+  "visionary",
+  "wheel",
+  "fool",
+  "door",
+  "hermit",
+  "death",
+  "darkness",
+  "moon",
+  "paragon",
+  "error",
+]);
+
+/** Early peaks hit harder at Sequence 9–6. Late peaks draw and press Sanity from Sequence 6 down. */
+export function pathwayCurve(id: string): PathwayCurve {
+  if (EARLY_PATHWAYS.has(id)) return "early";
+  if (LATE_PATHWAYS.has(id)) return "late";
+  return "even";
+}
+
+export function curveLabel(curve: PathwayCurve): string {
+  if (curve === "early") return "Early peak";
+  if (curve === "late") return "Late peak";
+  return "Even";
+}
+
 /** Sanity paid to cast the pathway ability. Bands of three: 1, then 2, then 3 (18 total if cast once per Sequence 9→1). */
 export function abilitySanityCost(sequence: number): number {
   if (sequence >= 7) return 1;

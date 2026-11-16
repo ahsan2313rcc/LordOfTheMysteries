@@ -56,10 +56,13 @@ export function RulesView({ onBack }: { onBack: () => void }) {
           </ol>
           <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
             <li>
-              <strong className="text-stone-100">Standard — play a card.</strong> Commons cost 1
-              Spirituality. Rares cost 4. Artifacts cost 6. Traps are free and use the Attack
-              action instead. Higher Sequences generate more than 1, so Spirituality banks toward
-              rares and artifacts if you keep playing commons.
+              <strong className="text-stone-100">Standard — draw a card, or play one.</strong> You
+              choose. Draw when the card in hand is not the ingredient or the tool you need. Commons
+              cost 1 Spirituality and are the early tools. A rare costs 4 more than printed at
+              Sequence 9–7, its printed cost at 6–4, and 1 less from Sequence 3 down, so a rare is
+              for the late game. Traps use the Attack action. A full hand sets aside cards that are
+              not paying the current potion, including right after a Standard draw. Equipped cards
+              still pay the potion, so a filled slot does not trap those ingredients in hand.
             </li>
             <li>
               <strong className="text-stone-100">Sequence — cast your pathway ability.</strong> Pay
@@ -74,7 +77,7 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             </li>
             <li>
               <strong className="text-stone-100">Drink a potion</strong> when your Acting Condition
-              is locked and the recipe is in hand. Casting the Sequence ability locks that
+              is locked and the recipe is in hand or on your gear. Casting the Sequence ability locks that
               condition, so every pathway can climb by using its own power. Potions cost no Sanity.
               Show those cards to every player; they stay in your hand, marked as revealed, and can
               be played or shown again. The next sequence asks for different ingredients, and a card
@@ -105,7 +108,12 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             descend — and replaces your ability with a stronger one. From Sequence 6 down, the body
             knits 1 HP at the start of your turn, so a climber is harder to finish than a Sequence 9.
             Drinking the potion also draws a card. Late-leaning pathways draw again when they cast
-            from Sequence 6 down. Sequence 0 is still Apotheosis.
+            from Sequence 6 down. Sequence 0 is still Apotheosis. Eight pathways are built to win the
+            early fight and then taper: the Sun, the Tyrant, Twilight Giant, the Demoness, the Chained,
+            the Abyss, the Red Priest, and the Hanged Man. Eleven are quiet at Sequence 9–7 and stronger
+            from Sequence 6 down, where they draw and press Sanity: the Mother, the Visionary, Wheel of
+            Fortune, the Fool, the Door, the Hermit, the Death, the Darkness, the Moon, the Paragon, and
+            the Error. The White Tower, the Justiciar, and the Black Emperor stay even across the climb.
           </p>
         </section>
 
@@ -139,7 +147,10 @@ export function RulesView({ onBack }: { onBack: () => void }) {
           <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
             <li>Weapons, charms, and artifacts stay equipped. A new one of the same kind replaces the old.</li>
             <li>Traps sit face down and interrupt the printed moment: an attack, a spell, an equip, a potion.</li>
-            <li>Hand limit is 7. Extra cards discard at the end of your turn. Slumber Charm raises the limit by 2.</li>
+            <li>
+              Hand limit is 7. Extra cards that are not paying the current potion leave the hand,
+              including after a Standard draw. Slumber Charm raises the limit by 2.
+            </li>
             <li>
               A common card carries two common ingredients. A rare card carries three, except the
               two relics, which carry two copies of one rare ingredient. Two sequences in a row never

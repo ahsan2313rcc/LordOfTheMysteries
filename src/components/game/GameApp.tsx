@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { runAiTurn } from "@/game/ai";
-import { getCardDef } from "@/game/cards";
+import { getCardDef, playCost } from "@/game/cards";
 import {
   actingProgressItems,
   activateArtifactPower,
@@ -12,13 +12,14 @@ import {
   contendArtifact,
   createGame,
   currentPlayer,
+  drawAsStandard,
   endTurn,
   getRng,
   performAttack,
   playCardFromHand,
   sacrificeRequiem,
 } from "@/game/engine";
-import { abilitySanityCost, getSequence, INGREDIENT_NAMES, PATHWAYS } from "@/game/pathways";
+import { abilitySanityCost, curveLabel, getSequence, INGREDIENT_NAMES, PATHWAYS, pathwayCurve } from "@/game/pathways";
 import type { GameState } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -142,6 +143,15 @@ export function GameApp() {
     apply((s) => {
       const r = performAttack(s, target, rng);
       if (!r.ok) return r.error ?? "Cannot attack";
+    });
+  }
+
+  function onDraw() {
+    if (!state) return;
+    const rng = getRng(state);
+    apply((s) => {
+      const r = drawAsStandard(s, rng);
+      if (!r.ok) return r.error ?? "Cannot draw";
     });
   }
 
@@ -430,13 +440,15 @@ export function GameApp() {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div>
                 <p className="font-[family-name:var(--font-display)] text-amber-100">
-                  Your Sequence — {seq.title}{" "}
-                  <span className="text-stone-500">(Seq {human.sequence})</span>
+                  {seq.title}{" "}
+                  <span className="text-stone-500">Seq {human.sequence}</span>
+                  <span className="ml-2 text-xs uppercase tracking-wide text-stone-500">
+                    {curveLabel(pathwayCurve(human.pathwayId))}
+                  </span>
                 </p>
                 <p className="mt-1 text-sm text-stone-300">
-                  Ability: <span className="text-cyan-300">{seq.abilityName}</span> (
-                  {abilitySanityCost(human.sequence)} Sanity) — {seq.abilityText}{" "}
-                  <span className="text-stone-500">· Begin grants {seq.spGain} SP</span>
+                  <span className="text-cyan-300">{seq.abilityName}</span> · {abilitySanityCost(human.sequence)} Sanity
+                  · {seq.abilityText}
                 </p>
               </div>
               <span
@@ -447,49 +459,31 @@ export function GameApp() {
                     : "border-amber-700/50 bg-amber-950/30 text-amber-300/90",
                 )}
               >
-                {humanActing.ok ? "Acting locked ✓" : "Acting in progress"}
+                {humanActing.ok ? "Acting locked" : "Cast to lock Acting"}
               </span>
             </div>
 
-            <p className="mt-3 text-xs text-stone-400">{seq.actingCondition}</p>
-            <ul className="mt-2 space-y-1">
-              {humanActing.items.map((item) => (
-                <li
-                  key={item.id}
-                  className={cn(
-                    "flex items-center gap-2 text-xs",
-                    item.done ? "text-emerald-300/90" : "text-stone-500",
-                  )}
-                >
-                  <span className="font-mono">{item.done ? "✓" : "○"}</span>
-                  {item.label}
-                </li>
-              ))}
-            </ul>
-            <p className="mt-2 text-[0.65rem] text-stone-500">
-              Acting banks across turns until you drink. Click a seat to target them, or target
-              yourself for Aegis of Mind&apos;s Sanity Block.
-            </p>
-
-            {nextSeq && humanActing.ready && (
+            {nextSeq && (
               <div className="mt-3 rounded-lg border border-stone-700/60 bg-stone-900/60 p-2.5">
                 <p className="text-[0.7rem] text-amber-200/90">
                   Potion → Seq {human.sequence - 1} {nextSeq.title}
                 </p>
                 <p className="mt-1 text-[0.65rem] text-stone-400">
-                  Recipe: {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ")} · No Sanity toll.
-                  Reveal the cards; they stay in hand. The next sequence uses different ingredients.
+                  {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ") || "No ingredients"}. Cards in hand
+                  and on your gear both count. Shown cards cannot pay the next potion.
                 </p>
-                <p
-                  className={cn(
-                    "mt-1 text-[0.65rem]",
-                    humanActing.ready.acting && humanActing.ready.recipe
-                      ? "text-emerald-400"
-                      : "text-amber-500/90",
-                  )}
-                >
-                  {humanActing.ready.reason}
-                </p>
+                {humanActing.ready && (
+                  <p
+                    className={cn(
+                      "mt-1 text-[0.65rem]",
+                      humanActing.ready.acting && humanActing.ready.recipe
+                        ? "text-emerald-400"
+                        : "text-amber-500/90",
+                    )}
+                  >
+                    {humanActing.ready.reason}
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -523,7 +517,7 @@ export function GameApp() {
 
       <div className="z-30 shrink-0 border-t border-stone-800 bg-stone-950/95 px-3 py-2">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <ActionChip label="Standard" used={state.actionsUsed.standard} extra={state.extraStandard} />
+          <ActionChip label="Draw / Play" used={state.actionsUsed.standard} extra={state.extraStandard} />
           <ActionChip label="Sequence" used={state.actionsUsed.sequence} />
           <ActionChip label="Attack" used={state.actionsUsed.attack} />
           {myTurn && human.sanityBroken && (
@@ -538,6 +532,9 @@ export function GameApp() {
           )}
           {myTurn && !human.sanityBroken && (
             <>
+              <Button size="sm" className="bg-cyan-800 hover:bg-cyan-700" onClick={onDraw}>
+                Draw
+              </Button>
               <Button size="sm" className="bg-amber-700 hover:bg-amber-600" disabled={!selectedCard} onClick={onPlayCard}>
                 Play Card
               </Button>
@@ -545,7 +542,7 @@ export function GameApp() {
                 Cast Ability
               </Button>
               <Button size="sm" variant="secondary" onClick={onAttack}>
-                Attack Target
+                Attack
               </Button>
               <Button
                 size="sm"
@@ -558,6 +555,9 @@ export function GameApp() {
               >
                 Drink Potion
               </Button>
+              <Button size="sm" variant="ghost" onClick={onEnd}>
+                End Turn
+              </Button>
               {human.artifact?.defId === "wishing_lamp" ? (
                 <>
                   <Button size="sm" variant="outline" onClick={() => onArtifactPower("hp")}>Wish: 2 HP</Button>
@@ -567,24 +567,31 @@ export function GameApp() {
               ) : (
                 human.artifact && (
                   <Button size="sm" variant="outline" onClick={() => onArtifactPower()}>
-                    Artifact Power
+                    Artifact
                   </Button>
                 )
               )}
               {human.charms.some((c) => c.defId === "requiem_charm") && (
                 <Button size="sm" variant="outline" onClick={onRequiem}>
-                  Shatter Requiem (+3 HP)
+                  Shatter Requiem
                 </Button>
               )}
-              <Button size="sm" variant="outline" onClick={() => setSelectedTarget(human.id)}>
-                Target Yourself
-              </Button>
-              <Button size="sm" variant="outline" onClick={onContend}>
-                Contend Artifact
-              </Button>
-              <Button size="sm" variant="ghost" onClick={onEnd}>
-                End Turn
-              </Button>
+              {(() => {
+                const held = human.hand.find((c) => c.instanceId === selectedCard);
+                if (!held) return null;
+                const kind = getCardDef(held.defId);
+                if (kind.type !== "utility" && kind.id !== "aegis_mind") return null;
+                return (
+                  <Button size="sm" variant="outline" onClick={() => setSelectedTarget(human.id)}>
+                    Target Yourself
+                  </Button>
+                );
+              })()}
+              {state.players.some((p) => p.id !== human.id && p.artifact) && (
+                <Button size="sm" variant="outline" onClick={onContend}>
+                  Contend
+                </Button>
+              )}
             </>
           )}
         </div>
@@ -597,7 +604,9 @@ export function GameApp() {
               if (!c) return "Card left your hand.";
               const d = getCardDef(c.defId);
               const tgt = state.players.find((p) => p.id === selectedTarget);
-              return `${d.name} · ${d.type} · ${d.spCost} SP — ${d.text}${tgt ? ` → ${tgt.name}` : " · choose a target"}`;
+              const cost = playCost(d, human.sequence);
+              const costNote = cost === d.spCost ? `${cost} SP` : `${cost} SP (printed ${d.spCost})`;
+              return `${d.name} · ${d.type} · ${costNote} — ${d.text}${tgt ? ` → ${tgt.name}` : ""}`;
             })()}
           </p>
         )}
@@ -607,6 +616,7 @@ export function GameApp() {
               key={c.instanceId}
               card={c}
               selected={selectedCard === c.instanceId}
+              cost={playCost(getCardDef(c.defId), human.sequence)}
               disabled={!myTurn}
               onClick={() => myTurn && setSelectedCard(c.instanceId)}
             />
@@ -730,8 +740,14 @@ function DesignNotes({ onBack }: { onBack: () => void }) {
               build uses pathway sheet gains for excitement at the top.
             </li>
             <li>
-              Hand limit 7 keeps a potion in hand while you play; Slumber Charm still adds +2.
-              Recipe scarcity remains the main pace brake.
+              The Standard action is a draw or one card. Commons are the early tools and the potion
+              pieces. Rares cost more until Sequence 6, then ease off from Sequence 3. Equipped cards
+              still pay the current potion, so a filled slot does not clog the recipe.
+            </li>
+            <li>
+              Early peak: Sun, Tyrant, Twilight Giant, Demoness, Chained, Abyss, Red Priest, Hanged Man.
+              Late peak: Mother, Visionary, Wheel of Fortune, Fool, Door, Hermit, Death, Darkness, Moon,
+              Paragon, Error. Even: White Tower, Justiciar, Black Emperor.
             </li>
             <li>
               Spirit Entanglement, Rust & Ruin, Item Refinement, Wind Blade→top-deck are strong
