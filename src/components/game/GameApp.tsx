@@ -13,7 +13,6 @@ import {
   createGame,
   currentPlayer,
   endTurn,
-  exposePlayer,
   getRng,
   performAttack,
   playCardFromHand,
@@ -113,6 +112,16 @@ export function GameApp() {
 
   function onPlayCard() {
     if (!state || !selectedCard) return;
+    const held = currentPlayer(state).hand.find((c) => c.instanceId === selectedCard);
+    if (
+      state.arcanaConcealment &&
+      held &&
+      getCardDef(held.defId).rarity === "rare" &&
+      !selectedTarget
+    ) {
+      flash("Choose who this Major Arcana exposes");
+      return;
+    }
     const rng = getRng(state);
     const cardId = selectedCard;
     const target = selectedTarget ?? undefined;
@@ -120,18 +129,6 @@ export function GameApp() {
       const r = playCardFromHand(s, cardId, target, rng);
       if (!r.ok) return r.error ?? "Cannot play";
       setSelectedCard(null);
-    });
-  }
-
-  function onExpose() {
-    if (!state || !selectedTarget) {
-      flash("Select who to expose");
-      return;
-    }
-    const target = selectedTarget;
-    apply((s) => {
-      const r = exposePlayer(s, target);
-      if (!r.ok) return r.error ?? "Cannot expose";
     });
   }
 
@@ -309,10 +306,9 @@ export function GameApp() {
             </label>
           </div>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-stone-500">
-            Variant: the deck stays 56 common cards and 22 rares. Everyone starts concealed.
-            Spend your Standard action to expose someone and their board. You stay concealed
-            until you attack an exposed player. Abilities and items are unchanged, and potions
-            still need their recipes.
+            Off by default. Rares are the Major Arcana (0–21) and commons are the Minor Arcana.
+            Everyone starts concealed. Playing a rare card exposes an opponent and their board.
+            You stay concealed until you attack an exposed player.
           </p>
 
           <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -551,11 +547,6 @@ export function GameApp() {
               <Button size="sm" variant="secondary" onClick={onAttack}>
                 Attack Target
               </Button>
-              {state.arcanaConcealment && (
-                <Button size="sm" variant="outline" onClick={onExpose}>
-                  Expose Target
-                </Button>
-              )}
               <Button
                 size="sm"
                 variant="outline"

@@ -26,12 +26,12 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - Reveal modal for hand peeks, deck peeks, Trap reveals, and card steals
 - Full turn loop: Begin → Draw → Action (Standard / Sequence / Attack) → End
 - Deck of 78 unique cards, one copy each (56 common, 22 rare). Drawing the last card reshuffles the discard. Major Arcana is not a card.
-- Ascension with **sticky Acting Conditions** (progress banks until you drink). Potions cost no Sanity, and you may cast and drink on the same turn.
-- Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). Spirituality pays for cards: commons 1, rares 4, artifacts 6. The basic attack is free.
+- Ascension with **sticky Acting Conditions**. Casting the Sequence ability locks the condition for that step. Potions cost no Sanity, and you may cast and drink on the same turn.
+- Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). Spirituality pays for cards: commons 1, rares 4, artifacts 6. A bare attack deals no damage; a weapon or an empowering ability does. The attack action stays free.
 - Passive recovery: +1 HP if no HP taken, +1 Sanity if no Sanity taken, SP every turn from Pathway/Seq
 - Artifact powers + Contention (steal)
 - 0 Sanity removes you as a contender. The body deals 1 HP to everyone, including itself, until that HP is gone.
-- A Sequence lead does not win. It pays more Spirituality each Begin and unlocks a stronger ability.
+- A Sequence lead does not win. It pays more Spirituality each Begin, unlocks a stronger ability, and from Sequence 6 the body knits 1 HP each Begin. Drinking draws a card. Some pathways hit harder in the early Sequences and taper; others start quiet and draw and press Sanity once they are deep.
 - Each pathway has its own potion recipes. Consecutive sequences never share an ingredient, and a card shown for one potion cannot pay the next. Common pairs are printed evenly, two cards each.
 - Bribe steals a common equipped piece. Error's Theft steals the best equipped piece, rares first.
 - Block / Evade, lasting Block, traps as interrupts, AI opponents (1–3)
@@ -48,11 +48,11 @@ The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, from 
 
 Potions do not discard their ingredients. You reveal those cards to the table and keep them.
 
-**Arcana Concealment** is an optional variant, off unless you check it. The deck stays 56 commons and 22 rares. Everyone starts concealed. A Standard action exposes a chosen player and their board. You stay concealed until you attack an exposed player.
+**Arcana Concealment** is off unless you check it. The 22 rares are Major Arcana 0–21 and the 56 commons are the Minor Arcana. Playing a rare card exposes an opponent. You stay concealed until you attack an exposed player.
 
 ### Balance snapshot (4-player AI sims)
 
-Typical finished game: **~100–110 turns** (~25–28 full rounds), always ends by **Last Standing**. Critical economy bottleneck is **potion recipe assembly** (Acting locks easily; ingredients do not). Sanity tolls rarely block. Apotheosis (Seq 0) is rare in free-for-alls — combat resolves first.
+Games end by last standing HP, by Madness at 0 Sanity, or by Apotheosis at Sequence 0. A bare swing deals nothing, so weapons and abilities set the clock. Casting the Sequence ability locks Acting, so the climb is gated by the potion recipe. The AI simulator records how the turns were spent.
 
 ## Stack
 

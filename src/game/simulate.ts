@@ -54,6 +54,12 @@ export interface GameReplay {
   seqComeback: boolean;
   attacks: number;
   hpDealt: number;
+  ascensions: number;
+  abilities: number;
+  sanityDealt: number;
+  unarmed: number;
+  /** Sequence steps the table climbed, summed across seats. */
+  steps: number;
   sequences: SeatFinish[];
   plays: SimPlay[];
   log: { text: string; tone?: string }[];
@@ -79,6 +85,8 @@ export interface PathwayStat {
   winRate: number;
   avgSequence: number;
   avgTurns: number;
+  /** How many sequences the seat climbed, on average. */
+  avgSteps: number;
   hpWins: number;
   sanityWins: number;
   ascensionWins: number;
@@ -119,6 +127,17 @@ export interface SimReport {
   avgTurns: number;
   avgAttacks: number;
   avgHpDealt: number;
+  pace: {
+    ascensions: number;
+    abilities: number;
+    sanityDealt: number;
+    unarmed: number;
+    steps: number;
+    under20: number;
+    under40: number;
+    under80: number;
+    over80: number;
+  };
   avgSequence: number;
   /** Games with a named winner. Sanity wipes and timeouts are not included. */
   decided: number;
@@ -277,6 +296,11 @@ export function playAiGame(
     plays,
     attacks: state.simAttacks ?? 0,
     hpDealt: state.simHpDealt ?? 0,
+    ascensions: state.simAscensions ?? 0,
+    abilities: state.simAbilities ?? 0,
+    sanityDealt: state.simSanityDealt ?? 0,
+    unarmed: state.simUnarmed ?? 0,
+    steps: state.players.reduce((n, p) => n + (9 - p.sequence), 0),
     log: state.log.slice(-220).map((e) => ({ text: e.text, tone: e.tone })),
   };
 }
@@ -325,6 +349,17 @@ function emptyReport(players: number): SimReport {
     avgTurns: 0,
     avgAttacks: 0,
     avgHpDealt: 0,
+    pace: {
+      ascensions: 0,
+      abilities: 0,
+      sanityDealt: 0,
+      unarmed: 0,
+      steps: 0,
+      under20: 0,
+      under40: 0,
+      under80: 0,
+      over80: 0,
+    },
     avgSequence: 9,
     decided: 0,
     endings: { hp: 0, sanity: 0, ascension: 0, timeout: 0, other: 0 },
@@ -351,6 +386,7 @@ function emptyReport(players: number): SimReport {
       winRate: 0,
       avgSequence: 9,
       avgTurns: 0,
+      avgSteps: 0,
       hpWins: 0,
       sanityWins: 0,
       ascensionWins: 0,
@@ -388,6 +424,15 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
   else report.finished += 1;
   tallyEnding(report, game);
   if (keepReplay) report.replays.push(game);
+  report.pace.ascensions += game.ascensions;
+  report.pace.abilities += game.abilities;
+  report.pace.sanityDealt += game.sanityDealt;
+  report.pace.unarmed += game.unarmed;
+  report.pace.steps += game.steps;
+  if (game.turns <= 20) report.pace.under20 += 1;
+  else if (game.turns <= 40) report.pace.under40 += 1;
+  else if (game.turns <= 80) report.pace.under80 += 1;
+  else report.pace.over80 += 1;
 
   const decided = !!game.winnerPathway;
   if (decided) {
@@ -410,6 +455,7 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
     if (!row) continue;
     const games = row.games + 1;
     row.avgSequence = (row.avgSequence * row.games + seat.sequence) / games;
+    row.avgSteps = (row.avgSteps * row.games + (9 - seat.sequence)) / games;
     row.avgTurns = (row.avgTurns * row.games + game.turns) / games;
     row.games = games;
     if (seat.pathwayId === game.winnerPathway) {

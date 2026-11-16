@@ -135,6 +135,7 @@ console.log("Early Seq 9 Acting via Sequence Ability alone (or ability+attack)")
     p.turnFlags = emptyFlags();
     p.sp = 5;
     assert(castSequenceAbility(state, state.players[1]!.id, getRng(state)).ok, "acrobatics");
+    p.weapon = { instanceId: "w-fool", defId: "purifying_broadsword" };
     assert(performAttack(state, state.players[1]!.id, getRng(state)).ok, "attack after acrobat");
     assert(p.actingMet, "Fool Seq 8 via Acrobatics + Attack");
   }

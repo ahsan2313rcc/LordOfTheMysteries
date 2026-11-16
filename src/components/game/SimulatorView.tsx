@@ -16,6 +16,11 @@ const TABS: { id: SimTab; label: string }[] = [
   { id: "replay", label: "Replay" },
 ];
 
+function perGame(total: number, games: number): string {
+  if (!games) return "—";
+  return (total / games).toFixed(1);
+}
+
 function pct(count: number, total: number): string {
   if (!total) return "—";
   return `${Math.round((count / total) * 100)}%`;
@@ -136,11 +141,11 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
           <>
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <Stat label="Finished" value={`${report.finished}/${report.games}`} />
+              <Stat label="Avg turns" value={report.avgTurns.toFixed(0)} />
               <Stat label="HP endings" value={pct(report.endings.hp, report.games)} />
               <Stat label="Sanity endings" value={pct(report.endings.sanity, report.games)} />
               <Stat label="Ascension" value={pct(report.endings.ascension, report.games)} />
-              <Stat label="Lower-seq wins" value={pct(report.lowerSeqWins, report.decided)} />
-              <Stat label="Comebacks" value={pct(report.anyComebacks, report.decided)} />
+              <Stat label="Potions drunk" value={perGame(report.pace.ascensions, report.games)} />
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -175,6 +180,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                       <th className="px-3 py-2">Wins</th>
                       <th className="px-3 py-2">Win rate</th>
                       <th className="px-3 py-2">Avg Seq</th>
+                      <th className="px-3 py-2">Climbed</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -202,6 +208,9 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                         </td>
                         <td className="px-3 py-2 text-stone-300">
                           {p.games ? p.avgSequence.toFixed(1) : "—"}
+                        </td>
+                        <td className="px-3 py-2 text-stone-300">
+                          {p.games ? p.avgSteps.toFixed(1) : "—"}
                         </td>
                       </tr>
                     ))}
@@ -438,8 +447,32 @@ function Overview({ report }: { report: SimReport }) {
   ];
   const peak = Math.max(1, ...report.winnerSequence);
 
+  const games = report.games || 1;
   return (
     <div className="grid gap-4 lg:grid-cols-2">
+      <section className="rounded-xl border border-stone-700/60 bg-stone-950/70 p-4 lg:col-span-2">
+        <h2 className="text-sm text-amber-100">How the turns were spent</h2>
+        <p className="mt-1 text-xs text-stone-500">
+          Averages across all {report.games} games. A potion is one sequence step. Bare swings are
+          attacks with no weapon. Length bands count every game, including timeouts.
+        </p>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Stat label="Abilities cast" value={perGame(report.pace.abilities, games)} />
+          <Stat label="Sanity dealt" value={perGame(report.pace.sanityDealt, games)} />
+          <Stat label="Attacks" value={perGame(report.avgAttacks * report.games, games)} />
+          <Stat label="Bare swings" value={perGame(report.pace.unarmed, games)} />
+        </div>
+        <div className="mt-3 space-y-3">
+          <Meter label="Ended by turn 20" count={report.pace.under20} total={report.games} tone="#fb7185" hint="A short fight. HP usually decides these." />
+          <Meter label="Turns 21–40" count={report.pace.under40} total={report.games} tone="#fdba74" hint="Long enough for a few potions." />
+          <Meter label="Turns 41–80" count={report.pace.under80} total={report.games} tone="#fbbf24" hint="A real climb toward the lower sequences." />
+          <Meter label="Longer than 80" count={report.pace.over80} total={report.games} tone="#a8a29e" hint="The table stalled, or both sides kept healing." />
+        </div>
+        <p className="mt-3 text-xs text-stone-500">
+          The table climbed {perGame(report.pace.steps, games)} sequence steps per game, about{" "}
+          {perGame(report.pace.steps, games * Math.max(1, report.players))} per seat.
+        </p>
+      </section>
       <section className="rounded-xl border border-stone-700/60 bg-stone-950/70 p-4">
         <h2 className="text-sm text-amber-100">How games ended</h2>
         <p className="mt-1 text-xs text-stone-500">Share of all {report.games} games.</p>

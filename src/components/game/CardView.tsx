@@ -1,6 +1,6 @@
 "use client";
 
-import { getCardDef } from "@/game/cards";
+import { getCardDef, tarotFace } from "@/game/cards";
 import { INGREDIENT_NAMES } from "@/game/pathways";
 import type { CardInstance } from "@/game/types";
 import { cn } from "@/lib/utils";
@@ -49,6 +49,8 @@ export function CardView({
   }
 
   const def = getCardDef(card.defId);
+  const face = tarotFace(def.id);
+  const arcanaLabel = face.kind === "major" ? `${face.number} ${face.name}` : face.name;
   return (
     <button
       type="button"
@@ -79,6 +81,7 @@ export function CardView({
       <p className="mt-0.5 text-[0.55rem] uppercase tracking-wider text-stone-400">
         {def.rarity} · {def.type}
       </p>
+      <p className={cn("text-amber-200/80", compact ? "text-[0.5rem]" : "text-[0.58rem]")}>{arcanaLabel}</p>
       {!compact && (
         <>
           <p className="mt-2 text-[0.68rem] leading-snug text-stone-200/90">{def.text}</p>

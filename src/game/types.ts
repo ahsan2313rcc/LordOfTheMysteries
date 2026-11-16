@@ -287,6 +287,10 @@ export interface GameState {
   potionDrunk?: boolean;
   simAttacks?: number;
   simHpDealt?: number;
+  simSanityDealt?: number;
+  simAscensions?: number;
+  simAbilities?: number;
+  simUnarmed?: number;
   /** Present only while the balance simulator is recording a match. */
   simPlays?: {
     defId: string;

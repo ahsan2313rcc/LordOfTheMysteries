@@ -10,7 +10,6 @@ import {
   getRng,
   opponentsOf,
   performAttack,
-  exposePlayer,
   playCardFromHand,
   sacrificeRequiem,
 } from "./engine";
@@ -29,7 +28,7 @@ function score(state: GameState, myId: string): number {
   // One Sequence step outranks a finished recipe, so drinking beats sitting on the cards.
   s += (9 - me.sequence) * 200;
   if (me.actingMet) s += 24;
-  s += me.hp * 8 + me.sanity * 6 + Math.min(me.sp, 12) * 0.7;
+  s += me.hp * 6 + me.sanity * 7 + Math.min(me.sp, 12) * 0.7;
   s += Math.min(me.hand.length, 7) * 1.1;
   if (me.weapon && !me.status.weaponDisabled) s += 18;
   s += me.charms.length * 5;
@@ -41,21 +40,22 @@ function score(state: GameState, myId: string): number {
   const recipe = matchRecipe(me);
   if (recipe && recipe.needed.length > 0) {
     const have = recipe.needed.length - recipe.remaining.length;
-    s += (have / recipe.needed.length) * 80;
+    s += (have / recipe.needed.length) * 90;
+    if (recipe.canPay) s += 180;
   }
 
   for (const o of opps) {
-    s -= o.hp * 11;
-    s -= o.sanity * 1.4;
+    s -= o.hp * 6;
+    s -= o.sanity * 6;
     s -= (9 - o.sequence) * 36;
     s -= Math.min(o.sp, 10) * 0.35;
     if (o.actingMet) s -= 10;
     if (o.weapon && !o.status.weaponDisabled) s -= 8;
     if (o.hp <= 4) s += 16;
     if (o.sanityBroken) {
-      s += 36;
+      s += 80;
       s -= o.hp * 4;
-    } else if (o.sanity <= 3) s += 14;
+    } else if (o.sanity <= 8) s += (9 - o.sanity) * 6;
     if (state.arcanaConcealment && o.revealed) s += 16;
   }
   if (state.arcanaConcealment && !me.revealed) s += 28;
@@ -175,16 +175,15 @@ export function runAiTurn(state: GameState): GameState {
       consider((g) => castSequenceAbility(g, undefined, getRng(g)).ok);
     }
 
-    if (!s.actionsUsed.attack) {
+    const canStrike =
+      (!!p.weapon && !p.status.weaponDisabled) ||
+      p.status.attackModifier > 0 ||
+      !!p.status.unblockableAttack;
+    if (!s.actionsUsed.attack && canStrike) {
       for (const t of warTargets(s, myId)) consider((g) => performAttack(g, t.id, getRng(g)).ok);
     }
 
     if (!s.actionsUsed.standard || (s.extraStandard ?? 0) > 0) {
-      if (s.arcanaConcealment) {
-        for (const o of opps) {
-          if (!o.revealed) consider((g) => exposePlayer(g, o.id).ok);
-        }
-      }
       const targets: PlayerState[] = [...opps, p];
       for (const card of p.hand) {
         const d = getCardDef(card.defId);
@@ -205,7 +204,20 @@ export function runAiTurn(state: GameState): GameState {
 
     if (!plan.run) break;
 
-    if (!s.actionsUsed.attack && warTargets(s, myId).length) {
+    const recipeNow = matchRecipe(p);
+    const recipeClose =
+      !!recipeNow &&
+      recipeNow.needed.length > 0 &&
+      (recipeNow.needed.length - recipeNow.remaining.length) / recipeNow.needed.length >= 0.6 &&
+      p.sequence <= 6;
+    const potionReady = !s.potionDrunk && !!recipeNow?.canPay;
+    if (
+      canStrike &&
+      !potionReady &&
+      !recipeClose &&
+      !s.actionsUsed.attack &&
+      warTargets(s, myId).length
+    ) {
       const swing = (g: GameState) => {
         const prey = warTargets(g, myId).sort((a, b) => a.hp - b.hp)[0];
         return prey ? performAttack(g, prey.id, getRng(g)).ok : false;

@@ -904,3 +904,52 @@ export function getCardDef(id: string): CardDef {
 export function buildMainDeckCounts(): { defId: string; copies: number }[] {
   return CARD_DEFS.map((c) => ({ defId: c.id, copies: 1 }));
 }
+
+const MAJOR_ARCANA = [
+  "The Fool",
+  "The Magician",
+  "The High Priestess",
+  "The Empress",
+  "The Emperor",
+  "The Hierophant",
+  "The Lovers",
+  "The Chariot",
+  "Strength",
+  "The Hermit",
+  "Wheel of Fortune",
+  "Justice",
+  "The Hanged Man",
+  "Death",
+  "Temperance",
+  "The Devil",
+  "The Tower",
+  "The Star",
+  "The Moon",
+  "The Sun",
+  "Judgement",
+  "The World",
+];
+
+const MINOR_RANKS = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Page", "Knight", "Queen", "King"];
+const MINOR_SUITS = ["Wands", "Cups", "Swords", "Pentacles"];
+
+export interface TarotFace {
+  kind: "major" | "minor";
+  /** 0–21 for a major. Absent for a minor. */
+  number?: number;
+  name: string;
+}
+
+/** Rares are the 22 Major Arcana, in deck order. Commons are the 56 Minor Arcana. */
+export function tarotFace(defId: string): TarotFace {
+  const rares = CARD_DEFS.filter((c) => c.rarity === "rare");
+  const majorIndex = rares.findIndex((c) => c.id === defId);
+  if (majorIndex >= 0) {
+    return { kind: "major", number: majorIndex, name: MAJOR_ARCANA[majorIndex] ?? "Major" };
+  }
+  const commons = CARD_DEFS.filter((c) => c.rarity === "common");
+  const minorIndex = Math.max(0, commons.findIndex((c) => c.id === defId));
+  const rank = MINOR_RANKS[minorIndex % MINOR_RANKS.length] ?? "Ace";
+  const suit = MINOR_SUITS[Math.floor(minorIndex / MINOR_RANKS.length) % MINOR_SUITS.length] ?? "Wands";
+  return { kind: "minor", name: `${rank} of ${suit}` };
+}

@@ -68,18 +68,19 @@ export function RulesView({ onBack }: { onBack: () => void }) {
               leaves 2 if nothing refills you.
             </li>
             <li>
-              <strong className="text-stone-100">Attack.</strong> Deal 1 HP with your bare hands, or
-              your weapon’s damage. Attacking does not cost Spirituality. A few weapons add a swing
-              cost of their own.
+              <strong className="text-stone-100">Attack.</strong> A bare hand deals nothing. You need a
+              weapon, or an ability that empowers the swing, such as Twilight Giant’s Weapon Mastery.
+              Attacking does not cost Spirituality. A few weapons add a swing cost of their own.
             </li>
             <li>
               <strong className="text-stone-100">Drink a potion</strong> when your Acting Condition
-              is locked and the recipe is in hand. Potions cost no Sanity. Show those cards to
-              every player; they stay in your hand, marked as revealed, and can be played or shown
-              again. The next sequence asks for different ingredients, and a card you just showed
-              cannot pay that next potion. Drinking
-              does not spend the Sequence action, so you may cast and drink on the same turn. Acting
-              progress sticks until you drink, then resets for the new Sequence.
+              is locked and the recipe is in hand. Casting the Sequence ability locks that
+              condition, so every pathway can climb by using its own power. Potions cost no Sanity.
+              Show those cards to every player; they stay in your hand, marked as revealed, and can
+              be played or shown again. The next sequence asks for different ingredients, and a card
+              you just showed cannot pay that next potion. Drinking does not spend the Sequence
+              action, so you may cast and drink on the same turn. Acting progress sticks until you
+              drink, then resets for the new Sequence.
             </li>
           </ul>
         </section>
@@ -101,19 +102,20 @@ export function RulesView({ onBack }: { onBack: () => void }) {
           <p className="text-sm leading-relaxed">
             Being deeper than your opponent does not win the match. Each step down grants more
             Spirituality at the start of your turn — 1 at Sequence 9–8, then 2, 3, 4, and 5 as you
-            descend — and replaces your ability with a stronger one. Sequence 0 is still Apotheosis.
+            descend — and replaces your ability with a stronger one. From Sequence 6 down, the body
+            knits 1 HP at the start of your turn, so a climber is harder to finish than a Sequence 9.
+            Drinking the potion also draws a card. Late-leaning pathways draw again when they cast
+            from Sequence 6 down. Sequence 0 is still Apotheosis.
           </p>
         </section>
 
         <section className="space-y-2">
           <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-200">Why a duel is longer than 20 turns</h2>
           <p className="text-sm leading-relaxed">
-            Each player attacks on their own turn. In a 2-player game you are struck once per round,
-            and a round is two turns. An unarmed hit is 1 HP, so 20 HP is 20 rounds — about 40 turns
-            — when every swing connects and nobody heals. A fully blocked hit deals 0, and a quiet
-            cycle heals 1 HP, so the wound closes. Weapons, spells, and pathway abilities are what
-            push a game under that line. Charging Spirituality for the basic attack would stretch it
-            further, so the basic attack stays free.
+            A bare swing no longer chips away 1 HP every turn, so a duel is not a slow clock of
+            twenty punches. Weapons, spells, and pathway abilities are what open HP. Sanity damage
+            and the potion race are the other ways a table ends. A quiet cycle still heals 1 HP and
+            1 Sanity when you were not hit that way. The attack action itself stays free.
           </p>
         </section>
 
@@ -122,12 +124,13 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             Variant — Arcana Concealment
           </h2>
           <p className="text-sm leading-relaxed">
-            Off unless you check it when you deal. The deck stays the same 56 common cards and 22
-            rares. Everyone starts concealed. Spend your Standard action, choose a player, and
-            their board opens: hand, trap, and equipment. They can be attacked. You stay concealed.
-            You become exposed only when you attack an exposed player. A concealed player cannot be
-            the target of an Attack. Spells, abilities, and items still do exactly what they say,
-            and potions still need their recipes.
+            Off unless you check it when you deal. The 22 rare cards are the Major Arcana, numbered
+            0 through 21. The 56 common cards are the Minor Arcana, the four suits from Ace to King.
+            The deck does not grow. Everyone starts concealed. Playing a rare card exposes an
+            opponent and their board: hand, trap, and equipment. They can then be attacked. You stay
+            concealed. You become exposed only when you attack an exposed player. A concealed player
+            cannot be the target of an Attack. Spells, abilities, and items still do exactly what
+            they say, and potions still need their recipes.
           </p>
         </section>
 

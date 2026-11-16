@@ -8,7 +8,6 @@ import {
   currentPlayer,
   drawCards,
   endTurn,
-  exposePlayer,
   performAttack,
   playCardFromHand,
   getRng,
@@ -145,11 +144,13 @@ function give(state: GameState, p: PlayerState, defId: string) {
   const missed = performAttack(state, foe.id, getRng(state));
   check("cannot attack a concealed player", !missed.ok);
   check("failed attack does not expose the attacker", !me.revealed);
-  const exposed = exposePlayer(state, foe.id);
-  check("standard action exposes the target", exposed.ok && !!foe.revealed, exposed.error);
-  check("exposing them leaves you concealed", !me.revealed);
+  me.sp = 6;
+  const card = give(state, me, "slumbering_blade");
+  const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
+  check("a rare card exposes the target", played.ok && !!foe.revealed, played.error);
+  check("playing a rare leaves you concealed", !me.revealed);
   check("their board was shown", state.reveals[0]?.subjectName === foe.name);
-  check("the expose spent the standard action", state.actionsUsed.standard);
+  check("the rare play spent the standard action", state.actionsUsed.standard);
   const swing = performAttack(state, foe.id, getRng(state));
   check("attacking an exposed player is legal", swing.ok, swing.error);
   check("the attacker is now exposed", !!me.revealed);
