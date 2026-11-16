@@ -13,6 +13,18 @@ export interface SimPlay {
   swing?: boolean;
 }
 
+export interface SeatFinish {
+  pathwayId: string;
+  sequence: number;
+  alive: boolean;
+  hp: number;
+  sanity: number;
+  sanityBroken: boolean;
+  weaponId?: string;
+  charmIds: string[];
+  artifactId?: string;
+}
+
 export interface GameReplay {
   seed: number;
   players: number;
@@ -22,9 +34,27 @@ export interface GameReplay {
   winReason: string;
   winnerPathway: string;
   winnerName: string;
+  /** Sequence number the winner finished on. Smaller is further along. */
+  winnerSequence?: number;
+  /** Most advanced opponent's sequence number. */
+  bestOtherSequence?: number;
+  /**
+   * Winner finished with a higher sequence number than someone else.
+   * They were less advanced and still won.
+   */
+  lowerSeqWin: boolean;
+  /** Winner finished further along than every other seat. */
+  seqLeadWin: boolean;
+  seqTie: boolean;
+  /** Winner fell to 10 HP or less while an opponent led by 6 or more. */
+  hpComeback: boolean;
+  /** After that hole, the winner's HP climbed at least 4. */
+  healedComeback: boolean;
+  /** Winner was behind on Sequence, then finished equal or ahead of that lead. */
+  seqComeback: boolean;
   attacks: number;
   hpDealt: number;
-  sequences: { pathwayId: string; sequence: number; alive: boolean }[];
+  sequences: SeatFinish[];
   plays: SimPlay[];
   log: { text: string; tone?: string }[];
 }
@@ -33,6 +63,7 @@ export interface CardStat {
   id: string;
   name: string;
   type: string;
+  rarity: string;
   plays: number;
   damage: number;
   winPlays: number;
@@ -48,6 +79,36 @@ export interface PathwayStat {
   winRate: number;
   avgSequence: number;
   avgTurns: number;
+  hpWins: number;
+  sanityWins: number;
+  ascensionWins: number;
+  lowerSeqWins: number;
+  seqLeadWins: number;
+  hpComebacks: number;
+  healedComebacks: number;
+  seqComebacks: number;
+  avgWinSequence: number;
+}
+
+/** A counted slice: plays, holds, or wins over a shared denominator. */
+export interface RateStat {
+  id: string;
+  label: string;
+  count: number;
+  wins: number;
+  rate: number;
+}
+
+export interface GearStat {
+  id: string;
+  name: string;
+  slot: "relic" | "weapon" | "charm";
+  rarity: string;
+  held: number;
+  holderWins: number;
+  holderWinRate: number;
+  plays: number;
+  winRateWhenPlayed: number;
 }
 
 export interface SimReport {
@@ -59,6 +120,26 @@ export interface SimReport {
   avgAttacks: number;
   avgHpDealt: number;
   avgSequence: number;
+  /** Games with a named winner. Sanity wipes and timeouts are not included. */
+  decided: number;
+  endings: { hp: number; sanity: number; ascension: number; timeout: number; other: number };
+  lowerSeqWins: number;
+  seqLeadWins: number;
+  seqTies: number;
+  hpComebacks: number;
+  healedComebacks: number;
+  seqComebacks: number;
+  /** Either an HP hole or a sequence catch-up. */
+  anyComebacks: number;
+  /** Index is the sequence number, 0 through 9. */
+  winnerSequence: number[];
+  avgWinnerSequence: number;
+  /** Seats who finished holding at least one rare weapon, charm, or relic. */
+  rareGearSeats: number;
+  rareGearWins: number;
+  gear: GearStat[];
+  gearBuckets: RateStat[];
+  playBuckets: RateStat[];
   cards: CardStat[];
   pathways: PathwayStat[];
   replays: GameReplay[];
@@ -73,6 +154,50 @@ function shuffleIds(seed: number): string[] {
     [arr[i], arr[j]] = [arr[j]!, arr[i]!];
   }
   return arr;
+}
+
+interface Trail {
+  minHoleHp: number;
+  sawHole: boolean;
+  roseAfterHole: boolean;
+  seqBehind: boolean;
+  /** Most advanced opponent sequence seen while this seat was strictly behind. */
+  bestOppWhileBehind: number;
+}
+
+function emptyTrail(): Trail {
+  return {
+    minHoleHp: 99,
+    sawHole: false,
+    roseAfterHole: false,
+    seqBehind: false,
+    bestOppWhileBehind: 99,
+  };
+}
+
+/** Record HP holes and sequence deficits. Sequence 9 is the start; a smaller number is further along. */
+function noteTrail(state: GameState, trails: Map<string, Trail>) {
+  const living = state.players.filter((p) => p.alive);
+  for (const p of living) {
+    const trail = trails.get(p.id) ?? emptyTrail();
+    trails.set(p.id, trail);
+    const downBySix = living.some((o) => o.id !== p.id && o.hp >= p.hp + 6);
+    if (p.hp <= 10 && downBySix) {
+      trail.sawHole = true;
+      trail.minHoleHp = Math.min(trail.minHoleHp, p.hp);
+    }
+    if (trail.sawHole && p.hp >= trail.minHoleHp + 4) trail.roseAfterHole = true;
+    if (state.turnNumber < 4) continue;
+    let best = 99;
+    for (const o of living) {
+      if (o.id === p.id || o.sequence >= p.sequence) continue;
+      best = Math.min(best, o.sequence);
+    }
+    if (best < 99) {
+      trail.seqBehind = true;
+      trail.bestOppWhileBehind = Math.min(trail.bestOppWhileBehind, best);
+    }
+  }
 }
 
 export function playAiGame(
@@ -91,6 +216,7 @@ export function playAiGame(
   });
   for (const p of state.players) p.isHuman = false;
   state.simPlays = [];
+  const trails = new Map<string, Trail>();
 
   const ended = () => (state.phase as string) === "gameover";
   let guard = 0;
@@ -100,10 +226,22 @@ export function playAiGame(
     if (state.turnNumber === before && !ended()) {
       endTurn(state, getRng(state));
     }
+    noteTrail(state, trails);
     guard += 1;
   }
 
   const winner = state.players.find((p) => p.id === state.winnerId);
+  const others = state.players.filter((p) => p.id !== winner?.id);
+  const bestOther =
+    winner && others.length ? Math.min(...others.map((p) => p.sequence)) : undefined;
+  const trail = winner ? trails.get(winner.id) : undefined;
+  const lowerSeqWin = winner != null && bestOther != null && winner.sequence > bestOther;
+  const seqLeadWin = winner != null && bestOther != null && winner.sequence < bestOther;
+  const seqTie = winner != null && bestOther != null && winner.sequence === bestOther;
+  const seqComeback =
+    !!winner &&
+    !!trail?.seqBehind &&
+    winner.sequence <= trail.bestOppWhileBehind;
   const plays = state.simPlays ?? [];
   return {
     seed,
@@ -117,10 +255,24 @@ export function playAiGame(
     winReason: state.winReason ?? (state.phase === "gameover" ? "unknown" : "timeout"),
     winnerPathway: winner?.pathwayId ?? "",
     winnerName: winner?.name ?? "",
+    winnerSequence: winner?.sequence,
+    bestOtherSequence: bestOther,
+    lowerSeqWin,
+    seqLeadWin,
+    seqTie,
+    hpComeback: !!winner && !!trail?.sawHole,
+    healedComeback: !!winner && !!trail?.roseAfterHole,
+    seqComeback,
     sequences: state.players.map((p) => ({
       pathwayId: p.pathwayId,
       sequence: p.sequence,
       alive: p.alive,
+      hp: p.hp,
+      sanity: p.sanity,
+      sanityBroken: !!p.sanityBroken,
+      weaponId: p.weapon?.defId,
+      charmIds: p.charms.map((c) => c.defId),
+      artifactId: p.artifact?.defId,
     })),
     plays,
     attacks: state.simAttacks ?? 0,
@@ -129,19 +281,41 @@ export function playAiGame(
   };
 }
 
+function gearSlot(type: string): GearStat["slot"] | null {
+  if (type === "artifact") return "relic";
+  if (type === "weapon" || type === "charm") return type;
+  return null;
+}
+
 function emptyReport(players: number): SimReport {
   const cardMap = new Map<string, CardStat>();
+  const gear: GearStat[] = [];
   for (const c of CARD_DEFS) {
     cardMap.set(c.id, {
       id: c.id,
       name: c.name,
       type: c.type,
+      rarity: c.rarity,
       plays: 0,
       damage: 0,
       winPlays: 0,
       damagePerPlay: 0,
       winRateWhenPlayed: 0,
     });
+    const slot = gearSlot(c.type);
+    if (slot) {
+      gear.push({
+        id: c.id,
+        name: c.name,
+        slot,
+        rarity: c.rarity,
+        held: 0,
+        holderWins: 0,
+        holderWinRate: 0,
+        plays: 0,
+        winRateWhenPlayed: 0,
+      });
+    }
   }
   return {
     players,
@@ -152,6 +326,22 @@ function emptyReport(players: number): SimReport {
     avgAttacks: 0,
     avgHpDealt: 0,
     avgSequence: 9,
+    decided: 0,
+    endings: { hp: 0, sanity: 0, ascension: 0, timeout: 0, other: 0 },
+    lowerSeqWins: 0,
+    seqLeadWins: 0,
+    seqTies: 0,
+    hpComebacks: 0,
+    healedComebacks: 0,
+    seqComebacks: 0,
+    anyComebacks: 0,
+    winnerSequence: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    avgWinnerSequence: 0,
+    rareGearSeats: 0,
+    rareGearWins: 0,
+    gear,
+    gearBuckets: [],
+    playBuckets: [],
     cards: [...cardMap.values()],
     pathways: PATHWAYS.map((p) => ({
       id: p.id,
@@ -161,16 +351,58 @@ function emptyReport(players: number): SimReport {
       winRate: 0,
       avgSequence: 9,
       avgTurns: 0,
+      hpWins: 0,
+      sanityWins: 0,
+      ascensionWins: 0,
+      lowerSeqWins: 0,
+      seqLeadWins: 0,
+      hpComebacks: 0,
+      healedComebacks: 0,
+      seqComebacks: 0,
+      avgWinSequence: 0,
     })),
     replays: [],
   };
+}
+
+function tallyEnding(report: SimReport, game: GameReplay) {
+  if (game.timedOut) report.endings.timeout += 1;
+  else if (game.winReason === "lastStanding") report.endings.hp += 1;
+  else if (game.winReason === "madness") report.endings.sanity += 1;
+  else if (game.winReason === "apotheosis") report.endings.ascension += 1;
+  else report.endings.other += 1;
+}
+
+function holdGear(gearById: Map<string, GearStat>, id: string | undefined, won: boolean): boolean {
+  if (!id) return false;
+  const row = gearById.get(id);
+  if (!row) return false;
+  row.held += 1;
+  if (won) row.holderWins += 1;
+  return row.rarity === "rare" || row.slot === "relic";
 }
 
 function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
   report.games += 1;
   if (game.timedOut) report.timeouts += 1;
   else report.finished += 1;
+  tallyEnding(report, game);
   if (keepReplay) report.replays.push(game);
+
+  const decided = !!game.winnerPathway;
+  if (decided) {
+    report.decided += 1;
+    if (game.lowerSeqWin) report.lowerSeqWins += 1;
+    if (game.seqLeadWin) report.seqLeadWins += 1;
+    if (game.seqTie) report.seqTies += 1;
+    if (game.hpComeback) report.hpComebacks += 1;
+    if (game.healedComeback) report.healedComebacks += 1;
+    if (game.seqComeback) report.seqComebacks += 1;
+    if (game.hpComeback || game.seqComeback) report.anyComebacks += 1;
+    if (game.winnerSequence != null && game.winnerSequence >= 0 && game.winnerSequence <= 9) {
+      report.winnerSequence[game.winnerSequence] += 1;
+    }
+  }
 
   const pathById = new Map(report.pathways.map((p) => [p.id, p]));
   for (const seat of game.sequences) {
@@ -180,8 +412,31 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
     row.avgSequence = (row.avgSequence * row.games + seat.sequence) / games;
     row.avgTurns = (row.avgTurns * row.games + game.turns) / games;
     row.games = games;
-    if (seat.pathwayId === game.winnerPathway) row.wins += 1;
+    if (seat.pathwayId === game.winnerPathway) {
+      row.wins += 1;
+      row.avgWinSequence = (row.avgWinSequence * (row.wins - 1) + seat.sequence) / row.wins;
+      if (game.winReason === "lastStanding") row.hpWins += 1;
+      else if (game.winReason === "madness") row.sanityWins += 1;
+      else if (game.winReason === "apotheosis") row.ascensionWins += 1;
+      if (game.lowerSeqWin) row.lowerSeqWins += 1;
+      if (game.seqLeadWin) row.seqLeadWins += 1;
+      if (game.hpComeback) row.hpComebacks += 1;
+      if (game.healedComeback) row.healedComebacks += 1;
+      if (game.seqComeback) row.seqComebacks += 1;
+    }
     row.winRate = row.wins / row.games;
+  }
+
+  const gearById = new Map(report.gear.map((g) => [g.id, g]));
+  for (const seat of game.sequences) {
+    const won = seat.pathwayId === game.winnerPathway && !!game.winnerPathway;
+    let rare = holdGear(gearById, seat.weaponId, won);
+    rare = holdGear(gearById, seat.artifactId, won) || rare;
+    for (const charmId of seat.charmIds) rare = holdGear(gearById, charmId, won) || rare;
+    if (rare) {
+      report.rareGearSeats += 1;
+      if (won) report.rareGearWins += 1;
+    }
   }
 
   const cardById = new Map(report.cards.map((c) => [c.id, c]));
@@ -194,6 +449,14 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
     }
     row.damage += play.damage;
   }
+}
+
+function rate(count: number, wins: number): number {
+  return count ? wins / count : 0;
+}
+
+function pushBucket(rows: RateStat[], id: string, label: string, count: number, wins: number) {
+  rows.push({ id, label, count, wins, rate: rate(count, wins) });
 }
 
 function finalize(report: SimReport, attackSum: number, hpSum: number) {
@@ -209,11 +472,63 @@ function finalize(report: SimReport, attackSum: number, hpSum: number) {
   report.avgSequence = seats
     ? report.pathways.reduce((n, p) => n + p.avgSequence * p.games, 0) / seats
     : 9;
+  const cardById = new Map(report.cards.map((c) => [c.id, c]));
   for (const c of report.cards) {
     c.damagePerPlay = c.plays ? c.damage / c.plays : 0;
     c.winRateWhenPlayed = c.plays ? c.winPlays / c.plays : 0;
   }
+  for (const g of report.gear) {
+    const card = cardById.get(g.id);
+    g.plays = card?.plays ?? 0;
+    g.winRateWhenPlayed = card?.winRateWhenPlayed ?? 0;
+    g.holderWinRate = rate(g.held, g.holderWins);
+  }
+  const winSeqTotal = report.winnerSequence.reduce((n, c) => n + c, 0);
+  const winSeqSum = report.winnerSequence.reduce((n, c, seq) => n + c * seq, 0);
+  report.avgWinnerSequence = winSeqTotal ? winSeqSum / winSeqTotal : 0;
+
+  const gearBuckets: RateStat[] = [];
+  const bucket = (id: string, label: string, rows: GearStat[]) => {
+    const count = rows.reduce((n, g) => n + g.held, 0);
+    const wins = rows.reduce((n, g) => n + g.holderWins, 0);
+    pushBucket(gearBuckets, id, label, count, wins);
+  };
+  bucket("relic", "Relics held", report.gear.filter((g) => g.slot === "relic"));
+  bucket("rare-weapon", "Rare weapons held", report.gear.filter((g) => g.slot === "weapon" && g.rarity === "rare"));
+  bucket("common-weapon", "Common weapons held", report.gear.filter((g) => g.slot === "weapon" && g.rarity === "common"));
+  bucket("rare-charm", "Rare charms held", report.gear.filter((g) => g.slot === "charm" && g.rarity === "rare"));
+  bucket("common-charm", "Common charms held", report.gear.filter((g) => g.slot === "charm" && g.rarity === "common"));
+  pushBucket(gearBuckets, "any-rare", "Any rare gear held", report.rareGearSeats, report.rareGearWins);
+  report.gearBuckets = gearBuckets;
+
+  const playBuckets: RateStat[] = [];
+  const playBucket = (id: string, label: string, rows: CardStat[]) => {
+    const count = rows.reduce((n, c) => n + c.plays, 0);
+    const wins = rows.reduce((n, c) => n + c.winPlays, 0);
+    pushBucket(playBuckets, id, label, count, wins);
+  };
+  playBucket("common", "Common cards played", report.cards.filter((c) => c.rarity === "common"));
+  playBucket("rare", "Rare cards played", report.cards.filter((c) => c.rarity === "rare" && c.type !== "artifact"));
+  playBucket("relic", "Relics played", report.cards.filter((c) => c.type === "artifact"));
+  const typeLabels: Record<string, string> = {
+    weapon: "Weapons played",
+    spell: "Spells played",
+    utility: "Utilities played",
+    charm: "Charms played",
+    trap: "Traps played",
+  };
+  for (const type of Object.keys(typeLabels)) {
+    playBucket(type, typeLabels[type]!, report.cards.filter((c) => c.type === type));
+  }
+  playBucket(
+    "theft",
+    "Theft cards played",
+    report.cards.filter((c) => c.id === "bribe" || c.id === "errors_theft"),
+  );
+  report.playBuckets = playBuckets;
+
   report.cards.sort((a, b) => b.plays - a.plays || b.damagePerPlay - a.damagePerPlay);
+  report.gear.sort((a, b) => b.held - a.held || b.holderWinRate - a.holderWinRate || a.name.localeCompare(b.name));
   report.pathways.sort((a, b) => b.winRate - a.winRate || b.games - a.games);
 }
 
