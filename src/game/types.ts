@@ -4,8 +4,7 @@ export type CardType =
   | "utility"
   | "charm"
   | "trap"
-  | "artifact"
-  | "arcana";
+  | "artifact";
 
 export type Rarity = "common" | "rare";
 export type Ingredient =
@@ -299,6 +298,6 @@ export interface GameState {
     swing?: boolean;
   }[];
   simBuf?: number;
-  /** Variant: Major Arcana cards (one per player) expose a board. Attacks cannot target a concealed player. */
+  /** Variant: players start concealed. A Standard action exposes a board. Attacks cannot target a concealed player. */
   arcanaConcealment?: boolean;
 }

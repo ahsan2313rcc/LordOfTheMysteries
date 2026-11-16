@@ -849,16 +849,6 @@ export const CARD_DEFS: CardDef[] = [
     ingredients: ["C5", "C7", "C8", "R2"],
     effectId: "equip_artifact",
   },
-  {
-    id: "major_arcana",
-    name: "Major Arcana",
-    type: "arcana",
-    rarity: "rare",
-    spCost: 0,
-    text: "Expose a player and their board. You stay concealed until you attack an exposed player.",
-    ingredients: [],
-    effectId: "reveal_arcana",
-  },
 ];
 
 /**
@@ -881,9 +871,7 @@ const COMMON_TAGS: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8
     card.ingredients = [...pairs[index % pairs.length]!];
   });
 
-  const rares = CARD_DEFS.filter(
-    (c) => c.rarity === "rare" && c.id !== "major_arcana" && c.type !== "artifact",
-  );
+  const rares = CARD_DEFS.filter((c) => c.rarity === "rare" && c.type !== "artifact");
   rares.forEach((card, index) => {
     if (index < 16) {
       const tag = COMMON_TAGS[Math.floor(index / 2)]!;
@@ -904,8 +892,6 @@ const COMMON_TAGS: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8
   const lamp = CARD_DEFS.find((c) => c.id === "wishing_lamp");
   if (mirror) mirror.ingredients = ["R1", "R1"];
   if (lamp) lamp.ingredients = ["R2", "R2"];
-  const arcana = CARD_DEFS.find((c) => c.id === "major_arcana");
-  if (arcana) arcana.ingredients = [];
 }
 
 export function getCardDef(id: string): CardDef {
@@ -914,10 +900,7 @@ export function getCardDef(id: string): CardDef {
   return c;
 }
 
-/** One of each playable card. Major Arcana is added per player only in that variant. */
+/** One of each of the 56 common and 22 rare cards. */
 export function buildMainDeckCounts(): { defId: string; copies: number }[] {
-  return CARD_DEFS.map((c) => ({
-    defId: c.id,
-    copies: c.id === "major_arcana" ? 0 : 1,
-  }));
+  return CARD_DEFS.map((c) => ({ defId: c.id, copies: 1 }));
 }

@@ -668,7 +668,7 @@ export function createGame(opts: {
   aiPathwayIds: string[];
   seed?: number;
   humanName?: string;
-  /** One Major Arcana per player. Concealed players cannot be attack targets. */
+  /** Players start concealed. The deck stays the same 78 cards. */
   arcanaConcealment?: boolean;
 }): GameState {
   const seed = opts.seed ?? Date.now();
@@ -679,10 +679,6 @@ export function createGame(opts: {
   let deck: CardInstance[] = [];
   for (const { defId, copies } of counts) {
     for (let i = 0; i < copies; i++) deck.push(makeCard(defId));
-  }
-  const seatCount = 1 + opts.aiPathwayIds.length;
-  if (opts.arcanaConcealment) {
-    for (let i = 0; i < seatCount; i++) deck.push(makeCard("major_arcana"));
   }
   deck = rng.shuffle(deck);
 
@@ -1149,6 +1145,58 @@ function markStandard(state: GameState) {
   }
 }
 
+/** Open a concealed player's board. The actor stays concealed. */
+function revealBoard(state: GameState, actor: PlayerState, target: PlayerState) {
+  const already = !!target.revealed;
+  target.revealed = true;
+  const board = [
+    ...target.hand,
+    ...(target.trap ? [target.trap] : []),
+    ...(target.weapon ? [target.weapon] : []),
+    ...(target.artifact ? [target.artifact] : []),
+    ...target.charms,
+  ];
+  pushReveal(state, {
+    kind: "hand",
+    title: already ? `${target.name}'s board` : `${target.name} is exposed`,
+    subjectName: target.name,
+    cards: board.map(cardSnapshot),
+    detail: already
+      ? "Already exposed. Hand, trap, and equipment are shown."
+      : "Direct attacks may target them. Attacking them exposes you. Abilities and items are unchanged.",
+  });
+  const selfNote = actor.revealed ? "" : ` ${actor.name} stays concealed.`;
+  log(
+    state,
+    already
+      ? `${actor.name} reads ${target.name}'s board again.`
+      : `${actor.name} exposes ${target.name}.${selfNote}`,
+    "system",
+  );
+}
+
+/** Concealment variant: spend the Standard action to expose someone. No card is added to the deck. */
+export function exposePlayer(
+  state: GameState,
+  targetId: string,
+): { ok: boolean; error?: string } {
+  if (!state.arcanaConcealment) return { ok: false, error: "Concealment is off" };
+  const p = currentPlayer(state);
+  if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
+  if (state.phase !== "action") return { ok: false, error: "Not action phase" };
+  if (!canUseBucket(state, "standard")) {
+    if (!(state.extraStandard && state.extraStandard > 0)) {
+      return { ok: false, error: "Standard action already used" };
+    }
+  }
+  const target = opponentsOf(state, p.id).find((o) => o.id === targetId);
+  if (!target) return { ok: false, error: "Choose another player" };
+  revealBoard(state, p, target);
+  markStandard(state);
+  noteActing(state, p);
+  return { ok: true };
+}
+
 function resolveCardEffect(
   state: GameState,
   p: PlayerState,
@@ -1160,37 +1208,6 @@ function resolveCardEffect(
   const def = getCardDef(card.defId);
 
   switch (effectId) {
-    case "reveal_arcana": {
-      if (!target) return;
-      const already = !!target.revealed;
-      target.revealed = true;
-      const board = [
-        ...target.hand,
-        ...(target.trap ? [target.trap] : []),
-        ...(target.weapon ? [target.weapon] : []),
-        ...(target.artifact ? [target.artifact] : []),
-        ...target.charms,
-      ];
-      pushReveal(state, {
-        kind: "hand",
-        title: already ? `${target.name}'s board` : `${target.name} is exposed`,
-        subjectName: target.name,
-        cards: board.map(cardSnapshot),
-        detail: already
-          ? "Already exposed. Hand, trap, and equipment are shown."
-          : "Direct attacks may target them. Attacking them exposes you. Abilities and items are unchanged.",
-      });
-      const selfNote = p.revealed ? "" : ` ${p.name} stays concealed.`;
-      log(
-        state,
-        already
-          ? `${p.name} reads ${target.name}'s board again.`
-          : `${p.name} plays an Arcana and exposes ${target.name}.${selfNote}`,
-        "system",
-      );
-      discardToPile(state, card);
-      return;
-    }
     case "equip_weapon": {
       if (p.weapon) discardToPile(state, p.weapon);
       p.weapon = card;

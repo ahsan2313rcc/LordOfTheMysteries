@@ -12,7 +12,6 @@ const TYPE_HUE: Record<string, string> = {
   charm: "from-emerald-950/70 to-stone-900 border-emerald-700/40",
   trap: "from-violet-950/60 to-stone-900 border-stone-500/40",
   artifact: "from-yellow-950/80 to-stone-900 border-yellow-600/50",
-  arcana: "from-indigo-950/80 to-stone-900 border-indigo-400/50",
 };
 
 export function CardView({

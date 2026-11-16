@@ -8,6 +8,7 @@ import {
   currentPlayer,
   drawCards,
   endTurn,
+  exposePlayer,
   performAttack,
   playCardFromHand,
   getRng,
@@ -113,7 +114,7 @@ function give(state: GameState, p: PlayerState, defId: string) {
   );
 }
 
-// Arcana Concealment: one card per player, expose a board, reveal yourself only by attacking them
+// Arcana Concealment: the 78-card deck is unchanged. Expose with a Standard action.
 {
   const state = createGame({
     humanPathwayId: "fool",
@@ -122,21 +123,33 @@ function give(state: GameState, p: PlayerState, defId: string) {
     humanName: "Tester",
     arcanaConcealment: true,
   });
-  const arcana = state.deck.filter((c) => c.defId === "major_arcana").length
-    + state.players.reduce((n, p) => n + p.hand.filter((c) => c.defId === "major_arcana").length, 0);
-  check("arcana count equals players", arcana === 2, String(arcana));
+  const dealt = [
+    ...state.deck,
+    ...state.discard,
+    ...state.players.flatMap((p) => [
+      ...p.hand,
+      ...(p.weapon ? [p.weapon] : []),
+      ...(p.artifact ? [p.artifact] : []),
+      ...(p.trap ? [p.trap] : []),
+      ...p.charms,
+    ]),
+  ];
+  check("concealment does not add cards", dealt.length === 78, String(dealt.length));
+  check(
+    "no Major Arcana card is in the game",
+    dealt.every((c) => c.defId !== "major_arcana"),
+  );
   const me = currentPlayer(state);
   const foe = state.players.find((p) => p.id !== me.id)!;
-  me.sp = 5;
   check("both start concealed", !me.revealed && !foe.revealed);
   const missed = performAttack(state, foe.id, getRng(state));
   check("cannot attack a concealed player", !missed.ok);
   check("failed attack does not expose the attacker", !me.revealed);
-  const card = give(state, me, "major_arcana");
-  const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
-  check("arcana play exposes the target", played.ok && !!foe.revealed, played.error);
-  check("playing an arcana leaves you concealed", !me.revealed);
-  check("their board was shown", (state.reveals[0]?.cards.length ?? 0) > 0);
+  const exposed = exposePlayer(state, foe.id);
+  check("standard action exposes the target", exposed.ok && !!foe.revealed, exposed.error);
+  check("exposing them leaves you concealed", !me.revealed);
+  check("their board was shown", state.reveals[0]?.subjectName === foe.name);
+  check("the expose spent the standard action", state.actionsUsed.standard);
   const swing = performAttack(state, foe.id, getRng(state));
   check("attacking an exposed player is legal", swing.ok, swing.error);
   check("the attacker is now exposed", !!me.revealed);
@@ -155,7 +168,7 @@ function give(state: GameState, p: PlayerState, defId: string) {
     commons.length === 56 && pairCounts.size === 28 && uneven.length === 0,
     uneven.map(([k, n]) => `${k}:${n}`).join(" ") || String(commons.length),
   );
-  const rares = CARD_DEFS.filter((c) => c.rarity === "rare" && c.type !== "artifact" && c.id !== "major_arcana");
+  const rares = CARD_DEFS.filter((c) => c.rarity === "rare" && c.type !== "artifact");
   const badRare = rares.filter((c) => c.ingredients.length !== 3);
   check("non-relic rares carry 3 ingredients", rares.length === 20 && badRare.length === 0);
   check(
@@ -231,12 +244,12 @@ function give(state: GameState, p: PlayerState, defId: string) {
 {
   const counts = buildMainDeckCounts();
   const total = counts.reduce((n, c) => n + c.copies, 0);
+  const commons = counts.filter((c) => getCardDef(c.defId).rarity === "common");
+  const rareCount = counts.filter((c) => getCardDef(c.defId).rarity === "rare");
   check("base deck is 78 cards", total === 78, String(total));
-  check("no card is duplicated", counts.every((c) => c.copies <= 1));
-  check(
-    "major arcana is outside the base deck",
-    counts.find((c) => c.defId === "major_arcana")?.copies === 0,
-  );
+  check("the deck is 56 common and 22 rare", commons.length === 56 && rareCount.length === 22, `${commons.length}+${rareCount.length}`);
+  check("no card is duplicated", counts.every((c) => c.copies === 1));
+  check("Major Arcana is not a card", !counts.some((c) => c.defId === "major_arcana"));
   const state = createGame({
     humanPathwayId: "fool",
     aiPathwayIds: ["sun"],

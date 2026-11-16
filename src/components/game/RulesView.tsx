@@ -122,11 +122,12 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             Variant — Arcana Concealment
           </h2>
           <p className="text-sm leading-relaxed">
-            Off unless you check it when you deal. The deck gains one Major Arcana per player. Everyone starts
-            concealed. Play an Arcana, choose a player, and their board opens: hand, trap, and
-            equipment. They can be attacked. You stay concealed. You become exposed only when you
-            attack an exposed player. A concealed player cannot be the target of an Attack. Spells,
-            abilities, and items still do exactly what they say, and potions still need their recipes.
+            Off unless you check it when you deal. The deck stays the same 56 common cards and 22
+            rares. Everyone starts concealed. Spend your Standard action, choose a player, and
+            their board opens: hand, trap, and equipment. They can be attacked. You stay concealed.
+            You become exposed only when you attack an exposed player. A concealed player cannot be
+            the target of an Attack. Spells, abilities, and items still do exactly what they say,
+            and potions still need their recipes.
           </p>
         </section>
 

@@ -25,7 +25,7 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - **All 22 Arcana Pathways** (Fool through Justiciar), each with Sequences 9→0
 - Reveal modal for hand peeks, deck peeks, Trap reveals, and card steals
 - Full turn loop: Begin → Draw → Action (Standard / Sequence / Attack) → End
-- Deck of 78 unique cards, one copy each (56 common, 22 rare). Drawing the last card reshuffles the discard. Major Arcana is added only in the Concealment variant.
+- Deck of 78 unique cards, one copy each (56 common, 22 rare). Drawing the last card reshuffles the discard. Major Arcana is not a card.
 - Ascension with **sticky Acting Conditions** (progress banks until you drink). Potions cost no Sanity, and you may cast and drink on the same turn.
 - Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). Spirituality pays for cards: commons 1, rares 4, artifacts 6. The basic attack is free.
 - Passive recovery: +1 HP if no HP taken, +1 Sanity if no Sanity taken, SP every turn from Pathway/Seq
@@ -48,7 +48,7 @@ The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, from 
 
 Potions do not discard their ingredients. You reveal those cards to the table and keep them.
 
-**Arcana Concealment** is an optional variant, off unless you check it. The deck gains one Major Arcana per player. Playing it exposes a chosen player and their board. You stay concealed until you attack an exposed player.
+**Arcana Concealment** is an optional variant, off unless you check it. The deck stays 56 commons and 22 rares. Everyone starts concealed. A Standard action exposes a chosen player and their board. You stay concealed until you attack an exposed player.
 
 ### Balance snapshot (4-player AI sims)
 

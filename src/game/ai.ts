@@ -10,6 +10,7 @@ import {
   getRng,
   opponentsOf,
   performAttack,
+  exposePlayer,
   playCardFromHand,
   sacrificeRequiem,
 } from "./engine";
@@ -179,6 +180,11 @@ export function runAiTurn(state: GameState): GameState {
     }
 
     if (!s.actionsUsed.standard || (s.extraStandard ?? 0) > 0) {
+      if (s.arcanaConcealment) {
+        for (const o of opps) {
+          if (!o.revealed) consider((g) => exposePlayer(g, o.id).ok);
+        }
+      }
       const targets: PlayerState[] = [...opps, p];
       for (const card of p.hand) {
         const d = getCardDef(card.defId);
@@ -189,12 +195,7 @@ export function runAiTurn(state: GameState): GameState {
           }
           continue;
         }
-        const pool =
-          d.id === "major_arcana"
-            ? opps
-            : d.type === "utility" || d.id === "aegis_mind"
-              ? targets
-              : opps;
+        const pool = d.type === "utility" || d.id === "aegis_mind" ? targets : opps;
         const list = pool.length ? pool : targets;
         for (const t of list) {
           consider((g) => playCardFromHand(g, card.instanceId, t.id, getRng(g)).ok);
