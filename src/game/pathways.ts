@@ -161,10 +161,10 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 1,
         abilityName: "Sleight of Hand",
         abilityCost: 1,
-        abilityText: "Steal 1 random card from an opponent's hand.",
+        abilityText: "Look at one random card in an opponent's hand.",
         abilityId: "error_sleight",
-        actingCondition: "Gain a card outside your Draw Phase (Sleight of Hand).",
-        actingId: "gain_extra_card",
+        actingCondition: "Look at an opponent's hand (Sleight of Hand).",
+        actingId: "look_hand",
         recipe: ["C3", "C8"],
         sanityToll: 0,
       },
@@ -441,7 +441,7 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 1,
         abilityName: "Balance",
         abilityCost: 1,
-        abilityText: "Gain 1 Block and ignore the next Trap this turn.",
+        abilityText: "Gain 2 Block.",
         abilityId: "tyrant_balance",
         actingCondition: "Use Balance or deal damage this turn.",
         actingId: "ability_or_damage",
@@ -454,7 +454,7 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 1,
         abilityName: "Rage Strike",
         abilityCost: 2,
-        abilityText: "+2 Attack this turn; take 1 damage.",
+        abilityText: "+2 Attack this turn; lose 1 Sanity.",
         abilityId: "tyrant_rage",
         actingCondition: "Deal damage after Rage (or while HP < 10).",
         actingId: "rage_damage",
@@ -861,10 +861,10 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 1,
         abilityName: "Magic Door",
         abilityCost: 1,
-        abilityText: "Draw 1 card from the bottom of the deck.",
+        abilityText: "Look at the bottom card of the deck and put it on top.",
         abilityId: "door_magic",
-        actingCondition: "Draw outside your Draw Phase (Magic Door).",
-        actingId: "gain_extra_card",
+        actingCondition: "Look at the deck (Magic Door).",
+        actingId: "look_deck",
         recipe: ["C3", "C4"],
         sanityToll: 0,
       },
@@ -1001,7 +1001,7 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 1,
         abilityName: "Night Vision",
         abilityCost: 1,
-        abilityText: "Immune to Stun/Skip; counts as a quiet Night action.",
+        abilityText: "Clear Stun, gain 1 Block, and draw 1.",
         abilityId: "dark_vision",
         actingCondition: "Take a non-Weapon action without taking damage (Night Vision).",
         actingId: "quiet_night",
@@ -1027,9 +1027,9 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 2,
         abilityName: "Deep Sleep",
         abilityCost: 3,
-        abilityText: "Target skips their next Action Phase.",
+        abilityText: "Target discards 1 and loses 1 SP.",
         abilityId: "dark_sleep",
-        actingCondition: "Force a skip (Deep Sleep).",
+        actingCondition: "Force them to discard or lose SP (Deep Sleep).",
         actingId: "force_skip",
         recipe: ["C2", "C5", "C8"],
         sanityToll: 1,
@@ -1040,7 +1040,7 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 2,
         abilityName: "Pacify",
         abilityCost: 4,
-        abilityText: "Heal 4 Sanity for a Mad player (ends Madness).",
+        abilityText: "Restore 4 Sanity. If they were Mad, the break ends.",
         abilityId: "dark_pacify",
         actingCondition: "Restore a player from Madness.",
         actingId: "cure_madness",
@@ -1141,7 +1141,7 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 1,
         abilityName: "Scavenge",
         abilityCost: 1,
-        abilityText: "Move the top discard card to the bottom of the deck (or peek if empty).",
+        abilityText: "Take the top card of the discard into your hand.",
         abilityId: "death_scavenge",
         actingCondition: "Interact with the discard pile (Scavenge).",
         actingId: "use_discard",
@@ -1307,7 +1307,7 @@ const CORE_PATHWAYS: PathwayDef[] = [
         spGain: 2,
         abilityName: "Fireball",
         abilityCost: 3,
-        abilityText: "Deal 3 Unblockable damage.",
+        abilityText: "Deal 2 damage.",
         abilityId: "priest_fire",
         actingCondition: "Deal unblockable damage (Fireball).",
         actingId: "unblockable_spell",
@@ -1448,20 +1448,44 @@ function commonMultisets(k: number): Ingredient[][] {
   return out;
 }
 
-function assignCommons(count: number, banned: Set<Ingredient>[]): Ingredient[][] {
+interface RecipeTrail {
+  ban: Set<Ingredient>;
+  echo: Set<Ingredient>;
+  seen: Set<string>;
+  pairs: Set<string>;
+}
+
+function pairKeys(ms: Ingredient[]): string[] {
+  const counts = new Map<string, number>();
+  for (const tag of ms) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  const tags = [...counts.keys()].sort();
+  const keys: string[] = [];
+  for (let i = 0; i < tags.length; i++) {
+    if ((counts.get(tags[i]!) ?? 0) >= 2) keys.push(`${tags[i]}+${tags[i]}`);
+    for (let j = i + 1; j < tags.length; j++) keys.push(`${tags[i]}+${tags[j]}`);
+  }
+  return keys;
+}
+
+function assignCommons(count: number, trails: RecipeTrail[]): Ingredient[][] {
   const load = new Map<string, number>();
   const used = new Set<string>();
-  const order = banned
-    .map((block, i) => ({ i, free: RECIPE_COMMONS.filter((tag) => !block.has(tag)).length }))
+  const order = trails
+    .map((trail, i) => ({
+      i,
+      free: RECIPE_COMMONS.filter((tag) => !trail.ban.has(tag)).length,
+    }))
     .sort((a, b) => a.free - b.free || a.i - b.i);
-  const result = new Array<Ingredient[]>(banned.length);
+  const result = new Array<Ingredient[]>(trails.length);
   for (const { i } of order) {
+    const trail = trails[i]!;
     let best: Ingredient[] | null = null;
     let bestScore = Infinity;
     for (const ms of commonMultisets(count)) {
       const key = ms.join(",");
-      if (used.has(key) || ms.some((tag) => banned[i]!.has(tag))) continue;
-      const distinct = new Set(ms).size;
+      if (used.has(key) || trail.seen.has(key) || ms.some((tag) => trail.ban.has(tag))) continue;
+      const reused = pairKeys(ms).filter((pair) => trail.pairs.has(pair)).length;
+      const echoed = ms.filter((tag) => trail.echo.has(tag)).length;
       const tally = new Map<string, number>();
       for (const tag of ms) tally.set(tag, (tally.get(tag) ?? 0) + 1);
       let max = 0;
@@ -1471,22 +1495,31 @@ function assignCommons(count: number, banned: Set<Ingredient>[]): Ingredient[][]
         max = Math.max(max, next);
         sum += next * next;
       }
-      const score = (count - distinct) * 100000 + max * 1000 + sum;
+      const distinct = new Set(ms).size;
+      const score = (count - distinct) * 100000 + reused * 8000 + echoed * 600 + max * 1000 + sum;
       if (score < bestScore) {
         best = ms;
         bestScore = score;
       }
     }
-    if (!best) throw new Error(`No distinct recipe for pathway ${i} asking for ${count} commons`);
+    if (!best) throw new Error(`No fresh recipe for pathway ${i} asking for ${count} commons`);
     result[i] = best;
-    used.add(best.join(","));
+    const key = best.join(",");
+    used.add(key);
+    trail.seen.add(key);
+    for (const pair of pairKeys(best)) trail.pairs.add(pair);
     for (const tag of best) load.set(tag, (load.get(tag) ?? 0) + 1);
   }
   return result;
 }
 
 {
-  const banned = PATHWAYS.map(() => new Set<Ingredient>());
+  const trails: RecipeTrail[] = PATHWAYS.map(() => ({
+    ban: new Set<Ingredient>(),
+    echo: new Set<Ingredient>(),
+    seen: new Set<string>(),
+    pairs: new Set<string>(),
+  }));
   for (const pathway of PATHWAYS) {
     const top = pathway.sequences.find((s) => s.sequence === 9);
     if (top) top.recipe = [];
@@ -1495,8 +1528,12 @@ function assignCommons(count: number, banned: Set<Ingredient>[]): Ingredient[][]
   for (const level of RECIPE_LEVELS) {
     const commons =
       level.commons === 1
-        ? PATHWAYS.map((_, i) => [RECIPE_COMMONS[i % RECIPE_COMMONS.length]!])
-        : assignCommons(level.commons, banned);
+        ? PATHWAYS.map((_, i) => {
+            const tag = RECIPE_COMMONS[i % RECIPE_COMMONS.length]!;
+            trails[i]!.seen.add(tag);
+            return [tag];
+          })
+        : assignCommons(level.commons, trails);
     PATHWAYS.forEach((pathway, pi) => {
       const seq = pathway.sequences.find((s) => s.sequence === level.seq);
       if (!seq) return;
@@ -1506,7 +1543,9 @@ function assignCommons(count: number, banned: Set<Ingredient>[]): Ingredient[][]
         for (let n = 0; n < level.rares; n++) tags.push(rare);
       }
       seq.recipe = tags;
-      banned[pi] = new Set(tags);
+      const trail = trails[pi]!;
+      trail.echo = trail.ban;
+      trail.ban = new Set(tags);
     });
     if (level.rares > 0) rareStep += 1;
   }

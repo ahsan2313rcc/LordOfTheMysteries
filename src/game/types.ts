@@ -212,6 +212,8 @@ export interface PlayerState {
   lastingBlock?: number; // Groselle etc.
   /** Soft status from high abilities */
   epidemicCurse?: boolean;
+  /** One unblockable HP at the next Begin, then it clears. */
+  beginBleed?: boolean;
   cannotHealNextBegin?: boolean;
   drawPoison?: number;
   doomCurse?: boolean;

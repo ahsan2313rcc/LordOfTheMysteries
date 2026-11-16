@@ -376,11 +376,11 @@ export const CARD_DEFS: CardDef[] = [
   },
   {
     id: "potion_ingredients",
-    name: "Potion Ingredients",
+    name: "Herb Satchel",
     type: "utility",
     rarity: "common",
     spCost: 1,
-    text: "Counts as any 1 Common ingredient for Ascension.",
+    text: "Draw 1 and gain 1 Block.",
     ingredients: [],
     effectId: "potion_ingredients",
   },
@@ -863,9 +863,8 @@ export const CARD_DEFS: CardDef[] = [
 
 /**
  * 78-card printing.
- * 55 common cards carry a pair of common ingredients (all 28 pairs, C7+C8 once
- * and every other pair twice). Potion Ingredients is the 56th common and stays
- * a wildcard. 16 rare cards carry two copies of one common plus one rare.
+ * All 56 common cards carry a pair of common ingredients, each of the 28 pairs
+ * twice. 16 rare cards carry two copies of one common plus one rare.
  * 4 rare cards carry a mixed pair plus one rare. The two relics carry two
  * copies of one rare and nothing else.
  */
@@ -877,9 +876,9 @@ const COMMON_TAGS: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8
       pairs.push([COMMON_TAGS[i]!, COMMON_TAGS[j]!]);
     }
   }
-  const commons = CARD_DEFS.filter((c) => c.rarity === "common" && c.id !== "potion_ingredients");
+  const commons = CARD_DEFS.filter((c) => c.rarity === "common");
   commons.forEach((card, index) => {
-    card.ingredients = [...pairs[index < pairs.length ? index : index - pairs.length]!];
+    card.ingredients = [...pairs[index % pairs.length]!];
   });
 
   const rares = CARD_DEFS.filter(
@@ -905,9 +904,7 @@ const COMMON_TAGS: Ingredient[] = ["C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8
   const lamp = CARD_DEFS.find((c) => c.id === "wishing_lamp");
   if (mirror) mirror.ingredients = ["R1", "R1"];
   if (lamp) lamp.ingredients = ["R2", "R2"];
-  const potion = CARD_DEFS.find((c) => c.id === "potion_ingredients");
   const arcana = CARD_DEFS.find((c) => c.id === "major_arcana");
-  if (potion) potion.ingredients = [];
   if (arcana) arcana.ingredients = [];
 }
 

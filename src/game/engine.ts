@@ -265,7 +265,6 @@ function cardSearchScore(p: PlayerState, defId: string): number {
   const recipe = matchRecipe(p);
   let s = 0;
   if (recipe && p.actingMet) {
-    if (defId === "potion_ingredients" && recipe.remaining.some((r) => r.startsWith("C"))) s += 50;
     const bag = [...d.ingredients];
     for (const tag of recipe.remaining) {
       const at = bag.indexOf(tag);
@@ -827,6 +826,12 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   }
 
   // Ongoing curses
+  if (p.beginBleed) {
+    p.beginBleed = false;
+    dealDamage(state, null, p, 1, { unblockable: true }, rng);
+    log(state, `${p.name} bleeds from Lacerate.`, "damage");
+    if (isGameOver(state)) return;
+  }
   if (p.epidemicCurse) {
     dealDamage(state, null, p, 2, { unblockable: true }, rng);
     log(state, `${p.name} suffers Epidemic curse.`, "damage");
@@ -999,7 +1004,7 @@ export function runEndPhase(state: GameState, rng: Rng) {
   const keep = new Set(recipe?.discardInstanceIds ?? []);
   while (p.hand.length > lim) {
     let idx = p.hand.findIndex(
-      (c) => !keep.has(c.instanceId) && c.defId !== "potion_ingredients",
+      (c) => !keep.has(c.instanceId),
     );
     if (idx < 0) idx = p.hand.findIndex((c) => !keep.has(c.instanceId));
     if (idx < 0) idx = p.hand.length - 1;
@@ -1471,10 +1476,10 @@ function resolveCardEffect(
       discardToPile(state, card);
       return;
     case "potion_ingredients":
-      log(state, `${p.name} prepares universal potion reagents.`, "system");
+      drawCards(state, p, 1, rng, true);
+      p.status.block += 1;
+      p.turnFlags.evadedOrBlocked = true;
       p.turnFlags.playedUtility = true;
-      // Keep in a soft "reagent" sense — discard but flag
-      p.universalReagent = true;
       discardToPile(state, card);
       return;
     case "decipher_hermes":
@@ -2054,18 +2059,17 @@ function resolveAbility(
       break;
     case "error_sleight":
       if (target?.hand.length) {
-        const i = rng.int(target.hand.length);
-        const [c] = target.hand.splice(i, 1);
-        if (c) {
-          p.hand.push(c);
-          p.turnFlags.cardsFromOpponent += 1;
-          announceSteal(state, c, target, p);
-        }
-        p.turnFlags.drewExtra = true;
-        p.turnFlags.stoleResource = true;
+        const c = target.hand[rng.int(target.hand.length)]!;
+        p.turnFlags.lookedAtHand = true;
+        pushReveal(state, {
+          kind: "hand",
+          title: `Sleight of Hand — one card from ${target.name}`,
+          cards: [cardSnapshot(c)],
+          detail: `${getCardDef(c.defId).name} stays in their hand.`,
+        });
       } else {
-        drawCards(state, p, 1, rng, true);
-        log(state, `${p.name}'s Sleight finds nothing — draws from the deck instead.`, "system");
+        p.turnFlags.lookedAtHand = true;
+        log(state, `${p.name}'s Sleight finds an empty hand.`, "system");
       }
       break;
     case "error_fraud":
@@ -2113,14 +2117,14 @@ function resolveAbility(
       }
       break;
     case "tyrant_balance":
-      p.status.block += 1;
+      p.status.block += 2;
       p.turnFlags.evadedOrBlocked = true;
-      log(state, `${p.name} finds Balance — gains 1 Block, ignores Traps.`, "system");
+      log(state, `${p.name} finds Balance and gains 2 Block.`, "system");
       break;
     case "tyrant_rage":
       p.status.attackModifier += 2;
       p.turnFlags.sacrificedHp = true;
-      dealDamage(state, p, p, 1, { unblockable: true }, rng);
+      dealDamage(state, p, p, 1, { type: "sanity", unblockable: true }, rng);
       break;
     case "tyrant_shield":
       p.status.block += 3;
@@ -2192,8 +2196,15 @@ function resolveAbility(
     case "door_magic":
       ensureDeck(state, rng);
       if (state.deck.length) {
-        p.hand.push(state.deck.shift()!);
-        p.turnFlags.drewExtra = true;
+        const bottom = state.deck.shift()!;
+        state.deck.push(bottom);
+        p.turnFlags.lookedAtDeck = true;
+        pushReveal(state, {
+          kind: "deck",
+          title: "Magic Door — bottom card",
+          cards: [cardSnapshot(bottom)],
+          detail: `${getCardDef(bottom.defId).name} moves to the top of the deck.`,
+        });
       }
       break;
     case "door_trick":
@@ -2216,8 +2227,10 @@ function resolveAbility(
       break;
     case "dark_vision":
       p.status.stunned = false;
-      // Quiet night: Sequence Ability itself is a non-Weapon action
-      log(state, `${p.name} watches through the night, immune to Stun.`, "system");
+      p.status.block += 1;
+      p.turnFlags.evadedOrBlocked = true;
+      drawCards(state, p, 1, rng, true);
+      log(state, `${p.name} watches through the night, gains 1 Block, and draws.`, "system");
       break;
     case "dark_lullaby":
       if (target) {
@@ -2229,24 +2242,33 @@ function resolveAbility(
       break;
     case "dark_sleep":
       if (target) {
-        target.status.skipAction = true;
+        if (target.hand.length) {
+          const [c] = target.hand.splice(rng.int(target.hand.length), 1);
+          if (c) discardToPile(state, c);
+        }
+        target.sp = Math.max(0, target.sp - 1);
         p.turnFlags.forcedSkip = true;
+        log(state, `${target.name} is pulled under — discards and loses 1 SP.`, "system");
       }
       break;
     case "dark_pacify":
       if (target) {
         target.sanity = Math.min(20, target.sanity + 4);
+        p.turnFlags.sanityRestored += 4;
         updateMadness(target, state);
+        if (!target.sanityBroken) log(state, `${target.name}'s mind is steadied.`, "heal");
       }
       break;
     case "death_scavenge":
       p.turnFlags.usedDiscard = true;
       if (state.discard.length) {
         const c = state.discard.pop()!;
-        state.deck.unshift(c);
-        log(state, `${p.name} scavenges the discard into the deck's depths.`, "system");
+        p.hand.push(c);
+        p.turnFlags.drewExtra = true;
+        log(state, `${p.name} scavenges ${getCardDef(c.defId).name} from the discard.`, "system");
       } else {
-        log(state, `${p.name} scavenges an empty grave — the ritual still counts.`, "system");
+        drawCards(state, p, 1, rng, true);
+        log(state, `${p.name} scavenges an empty grave and draws from the deck.`, "system");
       }
       break;
     case "death_bury":
@@ -2304,7 +2326,7 @@ function resolveAbility(
       break;
     case "priest_fire":
       if (target) {
-        dealDamage(state, p, target, 3, { unblockable: true }, rng);
+        dealDamage(state, p, target, 2, {}, rng);
         p.turnFlags.playedSpells += 1;
       }
       break;
@@ -2798,7 +2820,7 @@ function resolveAbility(
       break;
     case "hermit_blade":
       if (target) {
-        dealDamage(state, p, target, 3, {}, rng);
+        dealDamage(state, p, target, 2, {}, rng);
         p.turnFlags.playedSpells += 1;
       }
       break;
@@ -2990,7 +3012,7 @@ function resolveAbility(
     case "chained_lacerate":
       if (target) {
         dealDamage(state, p, target, 2, {}, rng);
-        target.epidemicCurse = true; // reuse as bleed-at-begin
+        target.beginBleed = true;
         p.turnFlags.playedSpells += 1;
       }
       break;

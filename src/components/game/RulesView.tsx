@@ -139,7 +139,7 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             <li>
               A common card carries two common ingredients. A rare card carries three, except the
               two relics, which carry two copies of one rare ingredient. Two sequences in a row never
-              ask for the same ingredient. Potion Ingredients fills one common slot.
+              ask for the same ingredient, and a pathway does not reuse the same pair later.
             </li>
             <li>
               Bribe steals a common equipped Weapon or Charm. Error&apos;s Theft steals the best

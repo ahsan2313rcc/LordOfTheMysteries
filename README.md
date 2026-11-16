@@ -32,7 +32,7 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - Artifact powers + Contention (steal)
 - 0 Sanity removes you as a contender. The body deals 1 HP to everyone, including itself, until that HP is gone.
 - A Sequence lead does not win. It pays more Spirituality each Begin and unlocks a stronger ability.
-- Each pathway has its own potion recipes. Consecutive sequences never share an ingredient, and a card shown for one potion cannot pay the next. Potion Ingredients fills one common slot.
+- Each pathway has its own potion recipes. Consecutive sequences never share an ingredient, and a card shown for one potion cannot pay the next. Common pairs are printed evenly, two cards each.
 - Bribe steals a common equipped piece. Error's Theft steals the best equipped piece, rares first.
 - Block / Evade, lasting Block, traps as interrupts, AI opponents (1–3)
 - In-app **Design Notes** with balance verdict and improvement suggestions

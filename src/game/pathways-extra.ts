@@ -830,7 +830,7 @@ export const EXTRA_PATHWAYS: PathwayDef[] = [
         spGain: 1,
         abilityName: "Spellblade",
         abilityCost: 2,
-        abilityText: "Deal 3 damage as a Spell-blade strike.",
+        abilityText: "Deal 2 damage as a Spell-blade strike.",
         abilityId: "hermit_blade",
         actingCondition: "Deal damage with Spellblade.",
         actingId: "spell_damage_2",

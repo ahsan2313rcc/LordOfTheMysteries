@@ -107,8 +107,8 @@ function give(state: GameState, p: PlayerState, defId: string) {
   const ids = me.hand.map((c) => c.defId);
   check("sefirah puts two cards in hand", ids.length >= 2, ids.join(","));
   check(
-    "sefirah can find Potion Ingredients that were not on top",
-    ids.includes("potion_ingredients"),
+    "sefirah searches by card value, not deck order",
+    ids.includes("flaming_spear") && ids.includes("frost_armor"),
     ids.join(","),
   );
 }
@@ -143,11 +143,18 @@ function give(state: GameState, p: PlayerState, defId: string) {
 }
 
 {
-  const commons = CARD_DEFS.filter((c) => c.rarity === "common" && c.id !== "potion_ingredients");
-  const badCommon = commons.filter(
-    (c) => c.ingredients.length !== 2 || c.ingredients.some((tag) => !tag.startsWith("C") || tag === c.ingredients[0] && c.ingredients[1] === tag),
+  const commons = CARD_DEFS.filter((c) => c.rarity === "common");
+  const pairCounts = new Map<string, number>();
+  for (const card of commons) {
+    const key = [...card.ingredients].sort().join("+");
+    pairCounts.set(key, (pairCounts.get(key) ?? 0) + 1);
+  }
+  const uneven = [...pairCounts.entries()].filter(([, n]) => n !== 2);
+  check(
+    "each common pair is printed twice",
+    commons.length === 56 && pairCounts.size === 28 && uneven.length === 0,
+    uneven.map(([k, n]) => `${k}:${n}`).join(" ") || String(commons.length),
   );
-  check("common cards carry a distinct pair", commons.length === 55 && badCommon.length === 0, String(commons.length));
   const rares = CARD_DEFS.filter((c) => c.rarity === "rare" && c.type !== "artifact" && c.id !== "major_arcana");
   const badRare = rares.filter((c) => c.ingredients.length !== 3);
   check("non-relic rares carry 3 ingredients", rares.length === 20 && badRare.length === 0);
