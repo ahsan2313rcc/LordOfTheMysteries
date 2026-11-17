@@ -3,6 +3,7 @@ import { CARD_DEFS } from "./cards";
 import { createGame, currentPlayer, endTurn, getRng } from "./engine";
 import { hydrateLearner, playNetworkTurn } from "./learner";
 import { PATHWAYS } from "./pathways";
+import { liteBoard, noteAction } from "./trace";
 import type { GameState } from "./types";
 
 export type SeatController = "nn" | "ai";
@@ -246,7 +247,9 @@ function runNetworkTurn(state: GameState) {
     currentPlayer(state).id === seatId &&
     currentPlayer(state).alive
   ) {
+    const before = liteBoard(state);
     endTurn(state, getRng(state));
+    noteAction(state, before);
   }
 }
 

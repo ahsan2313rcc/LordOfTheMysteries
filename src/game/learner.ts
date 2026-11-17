@@ -1,42 +1,56 @@
 import { choiceValue, legalChoices, type LegalChoice } from "./ai";
-import { CARD_DEFS, getCardDef } from "./cards";
+import { CARD_DEFS } from "./cards";
 import { createGame, currentPlayer, endTurn, getRng } from "./engine";
 import { matchRecipe } from "./ascension";
 import { PATHWAYS, getSequence } from "./pathways";
+import { liteBoard, noteAction, TRACE_KINDS } from "./trace";
 import type { CardInstance, GameState, PlayerState } from "./types";
 
 /**
  * A small network that scores a position: how likely this seat is to win from here.
- * To choose a move it tries each legal action under the real rules and keeps the one
- * that leaves the better position. It learns from who actually won.
+ * It starts without knowing what a card or a Sequence ability does. Card names,
+ * pathway names, and ability names are only identities. Effects are learned from
+ * how the board changes and who won. Hidden numbers are marked unknown.
  * Weights live in this module and in the browser's local storage.
+ * The weights used to play are the best exam so far against the search AI.
  */
 
 const CARD_IDS = CARD_DEFS.map((c) => c.id);
 const ABILITY_IDS = [...new Set(PATHWAYS.flatMap((p) => p.sequences.map((s) => s.abilityId)))].sort();
 const PATHS = PATHWAYS.length;
 const HAND_SLOTS = 7;
-const SLOT = 4 + CARD_IDS.length;
 const GEAR_SLOTS = 5;
-const SELF = 18 + HAND_SLOTS * SLOT + GEAR_SLOTS * CARD_IDS.length + ABILITY_IDS.length;
-const MAIN_OPP = 6 + GEAR_SLOTS * CARD_IDS.length + ABILITY_IDS.length;
-const EXTRA_OPPS = 2 * 8;
-const GLOBAL = 4;
-export const INPUTS = SELF + MAIN_OPP + EXTRA_OPPS + GLOBAL + PATHS + PATHS;
+const OPP_SLOTS = 3;
+const TRACE_SLOTS = 6;
+const ID_BLOCK = 1 + CARD_IDS.length;
+const AB_BLOCK = 1 + ABILITY_IDS.length;
+const PATH_BLOCK = 1 + PATHS;
+const SCALARS = 21;
+const GEAR_BLOCK = 2 + ID_BLOCK;
+const SEAT_BLOCK = SCALARS + HAND_SLOTS * ID_BLOCK + GEAR_SLOTS * GEAR_BLOCK + AB_BLOCK + PATH_BLOCK;
+const DISCARD_BLOCK = 2 + CARD_IDS.length;
+const DECK_BLOCK = 2;
+const TRACE_BLOCK = 1 + TRACE_KINDS.length + ID_BLOCK;
+const GLOBAL_BLOCK = 6;
+export const INPUTS =
+  SEAT_BLOCK * (1 + OPP_SLOTS) + DISCARD_BLOCK + DECK_BLOCK + TRACE_SLOTS * TRACE_BLOCK + GLOBAL_BLOCK;
 const H1 = 32;
 const H2 = 16;
-const STORE_KEY = "lotm-learner-v2";
+const STORE_KEY = "lotm-learner-v3";
 
 export type SeatController = "nn" | "ai";
 
-export interface LearnerModel {
-  version: 2;
+interface Weights {
   w1: number[];
   b1: number[];
   w2: number[];
   b2: number[];
   w3: number[];
   b3: number[];
+}
+
+export interface LearnerModel extends Weights {
+  version: 3;
   watched: number;
   played: number;
   wins: number;
@@ -47,6 +61,16 @@ export interface LearnerModel {
   aiWins: number;
   /** Newest mixed-game results, capped, so the current policy is visible. */
   recent: ("nn" | "ai" | "draw")[];
+  /** Weights that won the last same-deal check. This is the network that plays. */
+  champion: Weights | null;
+  /** Champion's wins on the deals that crowned it, refreshed on each later check. */
+  championRate: number;
+  championGames: number;
+  /** Live weights on the newest check. */
+  latestExamRate: number;
+  latestExamGames: number;
+  /** Champion and live scores, newest last, from each same-deal check. */
+  examHistory: { live: number; champion: number }[];
 }
 
 let model: LearnerModel = freshModel(7);
@@ -67,7 +91,13 @@ function freshModel(seed: number): LearnerModel {
   const rand = mulberry(seed);
   const fill = (n: number, scale: number) => Array.from({ length: n }, () => (rand() * 2 - 1) * scale);
   return {
-    version: 2,
+    version: 3,
+    champion: null,
+    championRate: 0,
+    championGames: 0,
+    latestExamRate: 0,
+    latestExamGames: 0,
+    examHistory: [],
     w1: fill(INPUTS * H1, Math.sqrt(2 / INPUTS)),
     b1: fill(H1, 0.01),
     w2: fill(H1 * H2, Math.sqrt(2 / H1)),
@@ -94,6 +124,13 @@ function withCounters(parsed: LearnerModel): LearnerModel {
   parsed.played ??= 0;
   parsed.wins ??= 0;
   parsed.losses ??= 0;
+  parsed.champion ??= null;
+  parsed.championRate ??= 0;
+  parsed.championGames ??= 0;
+  parsed.latestExamRate ??= 0;
+  parsed.latestExamGames ??= 0;
+  parsed.examHistory ??= [];
+  if (parsed.champion && parsed.champion.w1.length !== INPUTS * H1) parsed.champion = null;
   return parsed;
 }
 
@@ -119,6 +156,11 @@ export function learnerStats() {
     recentAi,
     recentDraws: recent.length - recentDecided,
     recentNnWinRate: recentDecided ? recentNn / recentDecided : 0,
+    championRate: model.championRate ?? 0,
+    championGames: model.championGames ?? 0,
+    latestExamRate: model.latestExamRate ?? 0,
+    latestExamGames: model.latestExamGames ?? 0,
+    examHistory: model.examHistory ?? [],
   };
 }
 
@@ -136,8 +178,12 @@ export function eraseLearner() {
 
 export function saveLearnerLocal(): boolean {
   if (typeof localStorage === "undefined") return false;
-  localStorage.setItem(STORE_KEY, learnerJson());
-  return true;
+  try {
+    localStorage.setItem(STORE_KEY, learnerJson());
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function loadFromStorage(): boolean {
@@ -146,7 +192,7 @@ function loadFromStorage(): boolean {
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
-    if (parsed.version !== 2 || parsed.w1.length !== INPUTS * H1) return false;
+    if (parsed.version !== 3 || parsed.w1.length !== INPUTS * H1) return false;
     model = withCounters(parsed);
     return true;
   } catch {
@@ -174,7 +220,7 @@ export function hydrateLearner() {
 export function importLearner(raw: string): boolean {
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
-    if (parsed.version !== 2 || parsed.w1.length !== INPUTS * H1) return false;
+    if (parsed.version !== 3 || parsed.w1.length !== INPUTS * H1) return false;
     model = withCounters(parsed);
     saveLearnerLocal();
     return true;
@@ -188,25 +234,33 @@ function tanh(x: number) {
   return (e - 1) / (e + 1);
 }
 
+/** When set, scoring reads the champion. Training always writes the live weights. */
+let reading: Weights | null = null;
+
+function params(): Weights {
+  return reading ?? model;
+}
+
 function forward(input: number[]) {
+  const net = params();
   const h1 = new Array<number>(H1);
   const active: number[] = [];
   for (let i = 0; i < input.length; i++) if (input[i]) active.push(i);
   for (let j = 0; j < H1; j++) {
-    let s = model.b1[j]!;
+    let s = net.b1[j]!;
     const base = j * INPUTS;
-    for (const i of active) s += model.w1[base + i]! * input[i]!;
+    for (const i of active) s += net.w1[base + i]! * input[i]!;
     h1[j] = tanh(s);
   }
   const h2 = new Array<number>(H2);
   for (let j = 0; j < H2; j++) {
-    let s = model.b2[j]!;
+    let s = net.b2[j]!;
     const base = j * H1;
-    for (let i = 0; i < H1; i++) s += model.w2[base + i]! * h1[i]!;
+    for (let i = 0; i < H1; i++) s += net.w2[base + i]! * h1[i]!;
     h2[j] = tanh(s);
   }
-  let y = model.b3[0]!;
-  for (let i = 0; i < H2; i++) y += model.w3[i]! * h2[i]!;
+  let y = net.b3[0]!;
+  for (let i = 0; i < H2; i++) y += net.w3[i]! * h2[i]!;
   return { y, h1, h2 };
 }
 
@@ -253,23 +307,10 @@ function pathwayIndex(id: string): number {
   return i < 0 ? 0 : i;
 }
 
-function pushHot(out: number[], ids: readonly string[], id: string | undefined) {
-  for (let i = 0; i < ids.length; i++) out.push(id !== undefined && ids[i] === id ? 1 : 0);
-}
-
-function pushHand(out: number[], card: CardInstance | undefined) {
-  if (!card) {
-    out.push(0, 0, 0, 0);
-    pushHot(out, CARD_IDS, undefined);
-    return;
-  }
-  const d = getCardDef(card.defId);
-  out.push(1, d.spCost / 6, d.rarity === "rare" ? 1 : 0, (d.weapon?.attack ?? 0) / 4);
-  pushHot(out, CARD_IDS, card.defId);
-}
-
-function pushGear(out: number[], card: CardInstance | undefined, known: boolean) {
-  pushHot(out, CARD_IDS, known ? card?.defId : undefined);
+/** First value is 1 when the identity is known. A zero there means unknown, not "none". */
+function pushKnownHot(out: number[], ids: readonly string[], id: string | undefined, known: boolean) {
+  out.push(known ? 1 : 0);
+  for (let i = 0; i < ids.length; i++) out.push(known && id !== undefined && ids[i] === id ? 1 : 0);
 }
 
 function abilityOf(seat: PlayerState): string {
@@ -282,99 +323,89 @@ function recipeProgress(seat: PlayerState): number {
   return (recipe.needed.length - recipe.remaining.length) / recipe.needed.length;
 }
 
-function pushPathway(out: number[], id: string | undefined, known: boolean) {
-  for (let i = 0; i < PATHS; i++) out.push(known && id && pathwayIndex(id) === i ? 1 : 0);
-}
-
-function seatKnown(state: GameState, seat: PlayerState, viewer: PlayerState): boolean {
-  if (seat.id === viewer.id) return true;
+function seatKnown(state: GameState, seat: PlayerState, viewerId: string): boolean {
+  if (seat.id === viewerId) return true;
   if (!state.arcanaConcealment) return true;
   return !!seat.revealed;
 }
 
-/** Public position, from one seat's point of view. Hidden hands stay hidden. */
-export function positionVector(state: GameState, seatId: string): number[] {
-  const me = state.players.find((p) => p.id === seatId)!;
-  const out: number[] = [];
-  const weapon = me.weapon ? getCardDef(me.weapon.defId) : undefined;
-  out.push(
-    me.hp / 20,
-    me.sanity / 20,
-    me.sp / 20,
-    me.sequence / 9,
-    me.hand.length / 7,
-    Math.min(me.status.block, 8) / 8,
-    Math.min(me.status.evade, 3) / 3,
-    Math.min(Math.max(me.status.attackModifier, 0), 6) / 6,
-    me.weapon ? 1 : 0,
-    (weapon?.weapon?.attack ?? 0) / 4,
-    me.charms.length / 2,
-    me.artifact ? 1 : 0,
-    me.trap ? 1 : 0,
-    me.revealed ? 1 : 0,
-    currentPlayer(state).id === me.id ? 1 : 0,
-    me.actingMet ? 1 : 0,
-    matchRecipe(me)?.canPay ? 1 : 0,
-    recipeProgress(me),
-  );
-  for (let i = 0; i < HAND_SLOTS; i++) pushHand(out, me.hand[i]);
-  pushGear(out, me.weapon, true);
-  pushGear(out, me.artifact, true);
-  pushGear(out, me.trap, true);
-  pushGear(out, me.charms[0], true);
-  pushGear(out, me.charms[1], true);
-  pushHot(out, ABILITY_IDS, abilityOf(me));
+function pushGearSlot(out: number[], card: CardInstance | undefined, slotKnown: boolean, identityKnown: boolean) {
+  out.push(slotKnown ? 1 : 0, slotKnown && card ? 1 : 0);
+  pushKnownHot(out, CARD_IDS, identityKnown ? card?.defId : undefined, identityKnown);
+}
 
-  const opps = state.players.filter((p) => p.id !== me.id);
-  const main = opps[0];
-  if (!main) {
-    out.push(0, 0, 0, 0, 0, 0);
-    for (let g = 0; g < GEAR_SLOTS; g++) pushGear(out, undefined, false);
-    pushHot(out, ABILITY_IDS, undefined);
-  } else {
-    const known = seatKnown(state, main, me);
-    out.push(
-      main.hp / 20,
-      main.sanity / 20,
-      known ? main.sp / 20 : 0,
-      known ? main.sequence / 9 : 0,
-      main.hand.length / 7,
-      known && main.weapon ? (getCardDef(main.weapon.defId).weapon?.attack ?? 0) / 4 : 0,
-    );
-    pushGear(out, main.weapon, known);
-    pushGear(out, main.artifact, known);
-    pushGear(out, main.trap, known);
-    pushGear(out, main.charms[0], known);
-    pushGear(out, main.charms[1], known);
-    pushHot(out, ABILITY_IDS, known ? abilityOf(main) : undefined);
+function pushSeat(out: number[], state: GameState, seat: PlayerState | undefined, viewerId: string) {
+  if (!seat) {
+    for (let i = 0; i < SEAT_BLOCK; i++) out.push(0);
+    return;
   }
-  for (let i = 1; i < 3; i++) {
-    const o = opps[i];
-    if (!o) {
-      out.push(0, 0, 0, 0, 0, 0, 0, 0);
-      continue;
-    }
-    const known = seatKnown(state, o, me);
-    const board = (o.charms.length > 0 ? 1 : 0) + (o.artifact ? 1 : 0) + (o.trap ? 1 : 0);
-    out.push(
-      o.hp / 20,
-      o.sanity / 20,
-      known ? o.sp / 20 : 0,
-      known ? o.sequence / 9 : 0,
-      o.hand.length / 7,
-      o.revealed || !state.arcanaConcealment ? 1 : 0,
-      known && o.weapon ? (getCardDef(o.weapon.defId).weapon?.attack ?? 0) / 4 : 0,
-      known ? board / 3 : o.trap ? 0.2 : 0,
-    );
-  }
+  const board = seatKnown(state, seat, viewerId);
+  const self = seat.id === viewerId;
   out.push(
-    state.deck.length / 78,
-    state.discard.length / 78,
+    1,
+    seat.hp / 20,
+    1,
+    seat.sanity / 20,
+    board ? 1 : 0,
+    board ? seat.sp / 20 : 0,
+    board ? 1 : 0,
+    board ? seat.sequence / 9 : 0,
+    board ? 1 : 0,
+    seat.hand.length / 7,
+    board ? Math.min(seat.status.block, 8) / 8 : 0,
+    board ? Math.min(seat.status.evade, 3) / 3 : 0,
+    board ? Math.min(Math.max(seat.status.attackModifier, 0), 6) / 6 : 0,
+    board && seat.actingMet ? 1 : 0,
+    board && matchRecipe(seat)?.canPay ? 1 : 0,
+    board ? recipeProgress(seat) : 0,
+    currentPlayer(state).id === seat.id ? 1 : 0,
+    board ? 1 : 0,
+    seat.alive ? 1 : 0,
+    seat.mad ? 1 : 0,
+    seat.sanityBroken ? 1 : 0,
+  );
+  for (let i = 0; i < HAND_SLOTS; i++) pushKnownHot(out, CARD_IDS, seat.hand[i]?.defId, board);
+  pushGearSlot(out, seat.weapon, board, board);
+  pushGearSlot(out, seat.artifact, board, board);
+  pushGearSlot(out, seat.trap, board, self);
+  pushGearSlot(out, seat.charms[0], board, board);
+  pushGearSlot(out, seat.charms[1], board, board);
+  pushKnownHot(out, ABILITY_IDS, board ? abilityOf(seat) : undefined, board);
+  out.push(board ? 1 : 0);
+  const path = pathwayIndex(seat.pathwayId);
+  for (let i = 0; i < PATHS; i++) out.push(board && path === i ? 1 : 0);
+}
+
+/** Public position from one seat. Hidden facts carry a known-bit of 0. */
+export function positionVector(state: GameState, seatId: string): number[] {
+  const out: number[] = [];
+  const me = state.players.find((p) => p.id === seatId)!;
+  pushSeat(out, state, me, seatId);
+  const opps = state.players.filter((p) => p.id !== seatId);
+  for (let i = 0; i < OPP_SLOTS; i++) pushSeat(out, state, opps[i], seatId);
+
+  out.push(1, state.discard.length / 78);
+  const discarded = new Set(state.discard.map((card) => card.defId));
+  for (const id of CARD_IDS) out.push(discarded.has(id) ? 1 : 0);
+
+  out.push(0, state.deck.length / 78);
+
+  const trace = state.learnerTrace ?? [];
+  for (let i = 0; i < TRACE_SLOTS; i++) {
+    const event = trace[i];
+    out.push(event ? 1 : 0);
+    for (const kind of TRACE_KINDS) out.push(event?.kind === kind ? 1 : 0);
+    pushKnownHot(out, CARD_IDS, event?.cardId, !!event?.cardId);
+  }
+
+  out.push(
     Math.min(state.turnNumber, 80) / 80,
     state.arcanaConcealment ? 1 : 0,
+    state.actionsUsed.standard ? 1 : 0,
+    state.actionsUsed.sequence ? 1 : 0,
+    state.actionsUsed.attack ? 1 : 0,
+    state.potionDrunk ? 1 : 0,
   );
-  pushPathway(out, me.pathwayId, true);
-  pushPathway(out, main?.pathwayId, main ? seatKnown(state, main, me) : false);
   if (out.length !== INPUTS) throw new Error(`learner input ${out.length} !== ${INPUTS}`);
   return out;
 }
@@ -396,24 +427,37 @@ function quietClone(state: GameState): GameState {
 /** Win chance the network gives this seat after the action is actually played. */
 function valueAfter(state: GameState, seatId: string, choice: LegalChoice): number | null {
   const clone = quietClone(state);
+  const before = liteBoard(clone);
   if (!choice.apply(clone)) return null;
+  noteAction(clone, before);
   return sigmoid(forward(positionVector(clone, seatId)).y);
+}
+
+function usingChampion<T>(fn: () => T): T {
+  if (!model.champion) return fn();
+  reading = model.champion;
+  try {
+    return fn();
+  } finally {
+    reading = null;
+  }
 }
 
 /**
  * One action from the network. It tries every legal move with the real rules
  * and keeps the one that leaves the higher chance of winning. explore is only
- * for training; a finished game uses 0.
+ * for training; a finished game uses 0. A saved champion is the player.
  */
 export function playNetworkTurn(state: GameState, explore = 0): boolean {
-  // A network that has never played or watched has no basis for a move.
-  // It declines, which is why a fresh network loses to the search AI.
-  if (model.played + model.watched === 0) return false;
+  if (!model.champion && model.played + model.watched === 0) return false;
   const choices = legalChoices(state);
   if (!choices.length) return false;
-  const picked = pickByValue(state, choices, explore);
+  const before = liteBoard(state);
+  const picked = usingChampion(() => pickByValue(state, choices, explore));
   if (!picked) return false;
-  return picked.apply(state);
+  const ok = picked.apply(state);
+  if (ok) noteAction(state, before);
+  return ok;
 }
 
 function pickByValue(state: GameState, choices: LegalChoice[], explore: number): LegalChoice | null {
@@ -517,24 +561,90 @@ function noteHeadToHead(state: GameState, kinds: [SeatController, SeatController
   else model.aiWins += 1;
 }
 
-/** Who won, plus a hint from HP, sanity, Sequence progress, and whether the potion is ready. */
-function shapedTarget(row: number[], outcome: number): number {
-  const myHp = row[0] ?? 0;
-  const mySan = row[1] ?? 0;
-  const mySeq = row[3] ?? 0;
-  const acting = row[15] ?? 0;
-  const canPay = row[16] ?? 0;
-  const progress = row[17] ?? 0;
-  const oppHp = row[SELF] ?? 0;
-  const oppSan = row[SELF + 1] ?? 0;
-  const oppSeq = row[SELF + 3] ?? 0;
-  const edge =
-    (myHp - oppHp) * 0.7 +
-    (mySan - oppSan) * 0.6 +
-    (oppSeq - mySeq) * 3 +
-    0.7 * (acting + canPay + progress);
-  const hint = 1 / (1 + Math.exp(-2.2 * edge));
-  return 0.55 * outcome + 0.45 * hint;
+/**
+ * The finished game, blended with the value of the next position this seat
+ * reached. The next value is detached, so the target is a number, not a guess
+ * about what a card is supposed to do.
+ */
+function tdTargets(rows: number[][], outcome: number): number[] {
+  const next = rows.map((row) => sigmoid(forward(row).y));
+  const blend = model.played + model.watched < 48 ? 0.85 : 0.6;
+  return rows.map((_, i) => {
+    if (i + 1 >= rows.length) return outcome;
+    const mixed = blend * outcome + (1 - blend) * next[i + 1]!;
+    return Math.max(0, Math.min(1, mixed));
+  });
+}
+
+function snapshotWeights(): Weights {
+  return {
+    w1: model.w1.slice(),
+    b1: model.b1.slice(),
+    w2: model.w2.slice(),
+    b2: model.b2.slice(),
+    w3: model.w3.slice(),
+    b3: model.b3.slice(),
+  };
+}
+
+/** A short game against the frozen search AI. Nothing here is trained. */
+function examOnce(seed: number, nnFirst: boolean): "nn" | "ai" | "draw" {
+  const state = openDuel(seed);
+  const kinds: [SeatController, SeatController] = nnFirst ? ["nn", "ai"] : ["ai", "nn"];
+  const byId = new Map<string, SeatController>();
+  state.players.forEach((p, i) => byId.set(p.id, kinds[i]!));
+  let guard = 0;
+  while ((state.phase as string) !== "gameover" && guard < 240) {
+    const seat = currentPlayer(state);
+    const choices = legalChoices(state);
+    const before = liteBoard(state);
+    if (!choices.length) {
+      endTurn(state, getRng(state));
+      noteAction(state, before);
+      guard += 1;
+      continue;
+    }
+    const kind = byId.get(seat.id) ?? "ai";
+    const choice = kind === "nn" ? pickByValue(state, choices, 0) : searchChoice(state, choices);
+    if (!choice || !choice.apply(state)) endTurn(state, getRng(state));
+    noteAction(state, before);
+    guard += 1;
+  }
+  const winner = state.players.findIndex((p) => p.id === state.winnerId);
+  if (winner < 0) return "draw";
+  return kinds[winner] === "nn" ? "nn" : "ai";
+}
+
+function considerChampion() {
+  const games = 8;
+  const seeds: number[] = [];
+  for (let i = 0; i < games; i++) seeds.push((Math.floor(Math.random() * 1_000_000_000) + i * 17 + 3) >>> 0 || 1);
+  let liveWins = 0;
+  for (let i = 0; i < games; i++) {
+    if (examOnce(seeds[i]!, i % 2 === 0) === "nn") liveWins += 1;
+  }
+  let champWins = 0;
+  if (model.champion) {
+    reading = model.champion;
+    try {
+      for (let i = 0; i < games; i++) {
+        if (examOnce(seeds[i]!, i % 2 === 0) === "nn") champWins += 1;
+      }
+    } finally {
+      reading = null;
+    }
+  }
+  model.latestExamRate = liveWins / games;
+  model.latestExamGames = games;
+  model.examHistory = [...(model.examHistory ?? []), { live: liveWins / games, champion: model.champion ? champWins / games : liveWins / games }].slice(-12);
+  if (!model.champion || liveWins > champWins) {
+    model.champion = snapshotWeights();
+    model.championRate = liveWins / games;
+    model.championGames = games;
+  } else {
+    model.championRate = champWins / games;
+    model.championGames = games;
+  }
 }
 
 function thinSamples(rows: number[][], cap = 18): number[][] {
@@ -581,6 +691,7 @@ export async function runTrainerMatch(
         continue;
       }
       const kind = byId.get(seat.id) ?? "ai";
+      const before = liteBoard(state);
       let applied = false;
       if (kind === "nn") {
         const choice = pickByValue(state, choices, explore);
@@ -590,6 +701,7 @@ export async function runTrainerMatch(
         if (best.apply(state)) applied = true;
       }
       if (!applied) endTurn(state, getRng(state));
+      noteAction(state, before);
       const rows = taken.get(seat.id) ?? [];
       rows.push(positionVector(state, seat.id));
       taken.set(seat.id, rows);
@@ -603,16 +715,18 @@ export async function runTrainerMatch(
         if (outcome === 1) model.wins += 1;
         else model.losses += 1;
       }
-      for (const row of thinSamples(rows)) {
-        const target = shapedTarget(row, outcome);
-        remember(row, target);
-        const rate = model.played + model.watched < 80 ? 0.008 : 0.002;
-        learnValue(row, target, rate);
+      const kept = thinSamples(rows);
+      const targets = tdTargets(kept, outcome);
+      const rate = model.played + model.watched < 48 ? 0.006 : 0.002;
+      for (let i = 0; i < kept.length; i++) {
+        remember(kept[i]!, targets[i]!);
+        learnValue(kept[i]!, targets[i]!, rate);
       }
     }
     rehearse();
     if (bothAi) model.watched += 1;
     else model.played += 1;
+    if ((g + 1) % 16 === 0 || (g + 1 === total && total % 16 !== 0)) considerChampion();
     onProgress?.(g + 1, total);
     if ((g + 1) % 8 === 0) saveLearnerLocal();
     await stepYield();

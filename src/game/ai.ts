@@ -14,6 +14,7 @@ import {
   playCardFromHand,
   sacrificeRequiem,
 } from "./engine";
+import { liteBoard, noteAction } from "./trace";
 import type { GameState, PlayerState } from "./types";
 
 function score(state: GameState, myId: string): number {
@@ -240,11 +241,15 @@ export function runAiTurn(state: GameState): GameState {
       if (swung != null && (held == null || swung > held + 0.5)) plan.run = swing;
     }
 
+    const before = liteBoard(s);
     plan.run(s);
+    noteAction(s, before);
   }
 
   if (s.phase === "action" && currentPlayer(s).alive && !currentPlayer(s).isHuman) {
+    const before = liteBoard(s);
     endTurn(s, getRng(s));
+    noteAction(s, before);
   }
   return s;
 }

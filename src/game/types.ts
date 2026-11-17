@@ -328,4 +328,6 @@ export interface GameState {
   simBuf?: number;
   /** Variant: players start concealed. A Standard action exposes a board. Attacks cannot target a concealed player. */
   arcanaConcealment?: boolean;
+  /** Recent public actions the learner has watched. The engine never reads this. */
+  learnerTrace?: { kind: string; cardId?: string }[];
 }
