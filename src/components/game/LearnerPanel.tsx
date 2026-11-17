@@ -1,23 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import {
-  eraseLearner,
-  learnerJson,
-  learnerStats,
-  loadLearnerLocal,
-  runTrainerMatch,
-  saveLearnerLocal,
-  type SeatController,
-} from "@/game/learner";
+import { eraseLearner, learnerJson, learnerStats, loadLearnerLocal, runTrainerMatch, saveLearnerLocal } from "@/game/learner";
 import { useEffect, useState } from "react";
 
 const GAME_CHOICES = [1, 4, 16, 64, 256, 512, 1024];
 
 export function LearnerPanel() {
-  const [games, setGames] = useState(4);
-  const [seatA, setSeatA] = useState<SeatController>("nn");
-  const [seatB, setSeatB] = useState<SeatController>("ai");
+  const [games, setGames] = useState(16);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [note, setNote] = useState("");
@@ -41,12 +31,12 @@ export function LearnerPanel() {
     const before = learnerStats();
     setBusy(true);
     setProgress(`0 / ${count}`);
-    await runTrainerMatch(count, seatA, seatB, (done, total) => setProgress(`${done} / ${total}`));
+    await runTrainerMatch(count, (done, total) => setProgress(`${done} / ${total}`));
     setBusy(false);
     setProgress("");
     const after = learnerStats();
     refresh(
-      `Continued from the stored network. This run added ${count} games. Watched ${before.watched} → ${after.watched}. Played ${before.played} → ${after.played}.`,
+      `Continued the same network. This run added ${count} self-play games. Played ${before.played} → ${after.played}. The saved player was replaced ${after.promotions - before.promotions} time${after.promotions - before.promotions === 1 ? "" : "s"} in this run.`,
     );
   }
 
@@ -70,25 +60,23 @@ export function LearnerPanel() {
     setNote("The trained weights are gone. The next session starts from a fresh network.");
   }
 
-  const decided = stats.nnWins + stats.aiWins;
+  const explorePct = Math.round(stats.explore * 100);
 
   return (
     <section className="flex flex-col gap-4">
       <div className="max-w-3xl">
         <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-100">Learner</h2>
         <p className="mt-1 text-sm text-stone-400">
-          The network starts without knowing what any card or Sequence ability does. It records
-          every card, pathway, and sequence it is allowed to see, plus HP, Sanity, and Spirituality,
-          and the recent actions: draw, discard, play, cast, attack, drink, and steal. A hidden fact
-          is marked unknown. It tries each legal action under the real rules and keeps the one that
-          leaves the better position, then learns from who won and from the position after the
-          reply. Each run continues the same network. Every few games the network still training
-          and the saved player both play the same deals against the search AI. The saved player is
-          replaced only when the training network wins more of those deals, so a weaker check does
-          not take its place. A shuffled deck still swings a short check. Erase is the only control
-          that throws the weights away. An older saved network is left unused, because this one
-          watches a different set of facts. A network that has never trained does not act, so the
-          search AI takes those games. The first training run is what starts it playing.
+          The network plays itself. It starts without knowing what any card or Sequence ability
+          does. It records every card, pathway, and sequence it is allowed to see, plus HP, Sanity,
+          and Spirituality, and the recent actions: draw, discard, play, cast, attack, drink, and
+          steal. A hidden fact is marked unknown. While it is learning, {explorePct}% of its actions
+          are a random legal move, so it tries lines it would otherwise skip. A game at the table,
+          and the check against the saved player, use no exploration. Both seats learn from who won.
+          Every few games the network still training plays the saved player for eight games. It takes
+          that seat only when it wins more of them. A shuffled deck still swings a short check. Erase
+          is the only control that throws the weights away. A network that has never trained does not
+          act. The previous saved network is left unused, because this one plays itself.
         </p>
       </div>
 
@@ -106,32 +94,8 @@ export function LearnerPanel() {
             onChange={(e) => setGames(clampGames(Number(e.target.value)))}
           />
         </label>
-        <label className="text-xs text-stone-400">
-          Seat A
-          <select
-            className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
-            value={seatA}
-            disabled={busy}
-            onChange={(e) => setSeatA(e.target.value as SeatController)}
-          >
-            <option value="nn">NN</option>
-            <option value="ai">AI</option>
-          </select>
-        </label>
-        <label className="text-xs text-stone-400">
-          Seat B
-          <select
-            className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
-            value={seatB}
-            disabled={busy}
-            onChange={(e) => setSeatB(e.target.value as SeatController)}
-          >
-            <option value="nn">NN</option>
-            <option value="ai">AI</option>
-          </select>
-        </label>
         <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run()}>
-          {busy ? progress : "Run match"}
+          {busy ? progress : "Play itself"}
         </Button>
       </div>
       <div className="flex flex-wrap gap-1">
@@ -150,40 +114,23 @@ export function LearnerPanel() {
       </div>
 
       <div>
-        <h3 className="text-sm text-amber-100">NN vs AI</h3>
+        <h3 className="text-sm text-amber-100">Self-play</h3>
         <p className="mt-1 text-xs text-stone-500">
-          These numbers count only matches with one neural network and one search AI. Who goes
-          first swaps every game. A game with no winner sits in Draws. The total win rate keeps
-          every earlier game, including the games it lost while it was still learning. Recent is the
-          last 32 mixed games of the network that is still training. The two exam numbers are the
-          same eight deals: the saved player, and the network still training. The saved player changes
-          only when it wins fewer of those deals.
+          Both seats are this network. Training uses {explorePct}% exploration. The eight-game check
+          uses none. The saved player changes only when the training network wins more of those games.
         </p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="NN wins" value={String(stats.nnWins)} />
-        <Stat label="AI wins" value={String(stats.aiWins)} />
-        <Stat label="Draws" value={String(stats.draws)} />
-        <Stat label="NN win rate" value={decided ? `${Math.round(stats.nnWinRate * 100)}%` : "—"} />
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="Self-play games" value={String(stats.played)} />
+        <Stat label="Saved player replaced" value={String(stats.promotions)} />
         <Stat
-          label="Recent NN win rate"
-          value={stats.recentNn + stats.recentAi > 0 ? `${Math.round(stats.recentNnWinRate * 100)}%` : "—"}
-        />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-2">
-        <Stat
-          label="Saved player, same deals"
-          value={stats.championGames ? `${Math.round(stats.championRate * 100)}% of ${stats.championGames}` : "—"}
+          label="Training network, last check"
+          value={stats.checkGames ? `${stats.challengerWins} of ${stats.checkGames}` : "—"}
         />
         <Stat
-          label="Training network, same deals"
-          value={stats.latestExamGames ? `${Math.round(stats.latestExamRate * 100)}% of ${stats.latestExamGames}` : "—"}
+          label="Saved player, last check"
+          value={stats.checkGames ? `${stats.savedWins} of ${stats.checkGames}` : "—"}
         />
-      </div>
-      <div className="grid gap-2 sm:grid-cols-3">
-        <Stat label="NN vs AI matches" value={String(stats.headToHead)} />
-        <Stat label="Games watched" value={String(stats.watched)} />
-        <Stat label="Network games" value={String(stats.played)} />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -198,13 +145,11 @@ export function LearnerPanel() {
 
       {note && <p className="text-sm text-stone-400">{note}</p>}
       <p className="text-xs text-stone-500">
-        A match can be 1 to 1024 games, and the next match starts from those same weights. Save
-        writes that network into this browser and downloads a JSON file you can keep. Erase drops
-        that browser copy, including the NN vs AI record, and resets the network. A fresh page
-        loads the saved weights again until you erase them. The saved player is the one that plays
-        a game. It keeps its seat until the network still training wins more of the same deals.
-        Eight deals is a short check, so the percentage moves in steps, and a shuffled deck still
-        takes games.
+        A run can be 1 to 1024 games, and the next run starts from those same weights. Save writes
+        that network into this browser and downloads a JSON file you can keep. Erase drops that
+        browser copy and resets the network. A fresh page loads the saved weights again until you
+        erase them. The saved player is the one that sits at the table. Eight games is a short
+        check, so the count moves in steps, and a shuffled deck still takes games.
       </p>
     </section>
   );

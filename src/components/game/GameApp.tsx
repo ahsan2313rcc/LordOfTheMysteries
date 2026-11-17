@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { runAiTurn } from "@/game/ai";
+import { runLearnedTurn } from "@/game/learner";
 import { getCardDef, playCost } from "@/game/cards";
 import {
   actingProgressItems,
@@ -64,7 +64,7 @@ export function GameApp() {
         setState((prev) => {
           if (!prev) return prev;
           const next = structuredClone(prev);
-          return runAiTurn(next);
+          return runLearnedTurn(next);
         });
       });
     }, 700);
@@ -298,9 +298,9 @@ export function GameApp() {
                 value={aiCount}
                 onChange={(e) => setAiCount(Number(e.target.value))}
               >
-                <option value={1}>1 AI</option>
-                <option value={2}>2 AI</option>
-                <option value={3}>3 AI</option>
+                <option value={1}>1 opponent</option>
+                <option value={2}>2 opponents</option>
+                <option value={3}>3 opponents</option>
               </select>
             </label>
             <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" onClick={startGame}>
@@ -316,7 +316,8 @@ export function GameApp() {
             </label>
           </div>
           <p className="mt-2 max-w-2xl text-xs leading-relaxed text-stone-500">
-            Off by default. Rares are the Major Arcana (0–21) and commons are the Minor Arcana.
+            Opponents are the learned network. It passes until a training run has saved a player.
+            Arcana Concealment is off by default. Rares are the Major Arcana (0–21) and commons are the Minor Arcana.
             Everyone starts concealed. Playing a rare card exposes an opponent and their board.
             You stay concealed until you attack an exposed player.
           </p>

@@ -110,8 +110,9 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               AI Simulator
             </h1>
             <p className="max-w-2xl text-sm text-stone-400">
-              Each seat is the search AI or the trained network. The 22×22 round robin and the
-              free-for-all batch both fill Overview, Arcana, Items, Cards, and Replay.
+              Each seat is the learned network or the separate search player. The learner does not
+              train against that search player. The 22×22 round robin and the free-for-all batch
+              both fill Overview, Arcana, Items, Cards, and Replay.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -151,8 +152,8 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                     setSeats((prev) => prev.map((seat, at) => (at === i ? (e.target.value as SeatController) : seat)))
                   }
                 >
-                  <option value="ai">AI</option>
-                  <option value="nn">NN</option>
+                  <option value="ai">Search</option>
+                  <option value="nn">Network</option>
                 </select>
               </label>
             ))}
@@ -225,8 +226,8 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
             </div>
             {report.mixedGames > 0 && (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <Stat label="NN wins" value={String(report.nnWins)} />
-                <Stat label="AI wins" value={String(report.aiWins)} />
+                <Stat label="Network wins" value={String(report.nnWins)} />
+                <Stat label="Search wins" value={String(report.aiWins)} />
                 <Stat label="Draws" value={String(report.controllerDraws)} />
                 <Stat
                   label="NN win rate"

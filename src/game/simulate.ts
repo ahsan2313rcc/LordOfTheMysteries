@@ -1,9 +1,8 @@
 import { runAiTurn } from "./ai";
 import { CARD_DEFS } from "./cards";
 import { createGame, currentPlayer, endTurn, getRng } from "./engine";
-import { hydrateLearner, playNetworkTurn } from "./learner";
+import { hydrateLearner, runLearnedTurn } from "./learner";
 import { PATHWAYS } from "./pathways";
-import { liteBoard, noteAction } from "./trace";
 import type { GameState } from "./types";
 
 export type SeatController = "nn" | "ai";
@@ -230,27 +229,7 @@ function noteTrail(state: GameState, trails: Map<string, Trail>) {
 }
 
 function runNetworkTurn(state: GameState) {
-  const seatId = currentPlayer(state).id;
-  let guard = 0;
-  while (
-    (state.phase as string) === "action" &&
-    currentPlayer(state).id === seatId &&
-    currentPlayer(state).alive &&
-    !currentPlayer(state).sanityBroken &&
-    guard < 22
-  ) {
-    guard += 1;
-    if (!playNetworkTurn(state)) break;
-  }
-  if (
-    (state.phase as string) === "action" &&
-    currentPlayer(state).id === seatId &&
-    currentPlayer(state).alive
-  ) {
-    const before = liteBoard(state);
-    endTurn(state, getRng(state));
-    noteAction(state, before);
-  }
+  runLearnedTurn(state);
 }
 
 export function playAiGame(

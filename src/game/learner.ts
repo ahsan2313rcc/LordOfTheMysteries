@@ -1,4 +1,4 @@
-import { choiceValue, legalChoices, type LegalChoice } from "./ai";
+import { legalChoices, type LegalChoice } from "./ai";
 import { CARD_DEFS } from "./cards";
 import { createGame, currentPlayer, endTurn, getRng } from "./engine";
 import { matchRecipe } from "./ascension";
@@ -12,7 +12,9 @@ import type { CardInstance, GameState, PlayerState } from "./types";
  * pathway names, and ability names are only identities. Effects are learned from
  * how the board changes and who won. Hidden numbers are marked unknown.
  * Weights live in this module and in the browser's local storage.
- * The weights used to play are the best exam so far against the search AI.
+ * Training is self-play. Fifteen percent of training actions are random legal moves.
+ * A real game, and the check against the saved player, use no exploration.
+ * The saved player is replaced only when the training network wins more games against it.
  */
 
 const CARD_IDS = CARD_DEFS.map((c) => c.id);
@@ -36,7 +38,9 @@ export const INPUTS =
   SEAT_BLOCK * (1 + OPP_SLOTS) + DISCARD_BLOCK + DECK_BLOCK + TRACE_SLOTS * TRACE_BLOCK + GLOBAL_BLOCK;
 const H1 = 32;
 const H2 = 16;
-const STORE_KEY = "lotm-learner-v3";
+const STORE_KEY = "lotm-learner-v4";
+/** Random legal moves while learning. A played game uses none. */
+const TRAIN_EXPLORE = 0.15;
 
 export type SeatController = "nn" | "ai";
 
@@ -50,26 +54,16 @@ interface Weights {
 }
 
 export interface LearnerModel extends Weights {
-  version: 3;
-  watched: number;
+  version: 4;
+  /** Self-play games the live weights have learned from. */
   played: number;
-  wins: number;
-  losses: number;
-  /** Matches with one neural-network seat and one search-AI seat. */
-  headToHead: number;
-  nnWins: number;
-  aiWins: number;
-  /** Newest mixed-game results, capped, so the current policy is visible. */
-  recent: ("nn" | "ai" | "draw")[];
-  /** Weights that won the last same-deal check. This is the network that plays. */
+  /** Times the training network replaced the saved player by beating it. */
+  promotions: number;
   champion: Weights | null;
-  /** Champion's wins on the deals that crowned it, refreshed on each later check. */
-  championRate: number;
-  championGames: number;
-  /** Live weights on the newest check. */
-  latestExamRate: number;
-  latestExamGames: number;
-  /** Champion and live scores, newest last, from each same-deal check. */
+  /** Latest self-play check: training network wins, saved-player wins, games dealt. */
+  challengerWins: number;
+  savedWins: number;
+  checkGames: number;
   examHistory: { live: number; champion: number }[];
 }
 
@@ -91,12 +85,12 @@ function freshModel(seed: number): LearnerModel {
   const rand = mulberry(seed);
   const fill = (n: number, scale: number) => Array.from({ length: n }, () => (rand() * 2 - 1) * scale);
   return {
-    version: 3,
+    version: 4,
     champion: null,
-    championRate: 0,
-    championGames: 0,
-    latestExamRate: 0,
-    latestExamGames: 0,
+    promotions: 0,
+    challengerWins: 0,
+    savedWins: 0,
+    checkGames: 0,
     examHistory: [],
     w1: fill(INPUTS * H1, Math.sqrt(2 / INPUTS)),
     b1: fill(H1, 0.01),
@@ -104,62 +98,34 @@ function freshModel(seed: number): LearnerModel {
     b2: fill(H2, 0.01),
     w3: fill(H2, Math.sqrt(2 / H2)),
     b3: [0],
-    watched: 0,
     played: 0,
-    wins: 0,
-    losses: 0,
-    headToHead: 0,
-    nnWins: 0,
-    aiWins: 0,
-    recent: [],
   };
 }
 
 function withCounters(parsed: LearnerModel): LearnerModel {
-  parsed.headToHead ??= 0;
-  parsed.nnWins ??= 0;
-  parsed.aiWins ??= 0;
-  parsed.recent ??= [];
-  parsed.watched ??= 0;
   parsed.played ??= 0;
-  parsed.wins ??= 0;
-  parsed.losses ??= 0;
+  parsed.promotions ??= 0;
   parsed.champion ??= null;
-  parsed.championRate ??= 0;
-  parsed.championGames ??= 0;
-  parsed.latestExamRate ??= 0;
-  parsed.latestExamGames ??= 0;
+  parsed.challengerWins ??= 0;
+  parsed.savedWins ??= 0;
+  parsed.checkGames ??= 0;
   parsed.examHistory ??= [];
   if (parsed.champion && parsed.champion.w1.length !== INPUTS * H1) parsed.champion = null;
   return parsed;
 }
 
 export function learnerStats() {
-  const draws = Math.max(0, model.headToHead - model.nnWins - model.aiWins);
-  const decided = model.nnWins + model.aiWins;
-  const recent = model.recent ?? [];
-  const recentNn = recent.filter((r) => r === "nn").length;
-  const recentAi = recent.filter((r) => r === "ai").length;
-  const recentDecided = recentNn + recentAi;
+  const games = model.checkGames ?? 0;
   return {
-    watched: model.watched,
     played: model.played,
-    wins: model.wins,
-    losses: model.losses,
-    headToHead: model.headToHead,
-    nnWins: model.nnWins,
-    aiWins: model.aiWins,
-    draws,
-    nnWinRate: decided ? model.nnWins / decided : 0,
-    recentGames: recent.length,
-    recentNn,
-    recentAi,
-    recentDraws: recent.length - recentDecided,
-    recentNnWinRate: recentDecided ? recentNn / recentDecided : 0,
-    championRate: model.championRate ?? 0,
-    championGames: model.championGames ?? 0,
-    latestExamRate: model.latestExamRate ?? 0,
-    latestExamGames: model.latestExamGames ?? 0,
+    promotions: model.promotions ?? 0,
+    hasChampion: !!model.champion,
+    challengerWins: model.challengerWins ?? 0,
+    savedWins: model.savedWins ?? 0,
+    checkGames: games,
+    challengerRate: games ? (model.challengerWins ?? 0) / games : 0,
+    savedRate: games ? (model.savedWins ?? 0) / games : 0,
+    explore: TRAIN_EXPLORE,
     examHistory: model.examHistory ?? [],
   };
 }
@@ -192,7 +158,7 @@ function loadFromStorage(): boolean {
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
-    if (parsed.version !== 3 || parsed.w1.length !== INPUTS * H1) return false;
+    if (parsed.version !== 4 || parsed.w1.length !== INPUTS * H1) return false;
     model = withCounters(parsed);
     return true;
   } catch {
@@ -220,7 +186,7 @@ export function hydrateLearner() {
 export function importLearner(raw: string): boolean {
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
-    if (parsed.version !== 3 || parsed.w1.length !== INPUTS * H1) return false;
+    if (parsed.version !== 4 || parsed.w1.length !== INPUTS * H1) return false;
     model = withCounters(parsed);
     saveLearnerLocal();
     return true;
@@ -444,20 +410,45 @@ function usingChampion<T>(fn: () => T): T {
 }
 
 /**
- * One action from the network. It tries every legal move with the real rules
- * and keeps the one that leaves the higher chance of winning. explore is only
- * for training; a finished game uses 0. A saved champion is the player.
+ * One action in a real game. No exploration. The saved player chooses.
+ * A network that has never trained does not act.
  */
-export function playNetworkTurn(state: GameState, explore = 0): boolean {
-  if (!model.champion && model.played + model.watched === 0) return false;
+export function playNetworkTurn(state: GameState): boolean {
+  if (!model.champion && model.played === 0) return false;
   const choices = legalChoices(state);
   if (!choices.length) return false;
   const before = liteBoard(state);
-  const picked = usingChampion(() => pickByValue(state, choices, explore));
+  const picked = usingChampion(() => pickByValue(state, choices, 0));
   if (!picked) return false;
   const ok = picked.apply(state);
   if (ok) noteAction(state, before);
   return ok;
+}
+
+/** The learned player's whole turn. It passes when it has not trained. */
+export function runLearnedTurn(state: GameState): GameState {
+  const seatId = currentPlayer(state).id;
+  let guard = 0;
+  while (
+    (state.phase as string) === "action" &&
+    currentPlayer(state).id === seatId &&
+    currentPlayer(state).alive &&
+    !currentPlayer(state).sanityBroken &&
+    guard < 22
+  ) {
+    guard += 1;
+    if (!playNetworkTurn(state)) break;
+  }
+  if (
+    (state.phase as string) === "action" &&
+    currentPlayer(state).id === seatId &&
+    currentPlayer(state).alive
+  ) {
+    const before = liteBoard(state);
+    endTurn(state, getRng(state));
+    noteAction(state, before);
+  }
+  return state;
 }
 
 function pickByValue(state: GameState, choices: LegalChoice[], explore: number): LegalChoice | null {
@@ -500,7 +491,7 @@ function recall(sample: Memory): number[] {
 
 function rehearse() {
   const n = Math.min(80, buffer.length);
-  const rate = model.played + model.watched < 80 ? 0.004 : 0.0015;
+  const rate = model.played < 80 ? 0.004 : 0.0015;
   for (let i = 0; i < n; i++) {
     const sample = buffer[Math.floor(Math.random() * buffer.length)]!;
     learnValue(recall(sample), sample.target, rate);
@@ -536,31 +527,6 @@ async function stepYield() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-function searchChoice(state: GameState, choices: LegalChoice[]): LegalChoice {
-  let best = choices[0]!;
-  let bestV = -Infinity;
-  for (const choice of choices) {
-    const value = choiceValue(state, choice.apply) ?? -99999;
-    if (value > bestV) {
-      bestV = value;
-      best = choice;
-    }
-  }
-  return best;
-}
-
-function noteHeadToHead(state: GameState, kinds: [SeatController, SeatController]) {
-  if (kinds[0] === kinds[1]) return;
-  model.headToHead += 1;
-  const winner = state.players.findIndex((p) => p.id === state.winnerId);
-  const tag: "nn" | "ai" | "draw" = winner < 0 ? "draw" : kinds[winner] === "nn" ? "nn" : "ai";
-  model.recent.push(tag);
-  if (model.recent.length > 32) model.recent.shift();
-  if (winner < 0) return;
-  if (kinds[winner] === "nn") model.nnWins += 1;
-  else model.aiWins += 1;
-}
-
 /**
  * The finished game, blended with the value of the next position this seat
  * reached. The next value is detached, so the target is a number, not a guess
@@ -568,7 +534,7 @@ function noteHeadToHead(state: GameState, kinds: [SeatController, SeatController
  */
 function tdTargets(rows: number[][], outcome: number): number[] {
   const next = rows.map((row) => sigmoid(forward(row).y));
-  const blend = model.played + model.watched < 48 ? 0.85 : 0.6;
+  const blend = model.played < 48 ? 0.85 : 0.6;
   return rows.map((_, i) => {
     if (i + 1 >= rows.length) return outcome;
     const mixed = blend * outcome + (1 - blend) * next[i + 1]!;
@@ -587,15 +553,11 @@ function snapshotWeights(): Weights {
   };
 }
 
-/** A short game against the frozen search AI. Nothing here is trained. */
-function examOnce(seed: number, nnFirst: boolean): "nn" | "ai" | "draw" {
+/** Training network against the saved player. Neither side explores. Nothing is trained. */
+function selfDuel(seed: number, liveIsFirst: boolean): "live" | "saved" | "draw" {
   const state = openDuel(seed);
-  const kinds: [SeatController, SeatController] = nnFirst ? ["nn", "ai"] : ["ai", "nn"];
-  const byId = new Map<string, SeatController>();
-  state.players.forEach((p, i) => byId.set(p.id, kinds[i]!));
   let guard = 0;
   while ((state.phase as string) !== "gameover" && guard < 240) {
-    const seat = currentPlayer(state);
     const choices = legalChoices(state);
     const before = liteBoard(state);
     if (!choices.length) {
@@ -604,46 +566,41 @@ function examOnce(seed: number, nnFirst: boolean): "nn" | "ai" | "draw" {
       guard += 1;
       continue;
     }
-    const kind = byId.get(seat.id) ?? "ai";
-    const choice = kind === "nn" ? pickByValue(state, choices, 0) : searchChoice(state, choices);
+    const liveSeat = state.currentPlayerIndex === 0 ? liveIsFirst : !liveIsFirst;
+    const choice = liveSeat
+      ? pickByValue(state, choices, 0)
+      : usingChampion(() => pickByValue(state, choices, 0));
     if (!choice || !choice.apply(state)) endTurn(state, getRng(state));
     noteAction(state, before);
     guard += 1;
   }
   const winner = state.players.findIndex((p) => p.id === state.winnerId);
   if (winner < 0) return "draw";
-  return kinds[winner] === "nn" ? "nn" : "ai";
+  const winnerIsFirst = winner === 0;
+  return winnerIsFirst === liveIsFirst ? "live" : "saved";
 }
 
 function considerChampion() {
-  const games = 8;
-  const seeds: number[] = [];
-  for (let i = 0; i < games; i++) seeds.push((Math.floor(Math.random() * 1_000_000_000) + i * 17 + 3) >>> 0 || 1);
-  let liveWins = 0;
-  for (let i = 0; i < games; i++) {
-    if (examOnce(seeds[i]!, i % 2 === 0) === "nn") liveWins += 1;
-  }
-  let champWins = 0;
-  if (model.champion) {
-    reading = model.champion;
-    try {
-      for (let i = 0; i < games; i++) {
-        if (examOnce(seeds[i]!, i % 2 === 0) === "nn") champWins += 1;
-      }
-    } finally {
-      reading = null;
-    }
-  }
-  model.latestExamRate = liveWins / games;
-  model.latestExamGames = games;
-  model.examHistory = [...(model.examHistory ?? []), { live: liveWins / games, champion: model.champion ? champWins / games : liveWins / games }].slice(-12);
-  if (!model.champion || liveWins > champWins) {
+  if (!model.champion) {
     model.champion = snapshotWeights();
-    model.championRate = liveWins / games;
-    model.championGames = games;
-  } else {
-    model.championRate = champWins / games;
-    model.championGames = games;
+    return;
+  }
+  const games = 8;
+  let liveWins = 0;
+  let savedWins = 0;
+  for (let i = 0; i < games; i++) {
+    const seed = (Math.floor(Math.random() * 1_000_000_000) + i * 17 + 3) >>> 0 || 1;
+    const result = selfDuel(seed, i % 2 === 0);
+    if (result === "live") liveWins += 1;
+    else if (result === "saved") savedWins += 1;
+  }
+  model.challengerWins = liveWins;
+  model.savedWins = savedWins;
+  model.checkGames = games;
+  model.examHistory = [...(model.examHistory ?? []), { live: liveWins / games, champion: savedWins / games }].slice(-12);
+  if (liveWins > savedWins) {
+    model.champion = snapshotWeights();
+    model.promotions += 1;
   }
 }
 
@@ -658,74 +615,50 @@ function thinSamples(rows: number[][], cap = 18): number[][] {
 }
 
 /**
- * One match. Each seat is the neural network or the search AI.
- * The two seats swap who goes first every game.
- * Every seat's positions are labeled by who won the game, so the network
- * learns the value of the board after real cards and Sequence abilities resolve.
- * NN-versus-AI results are stored on the model.
+ * Self-play. Both seats are this network. Fifteen percent of actions are a random
+ * legal move, so it tries cards and abilities it would otherwise skip. Who won
+ * labels the positions. Every 16 games the training network plays the saved player
+ * with no exploration, and takes that seat only when it wins more games.
  */
-export async function runTrainerMatch(
-  games: number,
-  seatA: SeatController,
-  seatB: SeatController,
-  onProgress?: (done: number, total: number) => void,
-) {
+export async function runTrainerMatch(games: number, onProgress?: (done: number, total: number) => void) {
   hydrateLearner();
   const total = Math.max(1, Math.min(1024, Math.floor(games)));
   for (let g = 0; g < total; g++) {
     const seed = (Math.floor(Math.random() * 1_000_000_000) + g * 13 + 1) >>> 0;
     const state = openDuel(seed || 1);
-    const kinds: [SeatController, SeatController] = g % 2 === 0 ? [seatA, seatB] : [seatB, seatA];
-    const byId = new Map<string, SeatController>();
-    state.players.forEach((p, i) => byId.set(p.id, kinds[i]!));
     const taken = new Map<string, number[][]>();
-    const bothAi = seatA === "ai" && seatB === "ai";
-    const explore = Math.max(0.06, 0.2 * Math.exp(-(model.played + model.watched) / 160));
     let guard = 0;
     while ((state.phase as string) !== "gameover" && guard < 240) {
       const seat = currentPlayer(state);
       const choices = legalChoices(state);
+      const before = liteBoard(state);
       if (!choices.length) {
         endTurn(state, getRng(state));
+        noteAction(state, before);
         guard += 1;
         continue;
       }
-      const kind = byId.get(seat.id) ?? "ai";
-      const before = liteBoard(state);
-      let applied = false;
-      if (kind === "nn") {
-        const choice = pickByValue(state, choices, explore);
-        if (choice && choice.apply(state)) applied = true;
-      } else {
-        const best = searchChoice(state, choices);
-        if (best.apply(state)) applied = true;
-      }
-      if (!applied) endTurn(state, getRng(state));
+      const choice = pickByValue(state, choices, TRAIN_EXPLORE);
+      if (!choice || !choice.apply(state)) endTurn(state, getRng(state));
       noteAction(state, before);
       const rows = taken.get(seat.id) ?? [];
       rows.push(positionVector(state, seat.id));
       taken.set(seat.id, rows);
       guard += 1;
     }
-    noteHeadToHead(state, kinds);
     const winner = state.winnerId;
     for (const [seatId, rows] of taken) {
       const outcome = winner ? (winner === seatId ? 1 : 0) : 0.5;
-      if (byId.get(seatId) === "nn") {
-        if (outcome === 1) model.wins += 1;
-        else model.losses += 1;
-      }
       const kept = thinSamples(rows);
       const targets = tdTargets(kept, outcome);
-      const rate = model.played + model.watched < 48 ? 0.006 : 0.002;
+      const rate = model.played < 48 ? 0.006 : 0.002;
       for (let i = 0; i < kept.length; i++) {
         remember(kept[i]!, targets[i]!);
         learnValue(kept[i]!, targets[i]!, rate);
       }
     }
     rehearse();
-    if (bothAi) model.watched += 1;
-    else model.played += 1;
+    model.played += 1;
     if ((g + 1) % 16 === 0 || (g + 1 === total && total % 16 !== 0)) considerChampion();
     onProgress?.(g + 1, total);
     if ((g + 1) % 8 === 0) saveLearnerLocal();

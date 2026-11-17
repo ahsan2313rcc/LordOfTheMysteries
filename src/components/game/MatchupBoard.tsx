@@ -527,8 +527,8 @@ function SeatPick({
         disabled={disabled}
         onChange={(e) => onChange(e.target.value as SeatController)}
       >
-        <option value="ai">AI</option>
-        <option value="nn">NN</option>
+        <option value="ai">Search</option>
+        <option value="nn">Network</option>
       </select>
     </label>
   );
