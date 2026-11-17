@@ -1,6 +1,13 @@
 "use client";
 
+import { useState } from "react";
+import { PATHWAYS, curveLabel, pathwayCurve } from "@/game/pathways";
+import { ArcanaGlossary, CardGlossary } from "./Glossary";
+
+type Page = "rules" | "cards" | "arcana";
+
 export function RulesView({ onBack }: { onBack: () => void }) {
+  const [page, setPage] = useState<Page>("rules");
   return (
     <main className="relative min-h-screen px-4 py-10">
       <div className="fog-layer opacity-50" aria-hidden />
@@ -9,21 +16,50 @@ export function RulesView({ onBack }: { onBack: () => void }) {
           ← Back
         </button>
         <header>
-          <h1 className="font-[family-name:var(--font-display)] text-4xl text-amber-100">Rules</h1>
+          <h1 className="font-[family-name:var(--font-display)] text-4xl text-amber-100">Rulebook</h1>
           <p className="mt-2 text-sm leading-relaxed text-stone-400">
             A free-for-all of potions, Spirituality, and Sanity. Two players or four. Last mind
             standing wins, unless someone drinks their way to Sequence 0.
           </p>
         </header>
-
+        <div className="flex flex-wrap gap-2">
+          {(
+            [
+              ["rules", "Rules"],
+              ["cards", "Cards"],
+              ["arcana", "Arcana"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={page === id}
+              onClick={() => setPage(id)}
+              className={
+                page === id
+                  ? "rounded-full border border-amber-500 bg-amber-950/50 px-3 py-1 text-sm text-amber-100"
+                  : "rounded-full border border-stone-700 px-3 py-1 text-sm text-stone-400"
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {page === "cards" && <CardGlossary />}
+        {page === "arcana" && <ArcanaGlossary />}
+        {page === "rules" && (
+          <>
         <section className="space-y-2">
           <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-200">How you win</h2>
           <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
             <li>
-              <strong className="text-stone-100">Last Standing.</strong> Reduce every other player to 0 HP.
+              <strong className="text-stone-100">Last Standing.</strong> Reduce every other contender to 0 HP.
             </li>
             <li>
               <strong className="text-stone-100">Apotheosis.</strong> Drink the Sequence 0 potion. That player wins immediately.
+            </li>
+            <li>
+              <strong className="text-stone-100">Madness.</strong> If every living player is lost to Sanity, nobody wins.
             </li>
           </ul>
         </section>
@@ -107,13 +143,9 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             Spirituality at the start of your turn — 1 at Sequence 9–8, then 2, 3, 4, and 5 as you
             descend — and replaces your ability with a stronger one. From Sequence 6 down, the body
             knits 1 HP at the start of your turn, so a climber is harder to finish than a Sequence 9.
-            Drinking the potion also draws a card. Late-leaning pathways draw again when they cast
-            from Sequence 6 down. Sequence 0 is still Apotheosis. Eight pathways are built to win the
-            early fight and then taper: the Sun, the Tyrant, Twilight Giant, the Demoness, the Chained,
-            the Abyss, the Red Priest, and the Hanged Man. Eleven are quiet at Sequence 9–7 and stronger
-            from Sequence 6 down, where they draw and press Sanity: the Mother, the Visionary, Wheel of
-            Fortune, the Fool, the Door, the Hermit, the Death, the Darkness, the Moon, the Paragon, and
-            the Error. The White Tower, the Justiciar, and the Black Emperor stay even across the climb.
+            Drinking the potion also draws a card. A late-peak pathway draws 1 more when it casts at
+            Sequence 6 or lower. A mid-peak pathway draws 1 more when it casts at Sequence 6–4.
+            Sequence 0 is Apotheosis. <PeakList />
           </p>
         </section>
 
@@ -162,7 +194,19 @@ export function RulesView({ onBack }: { onBack: () => void }) {
             </li>
           </ul>
         </section>
+          </>
+        )}
       </article>
     </main>
   );
+}
+
+function PeakList() {
+  const bands = (["early", "mid", "late", "even"] as const).map((band) => {
+    const names = PATHWAYS.filter((pathway) => pathwayCurve(pathway.id) === band)
+      .sort((a, b) => Number(a.arcana) - Number(b.arcana))
+      .map((pathway) => pathway.name);
+    return `${curveLabel(band)}: ${names.join(", ")}.`;
+  });
+  return <span>{bands.join(" ")}</span>;
 }

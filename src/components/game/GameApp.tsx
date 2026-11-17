@@ -245,7 +245,7 @@ export function GameApp() {
               AI Simulator
             </Button>
             <Button size="lg" variant="outline" onClick={() => setScreen("rules")}>
-              Rules
+              Rulebook
             </Button>
             <Button
               size="lg"
@@ -393,7 +393,7 @@ export function GameApp() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" onClick={() => setScreen("rules")}>
-            Rules
+            Rulebook
           </Button>
           <Button variant="outline" size="sm" onClick={() => setScreen("setup")}>
             New Game
