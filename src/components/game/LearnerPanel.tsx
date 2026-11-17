@@ -77,13 +77,15 @@ export function LearnerPanel() {
       <div className="max-w-3xl">
         <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-100">Learner</h2>
         <p className="mt-1 text-sm text-stone-400">
-          A small network reads the position it is allowed to see: its own hand and board, the
-          enemy board, revealed cards, enemy hand size, and how many cards are left in the deck and
-          discard. Each run keeps training the network already stored in this browser. The watched
-          and played totals add to the previous run. Erase is the only control that throws those
-          weights away and starts from a new network. Each seat is the neural network or the search
-          AI. Two search AIs are watched and imitated. A network seat learns from the games it wins
-          and loses. More games make it sharper. It does not start out solved.
+          The network scores a position: its own cards by name, the Sequence ability it can cast
+          right now, the enemy board, and the public numbers. To choose a move it tries each legal
+          action under the real rules and keeps the one that leaves the better position, so it sees
+          what that card or ability actually did. It learns from who won the game, and each new run
+          keeps training the network stored in this browser. A fresh network has not seen a game,
+          so it declines to act and loses to the search AI. An older saved network is left unused,
+          because it could not tell one card or one Sequence ability from another. Erase is the only
+          control that throws the current weights away. Each seat is the neural network or the
+          search AI. More games make it sharper. It does not start out solved.
         </p>
       </div>
 
@@ -147,15 +149,20 @@ export function LearnerPanel() {
       <div>
         <h3 className="text-sm text-amber-100">NN vs AI</h3>
         <p className="mt-1 text-xs text-stone-500">
-          These four numbers count only matches with one neural network and one search AI. Who goes
-          first swaps every game. A game with no winner sits in Draws.
+          These numbers count only matches with one neural network and one search AI. Who goes
+          first swaps every game. A game with no winner sits in Draws. The total win rate keeps
+          every earlier game. Recent is the last 32 mixed games, which is the network as it plays now.
         </p>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="NN wins" value={String(stats.nnWins)} />
         <Stat label="AI wins" value={String(stats.aiWins)} />
         <Stat label="Draws" value={String(stats.draws)} />
         <Stat label="NN win rate" value={decided ? `${Math.round(stats.nnWinRate * 100)}%` : "—"} />
+        <Stat
+          label="Recent NN win rate"
+          value={stats.recentNn + stats.recentAi > 0 ? `${Math.round(stats.recentNnWinRate * 100)}%` : "—"}
+        />
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
         <Stat label="NN vs AI matches" value={String(stats.headToHead)} />
@@ -178,7 +185,9 @@ export function LearnerPanel() {
         A match can be 1 to 1024 games, and the next match starts from those same weights. Save
         writes that network into this browser and downloads a JSON file you can keep. Erase drops
         that browser copy, including the NN vs AI record, and resets the network. A fresh page
-        loads the saved weights again until you erase them.
+        loads the saved weights again until you erase them.         A fresh network declines to act, so the search AI takes those games. Recent win rate is
+        the last 32 mixed games. The total keeps the early losses, so it lags behind the network
+        you have now.
       </p>
     </section>
   );
