@@ -19,7 +19,7 @@ import {
   playCardFromHand,
   sacrificeRequiem,
 } from "@/game/engine";
-import { abilitySanityCost, curveLabel, getSequence, INGREDIENT_NAMES, PATHWAYS, pathwayCurve } from "@/game/pathways";
+import { abilitySanityCost, curveLabel, getSequence, ingredientMark, PATHWAYS, pathwayCurve } from "@/game/pathways";
 import type { GameState } from "@/game/types";
 import { cn } from "@/lib/utils";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -469,7 +469,7 @@ export function GameApp() {
                   Potion → Seq {human.sequence - 1} {nextSeq.title}
                 </p>
                 <p className="mt-1 text-[0.65rem] text-stone-400">
-                  {nextSeq.recipe.map((r) => INGREDIENT_NAMES[r]).join(", ") || "No ingredients"}. Cards in hand
+                  {nextSeq.recipe.map((r) => ingredientMark(r)).join(", ") || "No ingredients"}. Cards in hand
                   and on your gear both count. Shown cards cannot pay the next potion.
                 </p>
                 {humanActing.ready && (

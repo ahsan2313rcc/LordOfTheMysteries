@@ -1,5 +1,5 @@
 import { getCardDef } from "./cards";
-import { getSequence, INGREDIENT_NAMES } from "./pathways";
+import { getSequence, ingredientMark } from "./pathways";
 import type { CardInstance, Ingredient, PlayerState } from "./types";
 
 /** Hand plus equipment. Gear is listed first so a potion spends cards already committed to a slot. */
@@ -56,7 +56,7 @@ export function matchRecipe(player: PlayerState): RecipeMatch | null {
     universalUsed,
     canPay: remaining.length === 0,
     toll: 0,
-    missingLabels: remaining.map((r) => INGREDIENT_NAMES[r] ?? r),
+    missingLabels: remaining.map((r) => ingredientMark(r)),
   };
 }
 

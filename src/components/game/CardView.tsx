@@ -1,7 +1,7 @@
 "use client";
 
-import { getCardDef, tarotFace } from "@/game/cards";
-import { INGREDIENT_NAMES } from "@/game/pathways";
+import { getCardDef, tarotFace, TYPE_SYMBOL } from "@/game/cards";
+import { INGREDIENT_SYMBOL, ingredientMark } from "@/game/pathways";
 import type { CardInstance } from "@/game/types";
 import { cn } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ export function CardView({
 
   const def = getCardDef(card.defId);
   const face = tarotFace(def.id);
-  const arcanaLabel = face.kind === "major" ? `${face.number} ${face.name}` : face.name;
+  const typeLabel = `${TYPE_SYMBOL[def.type]} ${def.type}`;
   return (
     <button
       type="button"
@@ -91,19 +91,35 @@ export function CardView({
         </span>
       </div>
       <p className="mt-0.5 text-[0.55rem] uppercase tracking-wider text-stone-400">
-        {def.rarity} · {def.type}
+        {def.rarity} · {typeLabel}
       </p>
-      <p className={cn("text-amber-200/80", compact ? "text-[0.5rem]" : "text-[0.58rem]")}>{arcanaLabel}</p>
+      <p className={cn("text-amber-200/80", compact ? "text-[0.5rem]" : "text-[0.58rem]")} title={face.name}>
+        {face.mark}
+        {face.kind === "major" ? ` ${face.name}` : ""}
+      </p>
       {!compact && (
         <>
           <p className="mt-2 text-[0.68rem] leading-snug text-stone-200/90">{def.text}</p>
           <p className="mt-auto pt-2 text-[0.5rem] leading-snug text-stone-500">
-            {def.ingredients.map((i) => INGREDIENT_NAMES[i] ?? i).join(" · ")}
+            {def.ingredients.map((tag) => (
+              <span key={tag} title={ingredientMark(tag)} className="mr-1">
+                {INGREDIENT_SYMBOL[tag] ?? "·"}
+              </span>
+            ))}
           </p>
         </>
       )}
       {compact && (
-        <p className="mt-1 text-[0.55rem] leading-snug text-stone-400">{def.text}</p>
+        <>
+          <p className="mt-1 text-[0.55rem] leading-snug text-stone-400">{def.text}</p>
+          <p className="mt-1 text-[0.55rem] leading-none text-stone-500">
+            {def.ingredients.map((tag) => (
+              <span key={tag} title={ingredientMark(tag)} className="mr-0.5">
+                {INGREDIENT_SYMBOL[tag] ?? "·"}
+              </span>
+            ))}
+          </p>
+        </>
       )}
       {card.revealed && (
         <p className="mt-1 text-[0.5rem] uppercase tracking-wider text-amber-300/90">Shown</p>

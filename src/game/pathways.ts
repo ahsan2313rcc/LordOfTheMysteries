@@ -1564,6 +1564,25 @@ export const INGREDIENT_NAMES: Record<string, string> = {
   R2: "Divine Spark",
 };
 
+export const INGREDIENT_SYMBOL: Record<string, string> = {
+  C1: "☀",
+  C2: "🌿",
+  C3: "💎",
+  C4: "🌊",
+  C5: "💨",
+  C6: "🩸",
+  C7: "🌻",
+  C8: "🫧",
+  R1: "◉",
+  R2: "⚡",
+};
+
+export function ingredientMark(tag: string): string {
+  const symbol = INGREDIENT_SYMBOL[tag] ?? "·";
+  const name = INGREDIENT_NAMES[tag] ?? tag;
+  return `${symbol} ${name}`;
+}
+
 export function getPathway(id: string): PathwayDef {
   const p = PATHWAYS.find((x) => x.id === id);
   if (!p) throw new Error(`Unknown pathway ${id}`);

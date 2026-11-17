@@ -1,6 +1,6 @@
 import { writeFileSync } from "node:fs";
-import { CARD_DEFS } from "../src/game/cards";
-import { INGREDIENT_NAMES, PATHWAYS, abilitySanityCost, curveLabel, pathwayCurve } from "../src/game/pathways";
+import { CARD_DEFS, MAJOR_SYMBOL, SUIT_SYMBOL, TYPE_SYMBOL, tarotFace } from "../src/game/cards";
+import { INGREDIENT_SYMBOL, PATHWAYS, abilitySanityCost, curveLabel, ingredientMark, pathwayCurve } from "../src/game/pathways";
 import type { CardType, Ingredient } from "../src/game/types";
 
 const TYPE_ORDER: CardType[] = ["weapon", "spell", "utility", "charm", "trap", "artifact"];
@@ -15,7 +15,7 @@ const TYPE_LABEL: Record<CardType, string> = {
 
 function ingredients(tags: Ingredient[]): string {
   if (!tags.length) return "None";
-  return tags.map((tag) => INGREDIENT_NAMES[tag] ?? tag).join(", ");
+  return tags.map((tag) => ingredientMark(tag)).join(", ");
 }
 
 const lines: string[] = [];
@@ -71,7 +71,11 @@ push("Off unless you check it when you deal. Everyone starts concealed. Playing 
 push();
 push("## Ingredients");
 push();
-for (const [tag, name] of Object.entries(INGREDIENT_NAMES)) push(`- ${name} (${tag})`);
+for (const [tag, symbol] of Object.entries(INGREDIENT_SYMBOL)) push(`- ${ingredientMark(tag)} (${tag}, ${symbol})`);
+push();
+push(`Suits: ${Object.entries(SUIT_SYMBOL).map(([name, symbol]) => `${symbol} ${name}`).join(", ")}. Major: ${MAJOR_SYMBOL}.`);
+push();
+push(`Card types: ${Object.entries(TYPE_SYMBOL).map(([name, symbol]) => `${symbol} ${name}`).join(", ")}.`);
 push();
 push("## Cards");
 push();
@@ -80,9 +84,12 @@ for (const kind of TYPE_ORDER) {
   push(`### ${TYPE_LABEL[kind]}`);
   push();
   for (const card of group) {
-    push(`#### ${card.name}`);
+    const face = tarotFace(card.id);
+    push(`#### ${TYPE_SYMBOL[card.type]} ${card.name}`);
     push();
-    push(`${card.rarity}, ${card.spCost} Spirituality. Ingredients: ${ingredients(card.ingredients)}.`);
+    push(
+      `${face.mark}${face.kind === "major" ? ` ${face.name}` : ""}. ${card.rarity}, ${card.spCost} Spirituality. Ingredients: ${ingredients(card.ingredients)}.`,
+    );
     push();
     push(card.text);
     push();

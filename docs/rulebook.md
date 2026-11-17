@@ -44,496 +44,500 @@ Off unless you check it when you deal. Everyone starts concealed. Playing a rare
 
 ## Ingredients
 
-- Spirit Gold (C1)
-- Nightmare Grass (C2)
-- Astral Crystal (C3)
-- Deep Sea Amber (C4)
-- Wraith Dust (C5)
-- Corrupted Blood (C6)
-- Radiant Sunflower (C7)
-- Abyss Sludge (C8)
-- Transcendent Core (R1)
-- Divine Spark (R2)
+- ☀ Spirit Gold (C1, ☀)
+- 🌿 Nightmare Grass (C2, 🌿)
+- 💎 Astral Crystal (C3, 💎)
+- 🌊 Deep Sea Amber (C4, 🌊)
+- 💨 Wraith Dust (C5, 💨)
+- 🩸 Corrupted Blood (C6, 🩸)
+- 🌻 Radiant Sunflower (C7, 🌻)
+- 🫧 Abyss Sludge (C8, 🫧)
+- ◉ Transcendent Core (R1, ◉)
+- ⚡ Divine Spark (R2, ⚡)
+
+Suits: 🪄 Wands, 🏆 Cups, ⚔ Swords, 🪙 Pentacles. Major: ✶.
+
+Card types: 🗡 weapon, ✨ spell, 🧪 utility, 📜 charm, 🕸 trap, 🔮 artifact.
 
 ## Cards
 
 ### Weapons
 
-#### Assassin's Blade
+#### 🗡 Assassin's Blade
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Radiant Sunflower.
+6 🪄. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🌻 Radiant Sunflower.
 
 Melee +1 (+2 if target has 0 Block).
 
-#### Azik's Copper Whistle
+#### 🗡 Azik's Copper Whistle
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Corrupted Blood.
+5 🪄. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🩸 Corrupted Blood.
 
 Melee +2. Owner loses 1 Sanity on use.
 
-#### Creeping Hunger
+#### 🗡 Creeping Hunger
 
-rare, 4 Spirituality. Ingredients: Nightmare Grass, Nightmare Grass, Transcendent Core.
+2 ✶ The High Priestess. rare, 4 Spirituality. Ingredients: 🌿 Nightmare Grass, 🌿 Nightmare Grass, ◉ Transcendent Core.
 
 Melee +2. Heal 1 on hit.
 
-#### Death Knell Musket
+#### 🗡 Death Knell Musket
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Astral Crystal.
+8 🪄. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 💎 Astral Crystal.
 
 Ranged +1 Unblockable/Unevadable. Costs 1 SP to swing.
 
-#### Demon Hunter's Crossbow
+#### 🗡 Demon Hunter's Crossbow
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Deep Sea Amber.
+3 🪄. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🌊 Deep Sea Amber.
 
 Ranged +1. Ignores 1 Block.
 
-#### Executioner's Axe
+#### 🗡 Executioner's Axe
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Wraith Dust.
+4 🪄. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 💨 Wraith Dust.
 
 Melee +2. Owner loses 1 HP on use.
 
-#### Poisoned Revolver
+#### 🗡 Poisoned Revolver
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Nightmare Grass.
+Ace 🪄. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🌿 Nightmare Grass.
 
 Ranged +1. Ignores Traps.
 
-#### Purifying Broadsword
+#### 🗡 Purifying Broadsword
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Astral Crystal.
+2 🪄. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 💎 Astral Crystal.
 
 Melee +1. Unblockable.
 
-#### Slumbering Blade
+#### 🗡 Slumbering Blade
 
-rare, 4 Spirituality. Ingredients: Spirit Gold, Spirit Gold, Transcendent Core.
+0 ✶ The Fool. rare, 4 Spirituality. Ingredients: ☀ Spirit Gold, ☀ Spirit Gold, ◉ Transcendent Core.
 
 Melee +2. On hit, target discards 1.
 
-#### Staff of the Stars
+#### 🗡 Staff of the Stars
 
-rare, 4 Spirituality. Ingredients: Spirit Gold, Spirit Gold, Divine Spark.
+1 ✶ The Magician. rare, 4 Spirituality. Ingredients: ☀ Spirit Gold, ☀ Spirit Gold, ⚡ Divine Spark.
 
 Ranged +2 Sanity damage.
 
-#### Sword of Silver
+#### 🗡 Sword of Silver
 
-rare, 4 Spirituality. Ingredients: Nightmare Grass, Nightmare Grass, Divine Spark.
+3 ✶ The Empress. rare, 4 Spirituality. Ingredients: 🌿 Nightmare Grass, 🌿 Nightmare Grass, ⚡ Divine Spark.
 
 Melee +2. Gain 1 Block every Begin Phase while equipped.
 
-#### Unshadowed Spear
+#### 🗡 Unshadowed Spear
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Abyss Sludge.
+7 🪄. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🫧 Abyss Sludge.
 
 Melee +1. On hit, reveal target's Trap.
 
 ### Spells
 
-#### Astrology
+#### ✨ Astrology
 
-common, 1 Spirituality. Ingredients: Wraith Dust, Corrupted Blood.
+9 🏆. common, 1 Spirituality. Ingredients: 💨 Wraith Dust, 🩸 Corrupted Blood.
 
 Look at opponent's hand, force discard 1, and deal 2 Sanity.
 
-#### Bribe
+#### ✨ Bribe
 
-common, 1 Spirituality. Ingredients: Deep Sea Amber, Abyss Sludge.
+8 🏆. common, 1 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 Steal a common Weapon or Charm they have equipped. A Weapon is taken first. Rare pieces stay put.
 
-#### Crimson Moon
+#### ✨ Crimson Moon
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Radiant Sunflower.
+3 🏆. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🌻 Radiant Sunflower.
 
 1 Sanity damage; target discards 1.
 
-#### Error's Theft
+#### ✨ Error's Theft
 
-rare, 4 Spirituality. Ingredients: Astral Crystal, Astral Crystal, Divine Spark.
+5 ✶ The Hierophant. rare, 4 Spirituality. Ingredients: 💎 Astral Crystal, 💎 Astral Crystal, ⚡ Divine Spark.
 
 Steal their best equipped piece into your hand: rare Weapon, then Artifact, then rare Charm, then a common piece.
 
-#### Flaming Spear
+#### ✨ Flaming Spear
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Deep Sea Amber.
+9 🪄. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🌊 Deep Sea Amber.
 
 Deal 2 damage (3 if target has 0 SP).
 
-#### Frost Armor
+#### ✨ Frost Armor
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Wraith Dust.
+10 🪄. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 💨 Wraith Dust.
 
 Gain 2 Block. Adjacent opponents take 1.
 
-#### Hurricane of Light
+#### ✨ Hurricane of Light
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Abyss Sludge.
+4 🏆. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🫧 Abyss Sludge.
 
 1 Unblockable to two different targets.
 
-#### Lightning Storm
+#### ✨ Lightning Storm
 
-rare, 4 Spirituality. Ingredients: Astral Crystal, Astral Crystal, Transcendent Core.
+4 ✶ The Emperor. rare, 4 Spirituality. Ingredients: 💎 Astral Crystal, 💎 Astral Crystal, ◉ Transcendent Core.
 
 Destroy all Weapons and Charms. You lose 2 HP.
 
-#### Mental Piercing
+#### ✨ Mental Piercing
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Corrupted Blood.
+Page 🪄. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🩸 Corrupted Blood.
 
 Deal 2 Sanity. If their Sanity < yours, peek their hand.
 
-#### Ritual of Unmaking
+#### ✨ Ritual of Unmaking
 
-common, 1 Spirituality. Ingredients: Deep Sea Amber, Wraith Dust.
+5 🏆. common, 1 Spirituality. Ingredients: 🌊 Deep Sea Amber, 💨 Wraith Dust.
 
 Destroy target's Charm; they lose 1 SP.
 
-#### Rust & Ruin
+#### ✨ Rust & Ruin
 
-common, 1 Spirituality. Ingredients: Wraith Dust, Radiant Sunflower.
+10 🏆. common, 1 Spirituality. Ingredients: 💨 Wraith Dust, 🌻 Radiant Sunflower.
 
 Target's Weapon deals 0 until your next Begin.
 
-#### Scribe's Mimicry
+#### ✨ Scribe's Mimicry
 
-rare, 4 Spirituality. Ingredients: Deep Sea Amber, Deep Sea Amber, Divine Spark.
+7 ✶ The Chariot. rare, 4 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🌊 Deep Sea Amber, ⚡ Divine Spark.
 
 Replay the last Spell in discard for 0 SP.
 
-#### Spirit Bullet
+#### ✨ Spirit Bullet
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Abyss Sludge.
+Queen 🪄. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🫧 Abyss Sludge.
 
 Target loses 3 SP. At 0 SP, no passive SP next Begin.
 
-#### Spirit Entanglement
+#### ✨ Spirit Entanglement
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Corrupted Blood.
+2 🏆. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🩸 Corrupted Blood.
 
 Deal 2. Until your next turn, half the damage you take (round up) hits the target too.
 
-#### Spirit World Guide
+#### ✨ Spirit World Guide
 
-common, 1 Spirituality. Ingredients: Deep Sea Amber, Corrupted Blood.
+6 🏆. common, 1 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🩸 Corrupted Blood.
 
 Give an opponent your least useful card and take their best card.
 
-#### Steal Thoughts
+#### ✨ Steal Thoughts
 
-rare, 4 Spirituality. Ingredients: Deep Sea Amber, Deep Sea Amber, Transcendent Core.
+6 ✶ The Lovers. rare, 4 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🌊 Deep Sea Amber, ◉ Transcendent Core.
 
 Swap entire hands with a target.
 
-#### Summon from the Void
+#### ✨ Summon from the Void
 
-common, 1 Spirituality. Ingredients: Deep Sea Amber, Radiant Sunflower.
+7 🏆. common, 1 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🌻 Radiant Sunflower.
 
 Draw from discard equal to players; give 1 to each.
 
-#### Vampiric Regeneration
+#### ✨ Vampiric Regeneration
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Radiant Sunflower.
+Knight 🪄. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🌻 Radiant Sunflower.
 
 Steal 2 HP from a target.
 
-#### Wind Blade
+#### ✨ Wind Blade
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Deep Sea Amber.
+King 🪄. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🌊 Deep Sea Amber.
 
 Return target's Weapon or Charm to the top of their deck.
 
-#### Wraith's Shriek
+#### ✨ Wraith's Shriek
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Wraith Dust.
+Ace 🏆. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 💨 Wraith Dust.
 
 Target −1 Attack and −1 Block until your next Begin.
 
 ### Utilities
 
-#### Aegis of the Mind
+#### 🧪 Aegis of the Mind
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Corrupted Blood.
+5 ⚔. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🩸 Corrupted Blood.
 
 Gain 2 Block (HP or Sanity — choose via targeting self).
 
-#### Alchemist's Exchange
+#### 🧪 Alchemist's Exchange
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Deep Sea Amber.
+9 ⚔. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🌊 Deep Sea Amber.
 
 Discard 2; draw 3.
 
-#### Apothecary's Salve
+#### 🧪 Apothecary's Salve
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Deep Sea Amber.
+3 ⚔. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🌊 Deep Sea Amber.
 
 Heal 2 HP; target gains 1 Block.
 
-#### Blood Sacrifice
+#### 🧪 Blood Sacrifice
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Corrupted Blood.
+Page ⚔. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🩸 Corrupted Blood.
 
 Lose 1 HP; gain 3 SP.
 
-#### Clockhand Manipulation
+#### 🧪 Clockhand Manipulation
 
-rare, 4 Spirituality. Ingredients: Wraith Dust, Wraith Dust, Divine Spark.
+9 ✶ The Hermit. rare, 4 Spirituality. Ingredients: 💨 Wraith Dust, 💨 Wraith Dust, ⚡ Divine Spark.
 
 Gain 2 SP; take 1 extra Standard Action.
 
-#### Decipher Hermes
+#### 🧪 Decipher Hermes
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Nightmare Grass.
+Ace ⚔. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🌿 Nightmare Grass.
 
 Draw 2. If you have <2 SP, gain 1 SP.
 
-#### Deep Scavenge
+#### 🧪 Deep Scavenge
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Abyss Sludge.
+7 ⚔. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🫧 Abyss Sludge.
 
 Look at top 3 of the discard; keep 2, rest on top of the deck.
 
-#### Divination
+#### 🧪 Divination
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Astral Crystal.
+8 ⚔. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 💎 Astral Crystal.
 
 Look at top 3 of deck, rearrange, draw 1.
 
-#### Dreamwalker
+#### 🧪 Dreamwalker
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Radiant Sunflower.
+6 ⚔. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 🌻 Radiant Sunflower.
 
 Look at top 4; put 1 in hand, rest on bottom.
 
-#### Grave Robbing
+#### 🧪 Grave Robbing
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Astral Crystal.
+2 ⚔. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 💎 Astral Crystal.
 
 Draw top of discard. Gain 1 SP.
 
-#### Herb Satchel
+#### 🧪 Herb Satchel
 
-common, 1 Spirituality. Ingredients: Radiant Sunflower, Abyss Sludge.
+King 🏆. common, 1 Spirituality. Ingredients: 🌻 Radiant Sunflower, 🫧 Abyss Sludge.
 
 Draw 1 and gain 1 Block.
 
-#### Historical Projection
+#### 🧪 Historical Projection
 
-rare, 4 Spirituality. Ingredients: Wraith Dust, Wraith Dust, Transcendent Core.
+8 ✶ Strength. rare, 4 Spirituality. Ingredients: 💨 Wraith Dust, 💨 Wraith Dust, ◉ Transcendent Core.
 
 Equip any Weapon or Charm from discard for 0 SP.
 
-#### Holy Light Shield
+#### 🧪 Holy Light Shield
 
-common, 1 Spirituality. Ingredients: Corrupted Blood, Abyss Sludge.
+Queen 🏆. common, 1 Spirituality. Ingredients: 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 Gain 3 Block, heal 1 HP.
 
-#### Item Refinement
+#### 🧪 Item Refinement
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Radiant Sunflower.
+Knight ⚔. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🌻 Radiant Sunflower.
 
 Sacrifice your Weapon or a Charm: draw 2, gain 1 SP.
 
-#### Miracle Invoker's Wish
+#### 🧪 Miracle Invoker's Wish
 
-rare, 4 Spirituality. Ingredients: Corrupted Blood, Corrupted Blood, Transcendent Core.
+10 ✶ Wheel of Fortune. rare, 4 Spirituality. Ingredients: 🩸 Corrupted Blood, 🩸 Corrupted Blood, ◉ Transcendent Core.
 
 Heal 3 HP and restore 3 Sanity.
 
-#### Paper Figurine
+#### 🧪 Paper Figurine
 
-common, 1 Spirituality. Ingredients: Corrupted Blood, Radiant Sunflower.
+Knight 🏆. common, 1 Spirituality. Ingredients: 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 Gain Evade, then draw 2.
 
-#### Psychiatrist's Placate
+#### 🧪 Psychiatrist's Placate
 
-common, 1 Spirituality. Ingredients: Spirit Gold, Wraith Dust.
+4 ⚔. common, 1 Spirituality. Ingredients: ☀ Spirit Gold, 💨 Wraith Dust.
 
 Restore 2 Sanity; target draws 1.
 
-#### Seer's Intuition
+#### 🧪 Seer's Intuition
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Wraith Dust.
+10 ⚔. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 💨 Wraith Dust.
 
 Reveal your hand; restore 2 Sanity.
 
-#### Sefirah Castle's Aura
+#### 🧪 Sefirah Castle's Aura
 
-rare, 4 Spirituality. Ingredients: Corrupted Blood, Corrupted Blood, Divine Spark.
+11 ✶ Justice. rare, 4 Spirituality. Ingredients: 🩸 Corrupted Blood, 🩸 Corrupted Blood, ⚡ Divine Spark.
 
 Search deck for any 2 cards; put in hand, shuffle.
 
-#### Shadow Hiding
+#### 🧪 Shadow Hiding
 
-common, 1 Spirituality. Ingredients: Wraith Dust, Abyss Sludge.
+Page 🏆. common, 1 Spirituality. Ingredients: 💨 Wraith Dust, 🫧 Abyss Sludge.
 
 Gain Evade and 2 Block. Your Attack is Unblockable this turn.
 
 ### Charms
 
-#### Black Emperor Armor
+#### 📜 Black Emperor Armor
 
-rare, 4 Spirituality. Ingredients: Abyss Sludge, Abyss Sludge, Transcendent Core.
+14 ✶ Temperance. rare, 4 Spirituality. Ingredients: 🫧 Abyss Sludge, 🫧 Abyss Sludge, ◉ Transcendent Core.
 
 +2 Block. Immune to Melee.
 
-#### Bloodburst Amulet
+#### 📜 Bloodburst Amulet
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Radiant Sunflower.
+3 🪙. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🌻 Radiant Sunflower.
 
 +1 Block. Thorns 1 when Block absorbs.
 
-#### Cogitation Technique
+#### 📜 Cogitation Technique
 
-rare, 4 Spirituality. Ingredients: Radiant Sunflower, Radiant Sunflower, Transcendent Core.
+12 ✶ The Hanged Man. rare, 4 Spirituality. Ingredients: 🌻 Radiant Sunflower, 🌻 Radiant Sunflower, ◉ Transcendent Core.
 
 +1 Sanity Block. The first time you would fall to 0 Sanity, remain at 1 instead.
 
-#### Evernight's Blessing
+#### 📜 Evernight's Blessing
 
-common, 1 Spirituality. Ingredients: Deep Sea Amber, Wraith Dust.
+5 🪙. common, 1 Spirituality. Ingredients: 🌊 Deep Sea Amber, 💨 Wraith Dust.
 
 +2 Block. Once per cycle, Evade 1 Attack.
 
-#### Paper Angel
+#### 📜 Paper Angel
 
-rare, 4 Spirituality. Ingredients: Radiant Sunflower, Radiant Sunflower, Divine Spark.
+13 ✶ Death. rare, 4 Spirituality. Ingredients: 🌻 Radiant Sunflower, 🌻 Radiant Sunflower, ⚡ Divine Spark.
 
 +2 Sanity Block. Restore 1 Sanity each Begin.
 
-#### Requiem Charm
+#### 📜 Requiem Charm
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Deep Sea Amber.
+King ⚔. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🌊 Deep Sea Amber.
 
 +2 Block. May destroy this to heal 3.
 
-#### Siphon Ring
+#### 📜 Siphon Ring
 
-rare, 4 Spirituality. Ingredients: Abyss Sludge, Abyss Sludge, Divine Spark.
+15 ✶ The Devil. rare, 4 Spirituality. Ingredients: 🫧 Abyss Sludge, 🫧 Abyss Sludge, ⚡ Divine Spark.
 
 +2 Block. Steal 1 SP when Block absorbs.
 
-#### Slumber Charm
+#### 📜 Slumber Charm
 
-common, 1 Spirituality. Ingredients: Nightmare Grass, Abyss Sludge.
+Queen ⚔. common, 1 Spirituality. Ingredients: 🌿 Nightmare Grass, 🫧 Abyss Sludge.
 
 +1 Block. Hand limit +2.
 
-#### Spectator's Monocle
+#### 📜 Spectator's Monocle
 
-common, 1 Spirituality. Ingredients: Deep Sea Amber, Corrupted Blood.
+6 🪙. common, 1 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🩸 Corrupted Blood.
 
 +1 Block, +1 Sanity Block. Weapon hits also deal 1 Sanity.
 
-#### Spirituality Ring
+#### 📜 Spirituality Ring
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Corrupted Blood.
+2 🪙. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🩸 Corrupted Blood.
 
 +1 Block. +1 SP each Begin.
 
-#### Sunbird Charm
+#### 📜 Sunbird Charm
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Abyss Sludge.
+4 🪙. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 🫧 Abyss Sludge.
 
 +1 Block. Evade Ranged attacks.
 
-#### Wind-Manipulation
+#### 📜 Wind-Manipulation
 
-common, 1 Spirituality. Ingredients: Astral Crystal, Wraith Dust.
+Ace 🪙. common, 1 Spirituality. Ingredients: 💎 Astral Crystal, 💨 Wraith Dust.
 
 +1 Block. Draw +1 each Draw Phase.
 
 ### Traps
 
-#### Concealment Boundary
+#### 🕸 Concealment Boundary
 
-common, 0 Spirituality. Ingredients: Radiant Sunflower, Abyss Sludge.
+King 🪙. common, 0 Spirituality. Ingredients: 🌻 Radiant Sunflower, 🫧 Abyss Sludge.
 
 On Spell/Utility: negate; 1 HP damage.
 
-#### Corrupted Whispers
+#### 🕸 Corrupted Whispers
 
-common, 0 Spirituality. Ingredients: Wraith Dust, Radiant Sunflower.
+10 🪙. common, 0 Spirituality. Ingredients: 💨 Wraith Dust, 🌻 Radiant Sunflower.
 
 On draw 2+: 2 Sanity damage.
 
-#### Distorted Space
+#### 🕸 Distorted Space
 
-common, 0 Spirituality. Ingredients: Corrupted Blood, Radiant Sunflower.
+Knight 🪙. common, 0 Spirituality. Ingredients: 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 On Evade: nullify; 1 Unblockable.
 
-#### Fate Siphon
+#### 🕸 Fate Siphon
 
-rare, 0 Spirituality. Ingredients: Astral Crystal, Deep Sea Amber, Transcendent Core.
+17 ✶ The Star. rare, 0 Spirituality. Ingredients: 💎 Astral Crystal, 🌊 Deep Sea Amber, ◉ Transcendent Core.
 
 On Ascension attempt: Ascension fails.
 
-#### Grafted Chains
+#### 🕸 Grafted Chains
 
-common, 0 Spirituality. Ingredients: Wraith Dust, Corrupted Blood.
+9 🪙. common, 0 Spirituality. Ingredients: 💨 Wraith Dust, 🩸 Corrupted Blood.
 
 On Equip: discard that card; −1 SP.
 
-#### Mind Prison
+#### 🕸 Mind Prison
 
-common, 0 Spirituality. Ingredients: Corrupted Blood, Abyss Sludge.
+Queen 🪙. common, 0 Spirituality. Ingredients: 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 On Attack: negate; attacker −1 Sanity.
 
-#### Paper Substitute
+#### 🕸 Paper Substitute
 
-rare, 0 Spirituality. Ingredients: Spirit Gold, Nightmare Grass, Transcendent Core.
+16 ✶ The Tower. rare, 0 Spirituality. Ingredients: ☀ Spirit Gold, 🌿 Nightmare Grass, ◉ Transcendent Core.
 
 On fatal: negate; remain at 1 HP.
 
-#### Parasitic Spores
+#### 🕸 Parasitic Spores
 
-common, 0 Spirituality. Ingredients: Wraith Dust, Abyss Sludge.
+Page 🪙. common, 0 Spirituality. Ingredients: 💨 Wraith Dust, 🫧 Abyss Sludge.
 
 On gain SP: steal 2 SP.
 
-#### Sefirah's Rejection
+#### 🕸 Sefirah's Rejection
 
-rare, 0 Spirituality. Ingredients: Wraith Dust, Corrupted Blood, Divine Spark.
+18 ✶ The Moon. rare, 0 Spirituality. Ingredients: 💨 Wraith Dust, 🩸 Corrupted Blood, ⚡ Divine Spark.
 
 On equip Rare: destroy it; 2 Unblockable.
 
-#### Shadow Snare
+#### 🕸 Shadow Snare
 
-common, 0 Spirituality. Ingredients: Deep Sea Amber, Radiant Sunflower.
+7 🪙. common, 0 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🌻 Radiant Sunflower.
 
 On Attack: Evade; attacker takes 1.
 
-#### Sun Flare
+#### 🕸 Sun Flare
 
-common, 0 Spirituality. Ingredients: Deep Sea Amber, Abyss Sludge.
+8 🪙. common, 0 Spirituality. Ingredients: 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 On Spell: Stun the caster.
 
-#### Time Loop
+#### 🕸 Time Loop
 
-rare, 0 Spirituality. Ingredients: Radiant Sunflower, Abyss Sludge, Divine Spark.
+19 ✶ The Sun. rare, 0 Spirituality. Ingredients: 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ⚡ Divine Spark.
 
 On End Turn: discard hand, draw 3.
 
 ### Artifacts
 
-#### Magic Wishing Lamp
+#### 🔮 Magic Wishing Lamp
 
-rare, 6 Spirituality. Ingredients: Divine Spark, Divine Spark.
+21 ✶ The World. rare, 6 Spirituality. Ingredients: ⚡ Divine Spark, ⚡ Divine Spark.
 
 Drawback: opponent draws 1. Power: Heal 2 / Sanity 2 / +3 SP.
 
-#### Mirror of Arrodes
+#### 🔮 Mirror of Arrodes
 
-rare, 6 Spirituality. Ingredients: Transcendent Core, Transcendent Core.
+20 ✶ Judgement. rare, 6 Spirituality. Ingredients: ◉ Transcendent Core, ◉ Transcendent Core.
 
 Drawback: −2 Sanity Begin. Power: seize a Weapon/Charm.
 
@@ -561,7 +565,7 @@ Gain Evade (counts as preparing defense). If you Evade this cycle, draw 1.
 
 Acting: Gain Evade/Block and deal damage this turn (Acrobatics + Attack).
 
-Recipe: Spirit Gold.
+Recipe: ☀ Spirit Gold.
 
 #### Sequence 7 — Magician
 
@@ -571,7 +575,7 @@ Gain Evade, draw 1, and count as a Spell/Ability play.
 
 Acting: Gain Evade and draw a card (Paper Figurine).
 
-Recipe: Nightmare Grass, Astral Crystal.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal.
 
 #### Sequence 6 — Faceless
 
@@ -581,7 +585,7 @@ Copy the effect of the top Common card in the discard pile.
 
 Acting: Copy or use an opponent-origin effect to deal damage.
 
-Recipe: Deep Sea Amber, Wraith Dust.
+Recipe: 🌊 Deep Sea Amber, 💨 Wraith Dust.
 
 #### Sequence 5 — Marionettist
 
@@ -591,7 +595,7 @@ Force an opponent to deal their base attack to a target you choose.
 
 Acting: Force an opponent to damage themselves or another.
 
-Recipe: Spirit Gold, Corrupted Blood, Radiant Sunflower.
+Recipe: ☀ Spirit Gold, 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 #### Sequence 4 — Bizarro Sorcerer
 
@@ -601,7 +605,7 @@ Immune to Sanity damage this cycle; all others lose 2 Sanity.
 
 Acting: Cause an opponent to enter Madness on your turn.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Abyss Sludge.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 #### Sequence 3 — Scholar of Yore
 
@@ -611,7 +615,7 @@ Pull any card from discard to hand; play it for 0 Actions.
 
 Acting: Play 3 cards that came from the discard pile.
 
-Recipe: Spirit Gold, Astral Crystal, Wraith Dust, Transcendent Core.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 💨 Wraith Dust, ◉ Transcendent Core.
 
 #### Sequence 2 — Miracle Invoker
 
@@ -621,7 +625,7 @@ Choose: Heal 10 HP, restore 10 Sanity, or deal 5 Unblockable.
 
 Acting: Spend 10+ SP in a single Action Phase.
 
-Recipe: Nightmare Grass, Corrupted Blood, Divine Spark, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 🩸 Corrupted Blood, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Attendant of Mysteries
 
@@ -631,7 +635,7 @@ Redirect the next fatal damage you would take to another player.
 
 Acting: Redirect a fatal attack meant for you.
 
-Recipe: Astral Crystal, Deep Sea Amber, Radiant Sunflower, Transcendent Core, Transcendent Core.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber, 🌻 Radiant Sunflower, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Fool
 
@@ -661,7 +665,7 @@ Steal 2 SP from an opponent (Fraud).
 
 Acting: Drain an opponent's SP or cards (Fraud).
 
-Recipe: Nightmare Grass.
+Recipe: 🌿 Nightmare Grass.
 
 #### Sequence 7 — Cryptologist
 
@@ -671,7 +675,7 @@ Reveal all face-down Traps and one opponent's hand.
 
 Acting: Reveal hidden info, then deal damage (Decrypt + Attack).
 
-Recipe: Spirit Gold, Deep Sea Amber.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber.
 
 #### Sequence 6 — Prometheus
 
@@ -681,7 +685,7 @@ Steal the next heal an opponent would gain (you heal instead).
 
 Acting: Steal HP or Sanity an opponent tried to gain.
 
-Recipe: Astral Crystal, Corrupted Blood.
+Recipe: 💎 Astral Crystal, 🩸 Corrupted Blood.
 
 #### Sequence 5 — Dream Stealer
 
@@ -691,7 +695,7 @@ Choose a card in an opponent's hand; they discard it and you may play it for fre
 
 Acting: Play 2 cards that originated from an opponent.
 
-Recipe: Nightmare Grass, Wraith Dust, Abyss Sludge.
+Recipe: 🌿 Nightmare Grass, 💨 Wraith Dust, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Parasite
 
@@ -701,7 +705,7 @@ Link to an opponent: half damage you take is shared with them this cycle.
 
 Acting: Survive taking 4+ damage by transferring some of it.
 
-Recipe: Spirit Gold, Astral Crystal, Radiant Sunflower.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 🌻 Radiant Sunflower.
 
 #### Sequence 3 — Mentor of Deceit
 
@@ -711,7 +715,7 @@ Ignore hand-size limit this turn; you may have 2 Traps.
 
 Acting: End turn with 8+ cards and 2 Traps active.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Corrupted Blood, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🩸 Corrupted Blood, ⚡ Divine Spark.
 
 #### Sequence 2 — Trojan Horse
 
@@ -721,7 +725,7 @@ Swap your HP or Sanity with an opponent's.
 
 Acting: Swap stats with someone who has 2× your HP or Sanity.
 
-Recipe: Spirit Gold, Wraith Dust, Transcendent Core, Transcendent Core.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Worm of Time
 
@@ -731,7 +735,7 @@ Take an extra turn after this one.
 
 Acting: Play 5+ cards from your hand this turn.
 
-Recipe: Corrupted Blood, Radiant Sunflower, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 🩸 Corrupted Blood, 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Error
 
@@ -761,7 +765,7 @@ Deal 5 HP and 2 Sanity.
 
 Acting: Deal damage with a Spell or Ability (Holy Light).
 
-Recipe: Astral Crystal.
+Recipe: 💎 Astral Crystal.
 
 #### Sequence 7 — Solar High Priest
 
@@ -771,7 +775,7 @@ Restore 5 Sanity and 4 HP to a target, then draw 1.
 
 Acting: Restore 3+ Sanity (Purification).
 
-Recipe: Wraith Dust, Corrupted Blood.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood.
 
 #### Sequence 6 — Notary
 
@@ -781,7 +785,7 @@ Negate the next Trap or Spell that targets you this cycle.
 
 Acting: Successfully negate a Trap or Spell.
 
-Recipe: Spirit Gold, Nightmare Grass.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass.
 
 #### Sequence 5 — Priest of Light
 
@@ -791,7 +795,7 @@ Deal 5 damage; +2 if the target is Mad.
 
 Acting: Deal damage to a Mad player.
 
-Recipe: Astral Crystal, Deep Sea Amber, Radiant Sunflower.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber, 🌻 Radiant Sunflower.
 
 #### Sequence 4 — Unshadowed
 
@@ -801,7 +805,7 @@ Destroy all Traps on the board.
 
 Acting: Strip 2+ Traps/buffs from the board.
 
-Recipe: Spirit Gold, Wraith Dust, Abyss Sludge.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust, 🫧 Abyss Sludge.
 
 #### Sequence 3 — Justice
 
@@ -811,7 +815,7 @@ Deal 3 if you were hurt this turn, or 2 otherwise.
 
 Acting: Reflect exact damage taken this turn.
 
-Recipe: Nightmare Grass, Corrupted Blood, Radiant Sunflower, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 🩸 Corrupted Blood, 🌻 Radiant Sunflower, ◉ Transcendent Core.
 
 #### Sequence 2 — Light Chaser
 
@@ -821,7 +825,7 @@ Deal 4 to all opponents and heal 4.
 
 Acting: Deal 6+ damage in one turn without a Weapon.
 
-Recipe: Astral Crystal, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 💎 Astral Crystal, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — White Angel
 
@@ -831,7 +835,7 @@ Restore one player's HP and Sanity to 20.
 
 Acting: End turn at exactly 20 HP, 20 Sanity, 0 cards.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Wraith Dust, Transcendent Core, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 💨 Wraith Dust, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Sun
 
@@ -861,7 +865,7 @@ Recipe: None.
 
 Acting: Deal damage after Rage (or while HP < 10).
 
-Recipe: Deep Sea Amber.
+Recipe: 🌊 Deep Sea Amber.
 
 #### Sequence 7 — Seafarer
 
@@ -871,7 +875,7 @@ Gain 3 Block.
 
 Acting: Gain Block this turn (Water Shield).
 
-Recipe: Radiant Sunflower, Abyss Sludge.
+Recipe: 🌻 Radiant Sunflower, 🫧 Abyss Sludge.
 
 #### Sequence 6 — Wind-blessed
 
@@ -881,7 +885,7 @@ Draw 2, then discard 1.
 
 Acting: Draw and discard at least 2 cards this turn.
 
-Recipe: Spirit Gold, Astral Crystal.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal.
 
 #### Sequence 5 — Ocean Singer
 
@@ -891,7 +895,7 @@ Deal 3 to all opponents; each loses 1 SP.
 
 Acting: Hit 2+ opponents with a single action.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Wraith Dust.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 💨 Wraith Dust.
 
 #### Sequence 4 — Cataclysmic Interror
 
@@ -901,7 +905,7 @@ Destroy all Artifacts and Traps on the board.
 
 Acting: Destroy an opponent's Artifact or Trap.
 
-Recipe: Astral Crystal, Corrupted Blood, Radiant Sunflower.
+Recipe: 💎 Astral Crystal, 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 #### Sequence 3 — Sea King
 
@@ -911,7 +915,7 @@ Deal 5 damage to all opponents.
 
 Acting: Deal 10+ total damage across the board this turn.
 
-Recipe: Spirit Gold, Deep Sea Amber, Abyss Sludge, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber, 🫧 Abyss Sludge, ⚡ Divine Spark.
 
 #### Sequence 2 — Calamity
 
@@ -921,7 +925,7 @@ Halve a target's current HP (round up remaining).
 
 Acting: Deal damage equal to half an opponent's max HP in one hit.
 
-Recipe: Nightmare Grass, Radiant Sunflower, Transcendent Core, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 🌻 Radiant Sunflower, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Thunder God
 
@@ -931,7 +935,7 @@ Deal 10 Unblockable, Unavoidable damage to one target.
 
 Acting: Eliminate an opponent with an unblockable attack.
 
-Recipe: Spirit Gold, Wraith Dust, Corrupted Blood, Divine Spark, Divine Spark.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust, 🩸 Corrupted Blood, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Tyrant
 
@@ -961,7 +965,7 @@ Force an opponent to target you with their next attack; you gain 1 Block.
 
 Acting: Cast Provoke (mark a foe) — completes Acting immediately.
 
-Recipe: Wraith Dust.
+Recipe: 💨 Wraith Dust.
 
 #### Sequence 7 — Weapon Master
 
@@ -971,7 +975,7 @@ Destroy an opponent's Block/Evade, then deal 3 damage.
 
 Acting: Shatter a defense and deal damage (Shatter ability).
 
-Recipe: Spirit Gold, Nightmare Grass.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass.
 
 #### Sequence 6 — Dawn Paladin
 
@@ -981,7 +985,7 @@ Gain 4 Block; immune to Sanity damage this turn.
 
 Acting: Block 4+ damage in a single turn.
 
-Recipe: Radiant Sunflower, Abyss Sludge.
+Recipe: 🌻 Radiant Sunflower, 🫧 Abyss Sludge.
 
 #### Sequence 5 — Guardian
 
@@ -991,7 +995,7 @@ Reduce all incoming damage this cycle to 0.
 
 Acting: Survive being targeted by 3+ attacks/effects this turn.
 
-Recipe: Spirit Gold, Astral Crystal, Corrupted Blood.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 🩸 Corrupted Blood.
 
 #### Sequence 4 — Demon Hunter
 
@@ -1001,7 +1005,7 @@ Your next attack ignores all Block and Evade.
 
 Acting: Deal damage through an active Block.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Wraith Dust.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 💨 Wraith Dust.
 
 #### Sequence 3 — Silver Knight
 
@@ -1011,7 +1015,7 @@ Deal 6 damage; if this eliminates, refund 4 SP.
 
 Acting: Eliminate an opponent with a Weapon or Attack.
 
-Recipe: Astral Crystal, Radiant Sunflower, Abyss Sludge, Transcendent Core.
+Recipe: 💎 Astral Crystal, 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ◉ Transcendent Core.
 
 #### Sequence 2 — Glory
 
@@ -1021,7 +1025,7 @@ Deal 8; target cannot heal next cycle.
 
 Acting: Deal 8+ damage and prevent an opponent's action.
 
-Recipe: Spirit Gold, Deep Sea Amber, Divine Spark, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Hand of God
 
@@ -1031,7 +1035,7 @@ Permanently destroy one card from an opponent's hand or board.
 
 Acting: Permanently remove a Rare or Artifact from play.
 
-Recipe: Nightmare Grass, Corrupted Blood, Abyss Sludge, Transcendent Core, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 🩸 Corrupted Blood, 🫧 Abyss Sludge, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — Twilight Giant
 
@@ -1061,7 +1065,7 @@ Deal 3 Sanity damage.
 
 Acting: Deal Sanity damage (Mental Piercing).
 
-Recipe: Corrupted Blood.
+Recipe: 🩸 Corrupted Blood.
 
 #### Sequence 7 — Psychiatrist
 
@@ -1071,7 +1075,7 @@ Restore 3 Sanity to any player.
 
 Acting: Restore Sanity with Placate (any target).
 
-Recipe: Astral Crystal, Deep Sea Amber.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber.
 
 #### Sequence 6 — Hypnotist
 
@@ -1081,7 +1085,7 @@ Force an opponent to discard 1 random card. They lose 1 Sanity. Draw 1.
 
 Acting: Force a discard outside End Phase.
 
-Recipe: Nightmare Grass, Wraith Dust.
+Recipe: 🌿 Nightmare Grass, 💨 Wraith Dust.
 
 #### Sequence 5 — Dreamwalker
 
@@ -1091,7 +1095,7 @@ Deal 3 Sanity; target skips next Draw Phase.
 
 Acting: Deal Sanity damage while target has full HP.
 
-Recipe: Spirit Gold, Corrupted Blood, Abyss Sludge.
+Recipe: ☀ Spirit Gold, 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Manipulator
 
@@ -1101,7 +1105,7 @@ You cannot be targeted by Attacks or Spells this turn.
 
 Acting: Evade all targeting for a cycle via Spell/Ability.
 
-Recipe: Nightmare Grass, Astral Crystal, Radiant Sunflower.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 🌻 Radiant Sunflower.
 
 #### Sequence 3 — Dream Weaver
 
@@ -1111,7 +1115,7 @@ Target cannot play Spells or Weapons next turn.
 
 Acting: Deal 5+ Sanity damage in one turn.
 
-Recipe: Spirit Gold, Deep Sea Amber, Wraith Dust, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber, 💨 Wraith Dust, ⚡ Divine Spark.
 
 #### Sequence 2 — Discerner
 
@@ -1121,7 +1125,7 @@ Reduce an opponent's Sanity to 1.
 
 Acting: Drop an opponent's Sanity by 10+ in one hit.
 
-Recipe: Astral Crystal, Corrupted Blood, Transcendent Core, Transcendent Core.
+Recipe: 💎 Astral Crystal, 🩸 Corrupted Blood, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Author
 
@@ -1131,7 +1135,7 @@ Name a type; each opponent discards one of that type or takes 5 damage.
 
 Acting: Force 2+ opponents to take a dictated action.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Visionary
 
@@ -1161,7 +1165,7 @@ Deal 1 damage or gain 1 Block.
 
 Acting: Deal damage or gain Block (Elemental Trick).
 
-Recipe: Radiant Sunflower.
+Recipe: 🌻 Radiant Sunflower.
 
 #### Sequence 7 — Astrologer
 
@@ -1171,7 +1175,7 @@ Look at top 3; rearrange, then draw 1.
 
 Acting: Reorder the deck and draw (Stargazing).
 
-Recipe: Wraith Dust, Abyss Sludge.
+Recipe: 💨 Wraith Dust, 🫧 Abyss Sludge.
 
 #### Sequence 6 — Scribe
 
@@ -1181,7 +1185,7 @@ Add a copy of the last Spell played to your hand.
 
 Acting: Successfully copy an opponent's Spell or Trap.
 
-Recipe: Deep Sea Amber, Corrupted Blood.
+Recipe: 🌊 Deep Sea Amber, 🩸 Corrupted Blood.
 
 #### Sequence 5 — Traveler
 
@@ -1191,7 +1195,7 @@ Ignore all Traps and global effects this turn.
 
 Acting: Take 0 damage in a turn where you were attacked twice.
 
-Recipe: Nightmare Grass, Astral Crystal, Radiant Sunflower.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 🌻 Radiant Sunflower.
 
 #### Sequence 4 — Secrets Sorcerer
 
@@ -1201,7 +1205,7 @@ Target cannot draw cards next turn.
 
 Acting: Prevent an opponent from drawing or playing cards.
 
-Recipe: Spirit Gold, Wraith Dust, Corrupted Blood.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust, 🩸 Corrupted Blood.
 
 #### Sequence 3 — Wanderer
 
@@ -1211,7 +1215,7 @@ Return an Artifact or Trap to its owner's hand.
 
 Acting: Remove a Rare, Trap, or Artifact from the board.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Abyss Sludge, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🫧 Abyss Sludge, ◉ Transcendent Core.
 
 #### Sequence 2 — Planeswalker
 
@@ -1221,7 +1225,7 @@ Play a card, then resolve it a second time for free.
 
 Acting: Resolve the same Spell/Ability twice this turn.
 
-Recipe: Wraith Dust, Radiant Sunflower, Divine Spark, Divine Spark.
+Recipe: 💨 Wraith Dust, 🌻 Radiant Sunflower, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Key of Stars
 
@@ -1231,7 +1235,7 @@ Swap hands and SP with an opponent.
 
 Acting: Swap hands and deal damage the same turn.
 
-Recipe: Spirit Gold, Astral Crystal, Deep Sea Amber, Transcendent Core, Transcendent Core.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 🌊 Deep Sea Amber, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Door
 
@@ -1261,7 +1265,7 @@ Target loses 1 Sanity; you restore 1 Sanity.
 
 Acting: Drain Sanity and restore your own (Lullaby).
 
-Recipe: Abyss Sludge.
+Recipe: 🫧 Abyss Sludge.
 
 #### Sequence 7 — Nightmare
 
@@ -1271,7 +1275,7 @@ Target discards 1 and loses 1 SP.
 
 Acting: Force them to discard or lose SP (Deep Sleep).
 
-Recipe: Corrupted Blood, Radiant Sunflower.
+Recipe: 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 #### Sequence 6 — Soul Assurer
 
@@ -1281,7 +1285,7 @@ Restore 4 Sanity. If they were Mad, the break ends.
 
 Acting: Restore a player from Madness.
 
-Recipe: Spirit Gold, Deep Sea Amber.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber.
 
 #### Sequence 5 — Spirit Warlock
 
@@ -1291,7 +1295,7 @@ Play a Trap or Spell from discard for 0 Actions.
 
 Acting: Resolve 2 Spells/Traps that were in discard.
 
-Recipe: Astral Crystal, Wraith Dust, Abyss Sludge.
+Recipe: 💎 Astral Crystal, 💨 Wraith Dust, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Nightwatcher
 
@@ -1301,7 +1305,7 @@ Ignore one Artifact or Trap this cycle.
 
 Acting: Nullify an Artifact/Trap that would damage you.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Corrupted Blood.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🩸 Corrupted Blood.
 
 #### Sequence 3 — Horror Bishop
 
@@ -1311,7 +1315,7 @@ All opponents lose 4 Sanity; you gain 4 Block.
 
 Acting: Plunge 2+ opponents into Madness this turn.
 
-Recipe: Spirit Gold, Astral Crystal, Radiant Sunflower, Divine Spark.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 🌻 Radiant Sunflower, ⚡ Divine Spark.
 
 #### Sequence 2 — Servant of Concealment
 
@@ -1321,7 +1325,7 @@ Permanently remove 1 active Artifact, Trap, or Charm.
 
 Acting: Permanently erase a Rare or Artifact.
 
-Recipe: Deep Sea Amber, Abyss Sludge, Transcendent Core, Transcendent Core.
+Recipe: 🌊 Deep Sea Amber, 🫧 Abyss Sludge, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Doom Maiden
 
@@ -1331,7 +1335,7 @@ All opponents drop to 1 Sanity and skip next Draw.
 
 Acting: Reduce all opponents to 1 Sanity simultaneously.
 
-Recipe: Spirit Gold, Nightmare Grass, Wraith Dust, Divine Spark, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 💨 Wraith Dust, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Darkness
 
@@ -1361,7 +1365,7 @@ Discard 1 card to heal 2 HP (or heal 1 if hand empty).
 
 Acting: Discard voluntarily or Bury to heal.
 
-Recipe: Spirit Gold.
+Recipe: ☀ Spirit Gold.
 
 #### Sequence 7 — Spirit Medium
 
@@ -1371,7 +1375,7 @@ Play a Utility from discard, or Scavenge if none.
 
 Acting: Use the discard pile (Seance / Scavenge).
 
-Recipe: Nightmare Grass, Deep Sea Amber.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber.
 
 #### Sequence 6 — Spirit Guide
 
@@ -1381,7 +1385,7 @@ Swap your hand with any 3 cards from discard.
 
 Acting: Replace your entire hand in one turn.
 
-Recipe: Astral Crystal, Radiant Sunflower.
+Recipe: 💎 Astral Crystal, 🌻 Radiant Sunflower.
 
 #### Sequence 5 — Gatekeeper
 
@@ -1391,7 +1395,7 @@ If a target has ≤5 HP, they cannot heal next turn.
 
 Acting: Prevent healing on a critically injured opponent.
 
-Recipe: Spirit Gold, Wraith Dust, Corrupted Blood.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust, 🩸 Corrupted Blood.
 
 #### Sequence 4 — Undying
 
@@ -1401,7 +1405,7 @@ The next time your HP would hit 0 this cycle, heal to 5 instead.
 
 Acting: Survive a fatal blow via resurrection/negation.
 
-Recipe: Astral Crystal, Deep Sea Amber, Abyss Sludge.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 #### Sequence 3 — Ferryman
 
@@ -1411,7 +1415,7 @@ Instantly eliminate an opponent with ≤5 HP (bypasses Block).
 
 Acting: Eliminate via unblockable execution.
 
-Recipe: Nightmare Grass, Wraith Dust, Radiant Sunflower, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 💨 Wraith Dust, 🌻 Radiant Sunflower, ◉ Transcendent Core.
 
 #### Sequence 2 — Death Consul
 
@@ -1421,7 +1425,7 @@ Play up to 2 Spells from discard simultaneously (pay SP).
 
 Acting: Deal 10+ damage using only discard-origin cards.
 
-Recipe: Spirit Gold, Astral Crystal, Divine Spark, Divine Spark.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Pale Emperor
 
@@ -1431,7 +1435,7 @@ All others take damage equal to discard size (max 12).
 
 Acting: Deal massive AoE based on discard size.
 
-Recipe: Deep Sea Amber, Corrupted Blood, Radiant Sunflower, Transcendent Core, Transcendent Core.
+Recipe: 🌊 Deep Sea Amber, 🩸 Corrupted Blood, 🌻 Radiant Sunflower, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Death
 
@@ -1461,7 +1465,7 @@ Force an opponent to discard a Spell (or lose 1 Sanity).
 
 Acting: Disrupt an opponent with Taunt.
 
-Recipe: Nightmare Grass.
+Recipe: 🌿 Nightmare Grass.
 
 #### Sequence 7 — Pyromaniac
 
@@ -1471,7 +1475,7 @@ Deal 2 damage.
 
 Acting: Deal unblockable damage (Fireball).
 
-Recipe: Spirit Gold, Astral Crystal.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal.
 
 #### Sequence 6 — Conspirer
 
@@ -1481,7 +1485,7 @@ If your Trap triggers this turn, deal 3 extra damage to that player.
 
 Acting: Deal damage using a Trap.
 
-Recipe: Wraith Dust, Abyss Sludge.
+Recipe: 💨 Wraith Dust, 🫧 Abyss Sludge.
 
 #### Sequence 5 — Reaper
 
@@ -1491,7 +1495,7 @@ Deal 5 to an opponent with ≤10 HP.
 
 Acting: Eliminate an opponent at ≤10 HP.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Radiant Sunflower.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🌻 Radiant Sunflower.
 
 #### Sequence 4 — Iron-blooded Knight
 
@@ -1501,7 +1505,7 @@ Gain 3 Block; share it with one other player.
 
 Acting: Block for yourself and another player same turn.
 
-Recipe: Spirit Gold, Corrupted Blood, Abyss Sludge.
+Recipe: ☀ Spirit Gold, 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 #### Sequence 3 — War Bishop
 
@@ -1511,7 +1515,7 @@ All opponents take 4; you gain +2 Attack next turn.
 
 Acting: Damage all opponents while buffing yourself.
 
-Recipe: Nightmare Grass, Astral Crystal, Wraith Dust, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 💨 Wraith Dust, ⚡ Divine Spark.
 
 #### Sequence 2 — Weather Warlock
 
@@ -1521,7 +1525,7 @@ Deal 8 to all opponents; destroy all Traps.
 
 Acting: Deal 15+ cumulative damage this turn.
 
-Recipe: Deep Sea Amber, Corrupted Blood, Transcendent Core, Transcendent Core.
+Recipe: 🌊 Deep Sea Amber, 🩸 Corrupted Blood, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Conqueror
 
@@ -1531,7 +1535,7 @@ Deal damage equal to your missing HP.
 
 Acting: Defeat an opponent while at ≤5 HP.
 
-Recipe: Astral Crystal, Radiant Sunflower, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 💎 Astral Crystal, 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Red Priest
 
@@ -1561,7 +1565,7 @@ Lose 1 Sanity; draw 2 cards.
 
 Acting: Lose Sanity to draw cards (Dark Whispers).
 
-Recipe: Astral Crystal.
+Recipe: 💎 Astral Crystal.
 
 #### Sequence 7 — Shadow Ascetic
 
@@ -1571,7 +1575,7 @@ Gain Evade.
 
 Acting: Gain Evade while at 10 HP or below, or cast Shadow Hiding.
 
-Recipe: Wraith Dust, Radiant Sunflower.
+Recipe: 💨 Wraith Dust, 🌻 Radiant Sunflower.
 
 #### Sequence 6 — Rose Bishop
 
@@ -1581,7 +1585,7 @@ Steal 2 HP from a target.
 
 Acting: Heal by damaging an opponent (Flesh Magic).
 
-Recipe: Nightmare Grass, Corrupted Blood.
+Recipe: 🌿 Nightmare Grass, 🩸 Corrupted Blood.
 
 #### Sequence 5 — Shepherd
 
@@ -1591,7 +1595,7 @@ Copy the top Spell in discard (resolve it now).
 
 Acting: Copy a Spell from discard.
 
-Recipe: Spirit Gold, Deep Sea Amber, Abyss Sludge.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Black Knight
 
@@ -1601,7 +1605,7 @@ Deal 6 damage; take 2 yourself.
 
 Acting: Deal 5+ damage while sacrificing HP.
 
-Recipe: Nightmare Grass, Astral Crystal, Wraith Dust.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 💨 Wraith Dust.
 
 #### Sequence 3 — Trinity Templar
 
@@ -1611,7 +1615,7 @@ Lose 5 HP; deal 5 to all opponents.
 
 Acting: Hit all opponents in one action.
 
-Recipe: Corrupted Blood, Radiant Sunflower, Abyss Sludge, Transcendent Core.
+Recipe: 🩸 Corrupted Blood, 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ◉ Transcendent Core.
 
 #### Sequence 2 — Profane Presbyter
 
@@ -1621,7 +1625,7 @@ Target loses 5 SP and takes that much HP damage.
 
 Acting: Drain SP and deal damage same turn.
 
-Recipe: Spirit Gold, Nightmare Grass, Divine Spark, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Dark Angel
 
@@ -1631,7 +1635,7 @@ Reduce target HP to 1; strip their Block/Evade.
 
 Acting: Drop an opponent from above 10 HP toward 1.
 
-Recipe: Astral Crystal, Deep Sea Amber, Corrupted Blood, Transcendent Core, Transcendent Core.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber, 🩸 Corrupted Blood, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Hanged Man
 
@@ -1661,7 +1665,7 @@ Target discards 1 Trap or loses 2 Sanity.
 
 Acting: Force a discard or Sanity loss (Incite).
 
-Recipe: Deep Sea Amber.
+Recipe: 🌊 Deep Sea Amber.
 
 #### Sequence 7 — Witch
 
@@ -1671,7 +1675,7 @@ Deal 2 damage; target cannot heal next Begin.
 
 Acting: Deal damage with Black Flame.
 
-Recipe: Corrupted Blood, Abyss Sludge.
+Recipe: 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 #### Sequence 6 — Pleasure
 
@@ -1681,7 +1685,7 @@ Target's next card costs +2 SP.
 
 Acting: Tax an opponent's resources (Spider Web).
 
-Recipe: Spirit Gold, Radiant Sunflower.
+Recipe: ☀ Spirit Gold, 🌻 Radiant Sunflower.
 
 #### Sequence 5 — Affliction
 
@@ -1691,7 +1695,7 @@ Curse: target takes 2 damage at each of their Begins (stacks once).
 
 Acting: Apply an ongoing curse.
 
-Recipe: Nightmare Grass, Astral Crystal, Deep Sea Amber.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 🌊 Deep Sea Amber.
 
 #### Sequence 4 — Despair
 
@@ -1701,7 +1705,7 @@ All opponents take 2 HP.
 
 Acting: Damage 2+ opponents at once.
 
-Recipe: Wraith Dust, Corrupted Blood, Radiant Sunflower.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 #### Sequence 3 — Unaging
 
@@ -1711,7 +1715,7 @@ The next time you would fall, you remain at 6 HP.
 
 Acting: Arm a resurrection/negation effect.
 
-Recipe: Spirit Gold, Astral Crystal, Abyss Sludge, Divine Spark.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 🫧 Abyss Sludge, ⚡ Divine Spark.
 
 #### Sequence 2 — Catastrophe
 
@@ -1721,7 +1725,7 @@ Each opponent discards 1 random card and takes 3 damage.
 
 Acting: Empty hands and deal damage.
 
-Recipe: Nightmare Grass, Wraith Dust, Transcendent Core, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 💨 Wraith Dust, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Apocalypse
 
@@ -1731,7 +1735,7 @@ All opponents: −1 SP gain and −2 HP next Begin (permanent curse marker).
 
 Acting: Permanently alter opponent generation.
 
-Recipe: Deep Sea Amber, Radiant Sunflower, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 🌊 Deep Sea Amber, 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Demoness
 
@@ -1761,7 +1765,7 @@ Look at an opponent's hand; if they hold a Trap, they discard it.
 
 Acting: Look at a hand (Deduction).
 
-Recipe: Wraith Dust.
+Recipe: 💨 Wraith Dust.
 
 #### Sequence 7 — Detective
 
@@ -1771,7 +1775,7 @@ Reveal a face-down Trap; discard it; owner loses 1 SP.
 
 Acting: Reveal or destroy a Trap (Expose).
 
-Recipe: Spirit Gold, Corrupted Blood.
+Recipe: ☀ Spirit Gold, 🩸 Corrupted Blood.
 
 #### Sequence 6 — Polymath
 
@@ -1781,7 +1785,7 @@ Replay the last Spell in discard for free.
 
 Acting: Copy a Spell from discard.
 
-Recipe: Nightmare Grass, Abyss Sludge.
+Recipe: 🌿 Nightmare Grass, 🫧 Abyss Sludge.
 
 #### Sequence 5 — Mysticism Magus
 
@@ -1791,7 +1795,7 @@ Draw until you find a Spell (reveal misses), put it in hand.
 
 Acting: Play 3 Spell effects this bank.
 
-Recipe: Wraith Dust, Corrupted Blood, Radiant Sunflower.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 #### Sequence 4 — Prophet
 
@@ -1801,7 +1805,7 @@ Look at all opponents' hands, gain Evade, and gain 2 Block.
 
 Acting: Look at 2+ hands this bank.
 
-Recipe: Spirit Gold, Deep Sea Amber, Abyss Sludge.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 #### Sequence 3 — Clairvoyant
 
@@ -1811,7 +1815,7 @@ Name 'Spell': opponents skip Spell plays next turn (forced skip Action if only S
 
 Acting: Prevent an opponent action.
 
-Recipe: Nightmare Grass, Astral Crystal, Corrupted Blood, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 🩸 Corrupted Blood, ◉ Transcendent Core.
 
 #### Sequence 2 — Wisdom Angel
 
@@ -1821,7 +1825,7 @@ Gain Evade, 1 Block, and reflect the next hit.
 
 Acting: Arm a high-level counter.
 
-Recipe: Radiant Sunflower, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Omniscient Eye
 
@@ -1831,7 +1835,7 @@ Draw 5 cards.
 
 Acting: Play 5+ cards this bank.
 
-Recipe: Spirit Gold, Astral Crystal, Wraith Dust, Transcendent Core, Transcendent Core.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 💨 Wraith Dust, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The White Tower
 
@@ -1861,7 +1865,7 @@ Gain 6 Block and draw 1.
 
 Acting: Gain Block (Calculation).
 
-Recipe: Corrupted Blood.
+Recipe: 🩸 Corrupted Blood.
 
 #### Sequence 7 — Lucky One
 
@@ -1871,7 +1875,7 @@ Draw 2 and heal 5. Heal 6 instead if the two cards share a type.
 
 Acting: Draw with a conditional bonus (Stroke of Luck).
 
-Recipe: Nightmare Grass, Wraith Dust.
+Recipe: 🌿 Nightmare Grass, 💨 Wraith Dust.
 
 #### Sequence 6 — Calamity Priest
 
@@ -1881,7 +1885,7 @@ Target discards their highest-rarity hand card and takes 2 damage.
 
 Acting: Force a rare/high discard.
 
-Recipe: Astral Crystal, Deep Sea Amber.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber.
 
 #### Sequence 5 — Winner
 
@@ -1891,7 +1895,7 @@ Gain 2 Evade and 2 Block.
 
 Acting: Gain Evade (Plot Armor).
 
-Recipe: Spirit Gold, Radiant Sunflower, Abyss Sludge.
+Recipe: ☀ Spirit Gold, 🌻 Radiant Sunflower, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Misfortune Mage
 
@@ -1901,7 +1905,7 @@ Stun target (skip their next Action).
 
 Acting: Cause a Spell/action to fail (Stun).
 
-Recipe: Nightmare Grass, Astral Crystal, Corrupted Blood.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 🩸 Corrupted Blood.
 
 #### Sequence 3 — Chaoswalker
 
@@ -1911,7 +1915,7 @@ All players discard hand and draw 4.
 
 Acting: Force massive hand alteration.
 
-Recipe: Deep Sea Amber, Wraith Dust, Radiant Sunflower, Divine Spark.
+Recipe: 🌊 Deep Sea Amber, 💨 Wraith Dust, 🌻 Radiant Sunflower, ⚡ Divine Spark.
 
 #### Sequence 2 — Soothsayer
 
@@ -1921,7 +1925,7 @@ Draw 3 and set SP to 10.
 
 Acting: Tutor cards into hand.
 
-Recipe: Corrupted Blood, Abyss Sludge, Transcendent Core, Transcendent Core.
+Recipe: 🩸 Corrupted Blood, 🫧 Abyss Sludge, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Snake of Mercury
 
@@ -1931,7 +1935,7 @@ Set yourself to 18 HP and 18 Sanity.
 
 Acting: Fully reverse a bad cycle for yourself.
 
-Recipe: Spirit Gold, Nightmare Grass, Deep Sea Amber, Divine Spark, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 🌊 Deep Sea Amber, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — Wheel of Fortune
 
@@ -1961,7 +1965,7 @@ Heal 6 HP, gain 1 SP, draw 1, and clear Stun/Skip.
 
 Acting: Heal 3+ HP or clear a debuff (Cure).
 
-Recipe: Radiant Sunflower.
+Recipe: 🌻 Radiant Sunflower.
 
 #### Sequence 7 — Harvest Priest
 
@@ -1971,7 +1975,7 @@ Draw cards for the HP you are missing (at least 2) and heal 2.
 
 Acting: Draw via a healing/nature effect.
 
-Recipe: Astral Crystal, Abyss Sludge.
+Recipe: 💎 Astral Crystal, 🫧 Abyss Sludge.
 
 #### Sequence 6 — Biology Expert
 
@@ -1981,7 +1985,7 @@ Discard 1; draw 3.
 
 Acting: Discard and draw 2+ (Mutate).
 
-Recipe: Wraith Dust, Corrupted Blood.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood.
 
 #### Sequence 5 — Druid
 
@@ -1991,7 +1995,7 @@ Gain 4 Block, +2 Attack this turn, and draw 1.
 
 Acting: Gain Block (Thick Hide), then you may Attack.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Abyss Sludge.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Life Weaver
 
@@ -2001,7 +2005,7 @@ Heal 7 HP (overheal increases max HP by excess, max +5 once).
 
 Acting: Heal 4+ HP in one action.
 
-Recipe: Spirit Gold, Wraith Dust, Radiant Sunflower.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust, 🌻 Radiant Sunflower.
 
 #### Sequence 3 — Disciple of Life
 
@@ -2011,7 +2015,7 @@ Set target's HP equal to yours.
 
 Acting: Equalize life totals.
 
-Recipe: Astral Crystal, Deep Sea Amber, Corrupted Blood, Transcendent Core.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber, 🩸 Corrupted Blood, ◉ Transcendent Core.
 
 #### Sequence 2 — Desolate Matriarch
 
@@ -2021,7 +2025,7 @@ Curse all opponents: they take 2 damage when they draw next turn.
 
 Acting: Apply draw-poison to 2+ foes.
 
-Recipe: Wraith Dust, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 💨 Wraith Dust, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Naturewalker
 
@@ -2031,7 +2035,7 @@ Fully restore HP and Sanity, gain Evade, and draw 2.
 
 Acting: Fully restore yourself.
 
-Recipe: Spirit Gold, Nightmare Grass, Astral Crystal, Transcendent Core, Transcendent Core.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 💎 Astral Crystal, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Mother
 
@@ -2061,7 +2065,7 @@ Gain 2 Block.
 
 Acting: Gain Block (Summon Beast).
 
-Recipe: Abyss Sludge.
+Recipe: 🫧 Abyss Sludge.
 
 #### Sequence 7 — Vampire
 
@@ -2071,7 +2075,7 @@ Deal 2; heal 2.
 
 Acting: Lifesteal successfully.
 
-Recipe: Deep Sea Amber, Radiant Sunflower.
+Recipe: 🌊 Deep Sea Amber, 🌻 Radiant Sunflower.
 
 #### Sequence 6 — Potion Professor
 
@@ -2081,7 +2085,7 @@ Discard a card; deal 3 Sanity.
 
 Acting: Discard to deal Sanity damage.
 
-Recipe: Spirit Gold, Wraith Dust.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust.
 
 #### Sequence 5 — Scarlet Scholar
 
@@ -2091,7 +2095,7 @@ Look at top 3; deal 2 to all opponents.
 
 Acting: Manipulate deck and deal AoE.
 
-Recipe: Nightmare Grass, Astral Crystal, Corrupted Blood.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 🩸 Corrupted Blood.
 
 #### Sequence 4 — Shaman King
 
@@ -2101,7 +2105,7 @@ Play a Spell from discard for 0 Actions.
 
 Acting: Play a discarded Spell.
 
-Recipe: Spirit Gold, Radiant Sunflower, Abyss Sludge.
+Recipe: ☀ Spirit Gold, 🌻 Radiant Sunflower, 🫧 Abyss Sludge.
 
 #### Sequence 3 — Summoner
 
@@ -2111,7 +2115,7 @@ Gain +3 Attack and +3 Block this turn.
 
 Acting: Gain Attack and Block together.
 
-Recipe: Deep Sea Amber, Wraith Dust, Corrupted Blood, Divine Spark.
+Recipe: 🌊 Deep Sea Amber, 💨 Wraith Dust, 🩸 Corrupted Blood, ⚡ Divine Spark.
 
 #### Sequence 2 — Life Giver
 
@@ -2121,7 +2125,7 @@ Arm resurrection: next fatal blow heals you to 10 instead.
 
 Acting: Arm a revival effect.
 
-Recipe: Astral Crystal, Radiant Sunflower, Transcendent Core, Transcendent Core.
+Recipe: 💎 Astral Crystal, 🌻 Radiant Sunflower, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Beauty Goddess
 
@@ -2131,7 +2135,7 @@ All opponents discard their hands and skip next Action.
 
 Acting: Wipe 2+ hands.
 
-Recipe: Nightmare Grass, Wraith Dust, Abyss Sludge, Divine Spark, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 💨 Wraith Dust, 🫧 Abyss Sludge, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Moon
 
@@ -2161,7 +2165,7 @@ Deal 2 damage as a Spell-blade strike.
 
 Acting: Deal damage with Spellblade.
 
-Recipe: Spirit Gold.
+Recipe: ☀ Spirit Gold.
 
 #### Sequence 7 — Warlock
 
@@ -2171,7 +2175,7 @@ Gain an extra Standard Action this turn.
 
 Acting: Take an extra Standard Action (Double Cast).
 
-Recipe: Nightmare Grass, Corrupted Blood.
+Recipe: 🌿 Nightmare Grass, 🩸 Corrupted Blood.
 
 #### Sequence 6 — Scroll Professor
 
@@ -2181,7 +2185,7 @@ Add a copy-token: draw the last Spell from discard into hand.
 
 Acting: Add a copy of a played Spell to hand.
 
-Recipe: Astral Crystal, Abyss Sludge.
+Recipe: 💎 Astral Crystal, 🫧 Abyss Sludge.
 
 #### Sequence 5 — Constellation Scholar
 
@@ -2191,7 +2195,7 @@ Force target to attack another opponent (1 damage proxy).
 
 Acting: Redirect damage between foes.
 
-Recipe: Spirit Gold, Deep Sea Amber, Wraith Dust.
+Recipe: ☀ Spirit Gold, 🌊 Deep Sea Amber, 💨 Wraith Dust.
 
 #### Sequence 4 — Mysticologist
 
@@ -2201,7 +2205,7 @@ Draw 3 if you already dealt damage this turn; else draw 1.
 
 Acting: Resolve a conditional draw.
 
-Recipe: Nightmare Grass, Radiant Sunflower, Abyss Sludge.
+Recipe: 🌿 Nightmare Grass, 🌻 Radiant Sunflower, 🫧 Abyss Sludge.
 
 #### Sequence 3 — Arcane Scholar
 
@@ -2211,7 +2215,7 @@ Deal 5 Unblockable Spell damage.
 
 Acting: Deal unblockable Spell damage.
 
-Recipe: Spirit Gold, Astral Crystal, Corrupted Blood, Transcendent Core.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 🩸 Corrupted Blood, ◉ Transcendent Core.
 
 #### Sequence 2 — Sage
 
@@ -2221,7 +2225,7 @@ Search: draw 2 cards of your choice from top 5, rest to bottom.
 
 Acting: Search the deck for cards.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Divine Spark, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Knowledge Emperor
 
@@ -2231,7 +2235,7 @@ Deal 15 Sanity damage.
 
 Acting: Deal 15+ Sanity in one hit.
 
-Recipe: Wraith Dust, Corrupted Blood, Radiant Sunflower, Transcendent Core, Transcendent Core.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood, 🌻 Radiant Sunflower, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Hermit
 
@@ -2261,7 +2265,7 @@ Take a Weapon or Utility from discard into hand.
 
 Acting: Retrieve from discard (Excavate).
 
-Recipe: Nightmare Grass.
+Recipe: 🌿 Nightmare Grass.
 
 #### Sequence 7 — Appraiser
 
@@ -2271,7 +2275,7 @@ Ignore your Artifact drawback this turn; gain 1 SP.
 
 Acting: Nullify an Artifact drawback (Optimize).
 
-Recipe: Spirit Gold, Wraith Dust.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust.
 
 #### Sequence 6 — Artisan
 
@@ -2281,7 +2285,7 @@ Discard 2; gain 3 Block.
 
 Acting: Discard 2+ for a shield.
 
-Recipe: Deep Sea Amber, Radiant Sunflower.
+Recipe: 🌊 Deep Sea Amber, 🌻 Radiant Sunflower.
 
 #### Sequence 5 — Astronomer
 
@@ -2291,7 +2295,7 @@ Reveal top 3; deal 1 per Spell revealed to a target.
 
 Acting: Deal damage from a deck reveal.
 
-Recipe: Astral Crystal, Corrupted Blood, Abyss Sludge.
+Recipe: 💎 Astral Crystal, 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Alchemist
 
@@ -2301,7 +2305,7 @@ Heal 4 or deal 4 (your choice via target: self=heal, foe=damage).
 
 Acting: Heal or deal 4+ with Catalyst.
 
-Recipe: Spirit Gold, Nightmare Grass, Deep Sea Amber.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 🌊 Deep Sea Amber.
 
 #### Sequence 3 — Mentor of Physics
 
@@ -2311,7 +2315,7 @@ Destroy target's Weapon or Trap.
 
 Acting: Permanently destroy a board card.
 
-Recipe: Wraith Dust, Radiant Sunflower, Abyss Sludge, Divine Spark.
+Recipe: 💨 Wraith Dust, 🌻 Radiant Sunflower, 🫧 Abyss Sludge, ⚡ Divine Spark.
 
 #### Sequence 2 — Sage of Mechanics
 
@@ -2321,7 +2325,7 @@ Steal target's Artifact ignoring Sequence check (still costs this ability).
 
 Acting: Steal an Artifact.
 
-Recipe: Spirit Gold, Corrupted Blood, Transcendent Core, Transcendent Core.
+Recipe: ☀ Spirit Gold, 🩸 Corrupted Blood, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Illuminator
 
@@ -2331,7 +2335,7 @@ Recipe: Spirit Gold, Corrupted Blood, Transcendent Core, Transcendent Core.
 
 Acting: Buff 3 distinct stats.
 
-Recipe: Nightmare Grass, Astral Crystal, Wraith Dust, Divine Spark, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal, 💨 Wraith Dust, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Paragon
 
@@ -2361,7 +2365,7 @@ Recipe: None.
 
 Acting: Deal damage after Outburst (or at low Sanity).
 
-Recipe: Astral Crystal.
+Recipe: 💎 Astral Crystal.
 
 #### Sequence 7 — Werewolf
 
@@ -2371,7 +2375,7 @@ Deal 2; target takes 1 at their next Begin.
 
 Acting: Inflict lingering damage (Lacerate).
 
-Recipe: Deep Sea Amber, Abyss Sludge.
+Recipe: 🌊 Deep Sea Amber, 🫧 Abyss Sludge.
 
 #### Sequence 6 — Zombie
 
@@ -2381,7 +2385,7 @@ Immune to Weapon damage this cycle (gain 4 Block).
 
 Acting: Nullify Weapon damage / gain Iron Body.
 
-Recipe: Nightmare Grass, Radiant Sunflower.
+Recipe: 🌿 Nightmare Grass, 🌻 Radiant Sunflower.
 
 #### Sequence 5 — Wraith
 
@@ -2391,7 +2395,7 @@ Target discards a random card; if Spell, they take 2 damage.
 
 Acting: Force self-harm or discard.
 
-Recipe: Spirit Gold, Astral Crystal, Wraith Dust.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 💨 Wraith Dust.
 
 #### Sequence 4 — Puppet
 
@@ -2401,7 +2405,7 @@ Target skips next Action Phase.
 
 Acting: Lock down an opponent's offense.
 
-Recipe: Deep Sea Amber, Corrupted Blood, Radiant Sunflower.
+Recipe: 🌊 Deep Sea Amber, 🩸 Corrupted Blood, 🌻 Radiant Sunflower.
 
 #### Sequence 3 — Disciple of Silence
 
@@ -2411,7 +2415,7 @@ Deal 5 Unblockable; ignores Traps.
 
 Acting: Deal unreactable damage.
 
-Recipe: Spirit Gold, Nightmare Grass, Abyss Sludge, Transcendent Core.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 🫧 Abyss Sludge, ◉ Transcendent Core.
 
 #### Sequence 2 — Ancient Bane
 
@@ -2421,7 +2425,7 @@ All opponents lose 3 HP and 3 Sanity; you heal 3 HP.
 
 Acting: Drain HP and Sanity from multiple foes.
 
-Recipe: Astral Crystal, Deep Sea Amber, Divine Spark, Divine Spark.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Abomination
 
@@ -2431,7 +2435,7 @@ Stun all opponents and deal 3 to each.
 
 Acting: Stun the board.
 
-Recipe: Wraith Dust, Corrupted Blood, Abyss Sludge, Transcendent Core, Transcendent Core.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood, 🫧 Abyss Sludge, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Chained
 
@@ -2461,7 +2465,7 @@ Deal 1 HP and 1 Sanity.
 
 Acting: Deal HP and Sanity in one action (Malice).
 
-Recipe: Deep Sea Amber.
+Recipe: 🌊 Deep Sea Amber.
 
 #### Sequence 7 — Serial Killer
 
@@ -2471,7 +2475,7 @@ Mark target: your next attack deals +2.
 
 Acting: Mark then Attack, or cast Death Mark.
 
-Recipe: Astral Crystal, Radiant Sunflower.
+Recipe: 💎 Astral Crystal, 🌻 Radiant Sunflower.
 
 #### Sequence 6 — Devil
 
@@ -2481,7 +2485,7 @@ Look at target's Trap and destroy it if present. Draw 1.
 
 Acting: Reveal/destroy a Trap.
 
-Recipe: Corrupted Blood, Abyss Sludge.
+Recipe: 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 #### Sequence 5 — Desire Apostle
 
@@ -2491,7 +2495,7 @@ Deal 2 Sanity; if they go Mad, gain 2 SP.
 
 Acting: Push someone toward Madness.
 
-Recipe: Nightmare Grass, Wraith Dust, Radiant Sunflower.
+Recipe: 🌿 Nightmare Grass, 💨 Wraith Dust, 🌻 Radiant Sunflower.
 
 #### Sequence 4 — Bloody Archduke
 
@@ -2501,7 +2505,7 @@ Deal 3 and heal for the damage dealt.
 
 Acting: Lifesteal 4+.
 
-Recipe: Astral Crystal, Deep Sea Amber, Corrupted Blood.
+Recipe: 💎 Astral Crystal, 🌊 Deep Sea Amber, 🩸 Corrupted Blood.
 
 #### Sequence 3 — Foul Duke
 
@@ -2511,7 +2515,7 @@ All opponents lose 1 SP and take 1 damage.
 
 Acting: Tax healing/resources of 2+ foes.
 
-Recipe: Spirit Gold, Wraith Dust, Abyss Sludge, Divine Spark.
+Recipe: ☀ Spirit Gold, 💨 Wraith Dust, 🫧 Abyss Sludge, ⚡ Divine Spark.
 
 #### Sequence 2 — Blasphemer
 
@@ -2521,7 +2525,7 @@ Deal 5 Sanity to all opponents.
 
 Acting: Deal 15+ collective Sanity.
 
-Recipe: Deep Sea Amber, Radiant Sunflower, Transcendent Core, Transcendent Core.
+Recipe: 🌊 Deep Sea Amber, 🌻 Radiant Sunflower, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Filthy Monarch
 
@@ -2531,7 +2535,7 @@ Instantly eliminate a target with Sanity at 3 or less.
 
 Acting: Execute via Sanity.
 
-Recipe: Spirit Gold, Nightmare Grass, Corrupted Blood, Divine Spark, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 🩸 Corrupted Blood, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Abyss
 
@@ -2561,7 +2565,7 @@ Destroy target's Block and Evade.
 
 Acting: Shatter a defense (Overrule).
 
-Recipe: Wraith Dust.
+Recipe: 💨 Wraith Dust.
 
 #### Sequence 7 — Briber
 
@@ -2571,7 +2575,7 @@ Target pays you 2 SP or takes 3 damage. Draw 1.
 
 Acting: Extort SP or deal damage.
 
-Recipe: Spirit Gold, Radiant Sunflower.
+Recipe: ☀ Spirit Gold, 🌻 Radiant Sunflower.
 
 #### Sequence 6 — Baron of Corruption
 
@@ -2581,7 +2585,7 @@ Heal 2; if target healed this turn, heal 2 more.
 
 Acting: Heal by exploiting another action.
 
-Recipe: Nightmare Grass, Astral Crystal.
+Recipe: 🌿 Nightmare Grass, 💎 Astral Crystal.
 
 #### Sequence 5 — Mentor of Confusion
 
@@ -2591,7 +2595,7 @@ Swap: heal target 2 OR deal 2 (invert intent — deals 2).
 
 Acting: Reverse a positive into negative.
 
-Recipe: Deep Sea Amber, Corrupted Blood, Abyss Sludge.
+Recipe: 🌊 Deep Sea Amber, 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 #### Sequence 4 — Earl of the Fallen
 
@@ -2601,7 +2605,7 @@ Deal 2 to any player who drew extra this turn (or 2 to target).
 
 Acting: Punish extra draws / utilities.
 
-Recipe: Spirit Gold, Astral Crystal, Wraith Dust.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 💨 Wraith Dust.
 
 #### Sequence 3 — Marquis of Order
 
@@ -2611,7 +2615,7 @@ All opponents skip Spell plays next turn (Action skip).
 
 Acting: Prevent Spells for a cycle.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Radiant Sunflower, Transcendent Core.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🌻 Radiant Sunflower, ◉ Transcendent Core.
 
 #### Sequence 2 — Duke of Entropy
 
@@ -2621,7 +2625,7 @@ Target discards hand and loses all SP.
 
 Acting: Strip hand and SP.
 
-Recipe: Wraith Dust, Corrupted Blood, Divine Spark, Divine Spark.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 1 — Prince of Abolition
 
@@ -2631,7 +2635,7 @@ Stun target and destroy their Artifact.
 
 Acting: Shut down Abilities/Artifacts.
 
-Recipe: Spirit Gold, Nightmare Grass, Abyss Sludge, Transcendent Core, Transcendent Core.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 🫧 Abyss Sludge, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 0 — The Black Emperor
 
@@ -2661,7 +2665,7 @@ Look at hand; discard a Trap if present.
 
 Acting: Force discard of Trap/Weapon intel (Interrogate).
 
-Recipe: Corrupted Blood.
+Recipe: 🩸 Corrupted Blood.
 
 #### Sequence 7 — Interrogator
 
@@ -2671,7 +2675,7 @@ Deal 2 Sanity and reveal one Trap on the board.
 
 Acting: Sanity damage + reveal.
 
-Recipe: Nightmare Grass, Abyss Sludge.
+Recipe: 🌿 Nightmare Grass, 🫧 Abyss Sludge.
 
 #### Sequence 6 — Judge
 
@@ -2681,7 +2685,7 @@ Deal 2 to target as punishment.
 
 Acting: Punish an action with damage.
 
-Recipe: Wraith Dust, Radiant Sunflower.
+Recipe: 💨 Wraith Dust, 🌻 Radiant Sunflower.
 
 #### Sequence 5 — Disciplinary Paladin
 
@@ -2691,7 +2695,7 @@ Clear all players' Block, Evade, and Attack modifiers.
 
 Acting: Reset buffs/debuffs.
 
-Recipe: Spirit Gold, Astral Crystal, Deep Sea Amber.
+Recipe: ☀ Spirit Gold, 💎 Astral Crystal, 🌊 Deep Sea Amber.
 
 #### Sequence 4 — Imperative Mage
 
@@ -2701,7 +2705,7 @@ Stun target (cancel their next Action).
 
 Acting: Cancel a high-impact action.
 
-Recipe: Wraith Dust, Corrupted Blood, Abyss Sludge.
+Recipe: 💨 Wraith Dust, 🩸 Corrupted Blood, 🫧 Abyss Sludge.
 
 #### Sequence 3 — Hand of Order
 
@@ -2711,7 +2715,7 @@ Target loses all SP and skips next Draw.
 
 Acting: Shut down resource generation.
 
-Recipe: Spirit Gold, Nightmare Grass, Radiant Sunflower, Divine Spark.
+Recipe: ☀ Spirit Gold, 🌿 Nightmare Grass, 🌻 Radiant Sunflower, ⚡ Divine Spark.
 
 #### Sequence 2 — Balancer
 
@@ -2721,7 +2725,7 @@ Average all living players' HP (round up).
 
 Acting: Drastically rebalance the board.
 
-Recipe: Astral Crystal, Wraith Dust, Transcendent Core, Transcendent Core.
+Recipe: 💎 Astral Crystal, 💨 Wraith Dust, ◉ Transcendent Core, ◉ Transcendent Core.
 
 #### Sequence 1 — Justiciar
 
@@ -2731,7 +2735,7 @@ Reduce a law-breaker (target) to 1 HP.
 
 Acting: Enforce a law that drops HP to 1.
 
-Recipe: Nightmare Grass, Deep Sea Amber, Corrupted Blood, Divine Spark, Divine Spark.
+Recipe: 🌿 Nightmare Grass, 🌊 Deep Sea Amber, 🩸 Corrupted Blood, ⚡ Divine Spark, ⚡ Divine Spark.
 
 #### Sequence 0 — The Justiciar
 

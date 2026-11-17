@@ -1,8 +1,8 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { CARD_DEFS } from "@/game/cards";
-import { INGREDIENT_NAMES, PATHWAYS, abilitySanityCost, curveLabel, pathwayCurve } from "@/game/pathways";
+import { CARD_DEFS, MAJOR_SYMBOL, SUIT_SYMBOL, TYPE_SYMBOL, tarotFace } from "@/game/cards";
+import { INGREDIENT_SYMBOL, PATHWAYS, abilitySanityCost, curveLabel, ingredientMark, pathwayCurve } from "@/game/pathways";
 import type { CardDef, CardType, Ingredient, PathwayDef } from "@/game/types";
 
 const TYPE_ORDER: CardType[] = ["weapon", "spell", "utility", "charm", "trap", "artifact"];
@@ -27,7 +27,7 @@ const TYPE_ONE: Record<CardType, string> = {
 
 function ingredients(tags: Ingredient[]): string {
   if (!tags.length) return "None";
-  return tags.map((tag) => INGREDIENT_NAMES[tag] ?? tag).join(", ");
+  return tags.map((tag) => ingredientMark(tag)).join(", ");
 }
 
 function cardHaystack(card: CardDef): string {
@@ -49,10 +49,7 @@ export function CardGlossary() {
   return (
     <div className="space-y-4">
       <p className="text-sm leading-relaxed text-stone-400">
-        {CARD_DEFS.length} cards, one copy of each in the deck. Commons cost their printed Spirituality,
-        almost always 1. Rares cost 4, and the two relic artifacts cost 6. A card also pays the potion
-        with the ingredients printed under it. Equipping a second weapon, trap, or artifact replaces the
-        one you have. A third charm replaces the older charm.
+        {CARD_DEFS.length} cards, one copy of each in the deck. A common card shows its minor face, such as 4 {SUIT_SYMBOL.Cups}. A rare card shows its major number and {MAJOR_SYMBOL}. Commons cost their printed Spirituality, almost always 1. Rares cost 4, and the two relic artifacts cost 6. Equipping a second weapon, trap, or artifact replaces the one you have. A third charm replaces the older charm.
       </p>
       <label className="block text-xs text-stone-400">
         Search cards
@@ -69,24 +66,34 @@ export function CardGlossary() {
         </Chip>
         {TYPE_ORDER.map((kind) => (
           <Chip key={kind} active={type === kind} onClick={() => setType(kind)}>
-            {TYPE_LABEL[kind]} {CARD_DEFS.filter((card) => card.type === kind).length}
+            {TYPE_SYMBOL[kind]} {TYPE_LABEL[kind]} {CARD_DEFS.filter((card) => card.type === kind).length}
           </Chip>
         ))}
       </div>
+      <p className="text-xs leading-relaxed text-stone-500">
+        Suits {Object.entries(SUIT_SYMBOL).map(([name, symbol]) => `${symbol} ${name}`).join(" · ")}. Major {MAJOR_SYMBOL}. Ingredients{" "}
+        {Object.keys(INGREDIENT_SYMBOL).map((tag) => ingredientMark(tag)).join(" · ")}.
+      </p>
       <p className="text-xs text-stone-500">{cards.length} shown</p>
       <ul className="space-y-2">
-        {cards.map((card) => (
+        {cards.map((card) => {
+          const face = tarotFace(card.id);
+          return (
           <li key={card.id} className="rounded border border-stone-800 bg-stone-950/40 px-3 py-2">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h3 className="text-stone-100">{card.name}</h3>
+              <h3 className="text-stone-100">
+                {TYPE_SYMBOL[card.type]} {card.name}
+              </h3>
               <p className="text-xs text-amber-200/80">
-                {TYPE_ONE[card.type]} · {card.rarity} · {card.spCost} Spirituality
+                {face.mark}
+                {face.kind === "major" ? ` ${face.name}` : ""} · {TYPE_ONE[card.type]} · {card.rarity} · {card.spCost} Spirituality
               </p>
             </div>
             <p className="mt-1 text-sm leading-relaxed text-stone-300">{card.text}</p>
             <p className="mt-1 text-xs text-stone-500">Ingredients: {ingredients(card.ingredients)}</p>
           </li>
-        ))}
+          );
+        })}
       </ul>
     </div>
   );

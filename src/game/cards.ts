@@ -1,4 +1,4 @@
-import type { CardDef, Ingredient } from "./types";
+import type { CardDef, CardType, Ingredient } from "./types";
 
 /**
  * Spirituality to play a card. Every card costs what is printed on it.
@@ -939,13 +939,34 @@ const MAJOR_ARCANA = [
 ];
 
 const MINOR_RANKS = ["Ace", "2", "3", "4", "5", "6", "7", "8", "9", "10", "Page", "Knight", "Queen", "King"];
-const MINOR_SUITS = ["Wands", "Cups", "Swords", "Pentacles"];
+const MINOR_SUITS = ["Wands", "Cups", "Swords", "Pentacles"] as const;
+
+export const SUIT_SYMBOL: Record<(typeof MINOR_SUITS)[number], string> = {
+  Wands: "🪄",
+  Cups: "🏆",
+  Swords: "⚔",
+  Pentacles: "🪙",
+};
+
+export const TYPE_SYMBOL: Record<CardType, string> = {
+  weapon: "🗡",
+  spell: "✨",
+  utility: "🧪",
+  charm: "📜",
+  trap: "🕸",
+  artifact: "🔮",
+};
+
+export const MAJOR_SYMBOL = "✶";
 
 export interface TarotFace {
   kind: "major" | "minor";
   /** 0–21 for a major. Absent for a minor. */
   number?: number;
   name: string;
+  /** Rank plus a suit symbol, or the major number plus ✶. */
+  mark: string;
+  symbol: string;
 }
 
 /** Rares are the 22 Major Arcana, in deck order. Commons are the 56 Minor Arcana. */
@@ -953,11 +974,13 @@ export function tarotFace(defId: string): TarotFace {
   const rares = CARD_DEFS.filter((c) => c.rarity === "rare");
   const majorIndex = rares.findIndex((c) => c.id === defId);
   if (majorIndex >= 0) {
-    return { kind: "major", number: majorIndex, name: MAJOR_ARCANA[majorIndex] ?? "Major" };
+    const name = MAJOR_ARCANA[majorIndex] ?? "Major";
+    return { kind: "major", number: majorIndex, name, mark: `${majorIndex} ${MAJOR_SYMBOL}`, symbol: MAJOR_SYMBOL };
   }
   const commons = CARD_DEFS.filter((c) => c.rarity === "common");
   const minorIndex = Math.max(0, commons.findIndex((c) => c.id === defId));
   const rank = MINOR_RANKS[minorIndex % MINOR_RANKS.length] ?? "Ace";
   const suit = MINOR_SUITS[Math.floor(minorIndex / MINOR_RANKS.length) % MINOR_SUITS.length] ?? "Wands";
-  return { kind: "minor", name: `${rank} of ${suit}` };
+  const symbol = SUIT_SYMBOL[suit];
+  return { kind: "minor", name: `${rank} of ${suit}`, mark: `${rank} ${symbol}`, symbol };
 }
