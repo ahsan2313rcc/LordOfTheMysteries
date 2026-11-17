@@ -25,6 +25,8 @@ const STORE_KEY = "lotm-learner-v1";
 const KINDS = ["draw", "ascend", "cast", "attack", "play", "trap", "artifact", "other"] as const;
 const TYPES = ["weapon", "spell", "utility", "charm", "trap", "artifact"] as const;
 
+export type SeatController = "nn" | "ai";
+
 export interface LearnerModel {
   version: 1;
   w1: number[];
@@ -37,6 +39,10 @@ export interface LearnerModel {
   played: number;
   wins: number;
   losses: number;
+  /** Matches with one neural-network seat and one search-AI seat. */
+  headToHead: number;
+  nnWins: number;
+  aiWins: number;
 }
 
 let model: LearnerModel = freshModel(7);
@@ -64,15 +70,36 @@ function freshModel(seed: number): LearnerModel {
     played: 0,
     wins: 0,
     losses: 0,
+    headToHead: 0,
+    nnWins: 0,
+    aiWins: 0,
   };
 }
 
+function withCounters(parsed: LearnerModel): LearnerModel {
+  parsed.headToHead ??= 0;
+  parsed.nnWins ??= 0;
+  parsed.aiWins ??= 0;
+  parsed.watched ??= 0;
+  parsed.played ??= 0;
+  parsed.wins ??= 0;
+  parsed.losses ??= 0;
+  return parsed;
+}
+
 export function learnerStats() {
+  const draws = Math.max(0, model.headToHead - model.nnWins - model.aiWins);
+  const decided = model.nnWins + model.aiWins;
   return {
     watched: model.watched,
     played: model.played,
     wins: model.wins,
     losses: model.losses,
+    headToHead: model.headToHead,
+    nnWins: model.nnWins,
+    aiWins: model.aiWins,
+    draws,
+    nnWinRate: decided ? model.nnWins / decided : 0,
   };
 }
 
@@ -98,7 +125,7 @@ export function loadLearnerLocal(): boolean {
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
     if (parsed.version !== 1 || parsed.w1.length !== INPUTS * H1) return false;
-    model = parsed;
+    model = withCounters(parsed);
     return true;
   } catch {
     return false;
@@ -109,7 +136,7 @@ export function importLearner(raw: string): boolean {
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
     if (parsed.version !== 1 || parsed.w1.length !== INPUTS * H1) return false;
-    model = parsed;
+    model = withCounters(parsed);
     saveLearnerLocal();
     return true;
   } catch {
@@ -355,56 +382,49 @@ async function stepYield() {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-/** Watch search-AI games and imitate the action the search prefers. */
-export async function watchAiGames(games: number, onProgress?: (done: number, total: number) => void) {
-  for (let g = 0; g < games; g++) {
-    const state = openDuel(4000 + model.watched * 17 + g * 13);
-    let guard = 0;
-    while ((state.phase as string) !== "gameover" && guard < 240) {
-      const choices = legalChoices(state);
-      if (!choices.length) {
-        endTurn(state, getRng(state));
-        guard += 1;
-        continue;
-      }
-      let best = choices[0]!;
-      let bestV = -Infinity;
-      const scored: { choice: LegalChoice; value: number }[] = [];
-      for (const choice of choices) {
-        const value = choiceValue(state, choice.apply) ?? -99999;
-        scored.push({ choice, value });
-        if (value > bestV) {
-          bestV = value;
-          best = choice;
-        }
-      }
-      const worse = scored.find((row) => row.choice !== best)?.choice ?? best;
-      trainPair(state, currentPlayer(state).id, best.label, worse.label);
-      if (!best.apply(state)) endTurn(state, getRng(state));
-      guard += 1;
+function searchChoice(state: GameState, choices: LegalChoice[]): LegalChoice {
+  let best = choices[0]!;
+  let bestV = -Infinity;
+  for (const choice of choices) {
+    const value = choiceValue(state, choice.apply) ?? -99999;
+    if (value > bestV) {
+      bestV = value;
+      best = choice;
     }
-    model.watched += 1;
-    onProgress?.(g + 1, games);
-    await stepYield();
   }
-  saveLearnerLocal();
+  return best;
+}
+
+function noteHeadToHead(state: GameState, kinds: [SeatController, SeatController]) {
+  if (kinds[0] === kinds[1]) return;
+  model.headToHead += 1;
+  const winner = state.players.findIndex((p) => p.id === state.winnerId);
+  if (winner < 0) return;
+  if (kinds[winner] === "nn") model.nnWins += 1;
+  else model.aiWins += 1;
 }
 
 /**
- * The learner takes one or both seats. Winner's actions are pulled up,
- * the loser's are pushed down.
+ * One match. Each seat is the neural network or the search AI.
+ * The two seats swap who goes first every game.
+ * A match of two search AIs is watched and imitated.
+ * Any network seat learns from whether that seat won.
+ * NN-versus-AI results are stored on the model.
  */
-export async function playLearnerGames(
+export async function runTrainerMatch(
   games: number,
-  mode: "ai" | "self",
+  seatA: SeatController,
+  seatB: SeatController,
   onProgress?: (done: number, total: number) => void,
 ) {
-  for (let g = 0; g < games; g++) {
-    const state = openDuel(9000 + model.played * 19 + g * 11);
-    const learnerSeats = new Set<string>();
-    learnerSeats.add(state.players[0]!.id);
-    if (mode === "self") learnerSeats.add(state.players[1]!.id);
+  const total = Math.max(1, Math.min(1024, Math.floor(games)));
+  for (let g = 0; g < total; g++) {
+    const state = openDuel(5000 + (model.watched + model.played) * 17 + g * 13);
+    const kinds: [SeatController, SeatController] = g % 2 === 0 ? [seatA, seatB] : [seatB, seatA];
+    const byId = new Map<string, SeatController>();
+    state.players.forEach((p, i) => byId.set(p.id, kinds[i]!));
     const taken = new Map<string, number[][]>();
+    const bothAi = seatA === "ai" && seatB === "ai";
     let guard = 0;
     while ((state.phase as string) !== "gameover" && guard < 240) {
       const seat = currentPlayer(state);
@@ -414,35 +434,48 @@ export async function playLearnerGames(
         guard += 1;
         continue;
       }
-      if (learnerSeats.has(seat.id)) {
+      const kind = byId.get(seat.id) ?? "ai";
+      if (kind === "nn") {
         const choice = pickLearner(state, choices, 0.12);
         const rows = taken.get(seat.id) ?? [];
         rows.push(pack(state, seat.id, choice.label));
         taken.set(seat.id, rows);
         if (!choice.apply(state)) endTurn(state, getRng(state));
-      } else {
+      } else if (bothAi) {
         let best = choices[0]!;
         let bestV = -Infinity;
+        const scored: { choice: LegalChoice; value: number }[] = [];
         for (const choice of choices) {
           const value = choiceValue(state, choice.apply) ?? -99999;
+          scored.push({ choice, value });
           if (value > bestV) {
             bestV = value;
             best = choice;
           }
         }
+        const worse = scored.find((row) => row.choice !== best)?.choice ?? best;
+        trainPair(state, seat.id, best.label, worse.label);
+        if (!best.apply(state)) endTurn(state, getRng(state));
+      } else {
+        const best = searchChoice(state, choices);
         if (!best.apply(state)) endTurn(state, getRng(state));
       }
       guard += 1;
     }
-    const winner = state.winnerId;
-    for (const [seatId, rows] of taken) {
-      const won = !!winner && winner === seatId;
-      if (won) model.wins += 1;
-      else model.losses += 1;
-      for (const row of rows) learn(row, won ? 1 : 0, 0.015);
+    noteHeadToHead(state, kinds);
+    if (bothAi) model.watched += 1;
+    else {
+      const winner = state.winnerId;
+      for (const [seatId, rows] of taken) {
+        const won = !!winner && winner === seatId;
+        if (won) model.wins += 1;
+        else model.losses += 1;
+        for (const row of rows) learn(row, won ? 1 : 0, 0.015);
+      }
+      model.played += 1;
     }
-    model.played += 1;
-    onProgress?.(g + 1, games);
+    onProgress?.(g + 1, total);
+    if ((g + 1) % 8 === 0) saveLearnerLocal();
     await stepYield();
   }
   saveLearnerLocal();

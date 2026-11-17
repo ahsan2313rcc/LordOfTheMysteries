@@ -6,14 +6,18 @@ import {
   learnerJson,
   learnerStats,
   loadLearnerLocal,
-  playLearnerGames,
+  runTrainerMatch,
   saveLearnerLocal,
-  watchAiGames,
+  type SeatController,
 } from "@/game/learner";
 import { useEffect, useState } from "react";
 
+const GAME_CHOICES = [1, 4, 16, 64, 256, 512, 1024];
+
 export function LearnerPanel() {
-  const [games, setGames] = useState(2);
+  const [games, setGames] = useState(4);
+  const [seatA, setSeatA] = useState<SeatController>("nn");
+  const [seatB, setSeatB] = useState<SeatController>("ai");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [note, setNote] = useState("");
@@ -31,18 +35,19 @@ export function LearnerPanel() {
     setNote(message);
   }
 
-  async function run(kind: "watch" | "ai" | "self") {
+  async function run() {
+    const count = clampGames(games);
+    setGames(count);
     setBusy(true);
-    setProgress(`0 / ${games}`);
-    const tick = (done: number, total: number) => setProgress(`${done} / ${total}`);
-    if (kind === "watch") await watchAiGames(games, tick);
-    else await playLearnerGames(games, kind === "self" ? "self" : "ai", tick);
+    setProgress(`0 / ${count}`);
+    await runTrainerMatch(count, seatA, seatB, (done, total) => setProgress(`${done} / ${total}`));
     setBusy(false);
     setProgress("");
+    const bothAi = seatA === "ai" && seatB === "ai";
     refresh(
-      kind === "watch"
-        ? `Watched ${games} search-AI games. The weights are stored in this browser.`
-        : `Played ${games} games. Winning lines were reinforced.`,
+      bothAi
+        ? `Watched ${count} search-AI games. The weights are stored in this browser.`
+        : `Played ${count} games with ${seatLabel(seatA)} against ${seatLabel(seatB)}. Winning lines were reinforced.`,
     );
   }
 
@@ -66,7 +71,7 @@ export function LearnerPanel() {
     setNote("The trained weights are gone. The next session starts from a fresh network.");
   }
 
-  const decided = stats.wins + stats.losses;
+  const decided = stats.nnWins + stats.aiWins;
 
   return (
     <section className="flex flex-col gap-4">
@@ -75,8 +80,8 @@ export function LearnerPanel() {
         <p className="mt-1 text-sm text-stone-400">
           A small network reads the position it is allowed to see: its own hand and board, the
           enemy board, revealed cards, enemy hand size, and how many cards are left in the deck and
-          discard. Watch mode studies the search AI’s choices. Play mode sits the network at the
-          table, against that AI or against itself, and reinforces the lines that won. More games
+          discard. Each seat in a match is the neural network or the search AI. Two search AIs are
+          watched and imitated. A network seat learns from the games it wins and loses. More games
           make it sharper. It does not start out solved.
         </p>
       </div>
@@ -84,34 +89,77 @@ export function LearnerPanel() {
       <div className="flex flex-wrap items-end gap-2">
         <label className="text-xs text-stone-400">
           Games
-          <select
-            className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
+          <input
+            type="number"
+            min={1}
+            max={1024}
+            inputMode="numeric"
+            className="mt-1 block w-24 rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
             value={games}
             disabled={busy}
-            onChange={(e) => setGames(Number(e.target.value))}
+            onChange={(e) => setGames(clampGames(Number(e.target.value)))}
+          />
+        </label>
+        <label className="text-xs text-stone-400">
+          Seat A
+          <select
+            className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
+            value={seatA}
+            disabled={busy}
+            onChange={(e) => setSeatA(e.target.value as SeatController)}
           >
-            <option value={1}>1</option>
-            <option value={2}>2</option>
-            <option value={4}>4</option>
-            <option value={8}>8</option>
+            <option value="nn">NN</option>
+            <option value="ai">AI</option>
           </select>
         </label>
-        <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run("watch")}>
-          {busy ? progress : "Watch AI vs AI"}
-        </Button>
-        <Button variant="outline" disabled={busy} onClick={() => void run("ai")}>
-          Play vs search AI
-        </Button>
-        <Button variant="outline" disabled={busy} onClick={() => void run("self")}>
-          Play against itself
+        <label className="text-xs text-stone-400">
+          Seat B
+          <select
+            className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
+            value={seatB}
+            disabled={busy}
+            onChange={(e) => setSeatB(e.target.value as SeatController)}
+          >
+            <option value="nn">NN</option>
+            <option value="ai">AI</option>
+          </select>
+        </label>
+        <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run()}>
+          {busy ? progress : "Run match"}
         </Button>
       </div>
+      <div className="flex flex-wrap gap-1">
+        {GAME_CHOICES.map((n) => (
+          <button
+            key={n}
+            type="button"
+            disabled={busy}
+            aria-pressed={games === n}
+            className="rounded-full border border-stone-700 px-2 py-0.5 text-xs text-stone-300 hover:border-amber-600 hover:text-amber-100 disabled:opacity-50"
+            onClick={() => setGames(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
 
-      <div className="grid gap-2 sm:grid-cols-4">
+      <div>
+        <h3 className="text-sm text-amber-100">NN vs AI</h3>
+        <p className="mt-1 text-xs text-stone-500">
+          These four numbers count only matches with one neural network and one search AI. Who goes
+          first swaps every game. A game with no winner sits in Draws.
+        </p>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Stat label="NN wins" value={String(stats.nnWins)} />
+        <Stat label="AI wins" value={String(stats.aiWins)} />
+        <Stat label="Draws" value={String(stats.draws)} />
+        <Stat label="NN win rate" value={decided ? `${Math.round(stats.nnWinRate * 100)}%` : "—"} />
+      </div>
+      <div className="grid gap-2 sm:grid-cols-3">
+        <Stat label="NN vs AI matches" value={String(stats.headToHead)} />
         <Stat label="Games watched" value={String(stats.watched)} />
-        <Stat label="Games played" value={String(stats.played)} />
-        <Stat label="Winning seats" value={decided ? `${stats.wins}/${decided}` : "—"} />
-        <Stat label="Stored here" value={saved ? "Yes" : "Not yet"} />
+        <Stat label="Network games" value={String(stats.played)} />
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -121,16 +169,26 @@ export function LearnerPanel() {
         <Button variant="outline" disabled={busy} onClick={erase}>
           Erase trained data
         </Button>
+        <p className="self-center text-xs text-stone-500">{saved ? "Stored in this browser." : "Not stored yet."}</p>
       </div>
 
       {note && <p className="text-sm text-stone-400">{note}</p>}
       <p className="text-xs text-stone-500">
-        Save writes the weights into this browser and downloads a JSON file you can keep. Erase
-        drops that browser copy and resets the network. A fresh page loads the saved weights again
-        until you erase them.
+        A match can be 1 to 1024 games. Save writes the weights into this browser and downloads a
+        JSON file you can keep. Erase drops that browser copy, including the NN vs AI record, and
+        resets the network. A fresh page loads the saved weights again until you erase them.
       </p>
     </section>
   );
+}
+
+function clampGames(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.max(1, Math.min(1024, Math.floor(value)));
+}
+
+function seatLabel(kind: SeatController): string {
+  return kind === "nn" ? "the neural network" : "the search AI";
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
