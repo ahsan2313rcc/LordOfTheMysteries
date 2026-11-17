@@ -1,7 +1,7 @@
 import { runAiTurn } from "./ai";
 import { CARD_DEFS } from "./cards";
 import { createGame, currentPlayer, endTurn, getRng } from "./engine";
-import { loadLearnerLocal, playNetworkTurn } from "./learner";
+import { hydrateLearner, playNetworkTurn } from "./learner";
 import { PATHWAYS } from "./pathways";
 import type { GameState } from "./types";
 
@@ -656,7 +656,7 @@ export function runSimulation(opts: {
 }): SimReport {
   const report = emptyReport(opts.players);
   report.seatControllers = (opts.controllers ?? []).slice(0, opts.players);
-  if (report.seatControllers.some((c) => c === "nn")) loadLearnerLocal();
+  if (report.seatControllers.some((c) => c === "nn")) hydrateLearner();
   const keep = opts.keepReplays ?? opts.games;
   let turnSum = 0;
   let attackSum = 0;
@@ -692,7 +692,7 @@ export async function runSimulationAsync(
 ): Promise<SimReport> {
   const report = emptyReport(opts.players);
   report.seatControllers = (opts.controllers ?? []).slice(0, opts.players);
-  if (report.seatControllers.some((c) => c === "nn")) loadLearnerLocal();
+  if (report.seatControllers.some((c) => c === "nn")) hydrateLearner();
   const keep = opts.keepReplays ?? 12;
   let turnSum = 0;
   let attackSum = 0;
@@ -884,7 +884,7 @@ export async function runRoundRobin(
   const duels: DuelResult[] = [];
   const report = emptyReport(2);
   report.seatControllers = [controllers?.a ?? "ai", controllers?.b ?? "ai"];
-  if (report.seatControllers.some((c) => c === "nn")) loadLearnerLocal();
+  if (report.seatControllers.some((c) => c === "nn")) hydrateLearner();
   let turnSum = 0;
   let attackSum = 0;
   let hpSum = 0;

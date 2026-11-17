@@ -46,6 +46,10 @@ export interface LearnerModel {
 }
 
 let model: LearnerModel = freshModel(7);
+/** True after this page has loaded the saved network, or decided there isn't one. */
+let hydrated = false;
+/** True after this page has changed the weights. A later load must not replace them. */
+let dirty = false;
 
 function mulberry(seed: number) {
   let s = seed >>> 0;
@@ -109,6 +113,8 @@ export function learnerJson(): string {
 
 export function eraseLearner() {
   model = freshModel(Date.now() % 100000);
+  dirty = false;
+  hydrated = true;
   if (typeof localStorage !== "undefined") localStorage.removeItem(STORE_KEY);
 }
 
@@ -118,7 +124,7 @@ export function saveLearnerLocal(): boolean {
   return true;
 }
 
-export function loadLearnerLocal(): boolean {
+function loadFromStorage(): boolean {
   if (typeof localStorage === "undefined") return false;
   const raw = localStorage.getItem(STORE_KEY);
   if (!raw) return false;
@@ -130,6 +136,23 @@ export function loadLearnerLocal(): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Bring in the network stored in this browser.
+ * Refuses once this page has already trained, so a reload cannot throw away newer weights.
+ */
+export function loadLearnerLocal(): boolean {
+  if (dirty) return false;
+  hydrated = true;
+  return loadFromStorage();
+}
+
+/** Load the saved network once per page. Later calls keep whatever this page has learned. */
+export function hydrateLearner() {
+  if (dirty || hydrated) return;
+  hydrated = true;
+  loadFromStorage();
 }
 
 export function importLearner(raw: string): boolean {
@@ -174,6 +197,7 @@ function forward(input: number[]) {
 }
 
 function learn(input: number[], target: number, rate = 0.02) {
+  dirty = true;
   const { y, h1, h2 } = forward(input);
   const dy = y - target;
   for (let i = 0; i < H2; i++) {
@@ -424,6 +448,7 @@ export async function runTrainerMatch(
   seatB: SeatController,
   onProgress?: (done: number, total: number) => void,
 ) {
+  hydrateLearner();
   const total = Math.max(1, Math.min(1024, Math.floor(games)));
   for (let g = 0; g < total; g++) {
     const state = openDuel(5000 + (model.watched + model.played) * 17 + g * 13);

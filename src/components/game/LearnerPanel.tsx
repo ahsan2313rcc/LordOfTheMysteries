@@ -38,16 +38,15 @@ export function LearnerPanel() {
   async function run() {
     const count = clampGames(games);
     setGames(count);
+    const before = learnerStats();
     setBusy(true);
     setProgress(`0 / ${count}`);
     await runTrainerMatch(count, seatA, seatB, (done, total) => setProgress(`${done} / ${total}`));
     setBusy(false);
     setProgress("");
-    const bothAi = seatA === "ai" && seatB === "ai";
+    const after = learnerStats();
     refresh(
-      bothAi
-        ? `Watched ${count} search-AI games. The weights are stored in this browser.`
-        : `Played ${count} games with ${seatLabel(seatA)} against ${seatLabel(seatB)}. Winning lines were reinforced.`,
+      `Continued from the stored network. This run added ${count} games. Watched ${before.watched} → ${after.watched}. Played ${before.played} → ${after.played}.`,
     );
   }
 
@@ -80,9 +79,11 @@ export function LearnerPanel() {
         <p className="mt-1 text-sm text-stone-400">
           A small network reads the position it is allowed to see: its own hand and board, the
           enemy board, revealed cards, enemy hand size, and how many cards are left in the deck and
-          discard. Each seat in a match is the neural network or the search AI. Two search AIs are
-          watched and imitated. A network seat learns from the games it wins and loses. More games
-          make it sharper. It does not start out solved.
+          discard. Each run keeps training the network already stored in this browser. The watched
+          and played totals add to the previous run. Erase is the only control that throws those
+          weights away and starts from a new network. Each seat is the neural network or the search
+          AI. Two search AIs are watched and imitated. A network seat learns from the games it wins
+          and loses. More games make it sharper. It does not start out solved.
         </p>
       </div>
 
@@ -174,9 +175,10 @@ export function LearnerPanel() {
 
       {note && <p className="text-sm text-stone-400">{note}</p>}
       <p className="text-xs text-stone-500">
-        A match can be 1 to 1024 games. Save writes the weights into this browser and downloads a
-        JSON file you can keep. Erase drops that browser copy, including the NN vs AI record, and
-        resets the network. A fresh page loads the saved weights again until you erase them.
+        A match can be 1 to 1024 games, and the next match starts from those same weights. Save
+        writes that network into this browser and downloads a JSON file you can keep. Erase drops
+        that browser copy, including the NN vs AI record, and resets the network. A fresh page
+        loads the saved weights again until you erase them.
       </p>
     </section>
   );
@@ -185,10 +187,6 @@ export function LearnerPanel() {
 function clampGames(value: number): number {
   if (!Number.isFinite(value)) return 1;
   return Math.max(1, Math.min(1024, Math.floor(value)));
-}
-
-function seatLabel(kind: SeatController): string {
-  return kind === "nn" ? "the neural network" : "the search AI";
 }
 
 function Stat({ label, value }: { label: string; value: string }) {
