@@ -6,6 +6,7 @@ import {
   ROUND_ROBIN_SEEDS,
   runRoundRobin,
   type DuelResult,
+  type SeatController,
   type SimReport,
 } from "@/game/simulate";
 import { cn } from "@/lib/utils";
@@ -160,6 +161,8 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [perSide, setPerSide] = useState(5);
+  const [seatA, setSeatA] = useState<SeatController>("ai");
+  const [seatB, setSeatB] = useState<SeatController>("ai");
   const [picked, setPicked] = useState<string[]>(IDS);
   const [focus, setFocus] = useState<string[] | null>(null);
   const [filter, setFilter] = useState<"all" | PathwayCurve | "custom">("all");
@@ -237,7 +240,11 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
     setBusy(true);
     setFocus(null);
     setProgress(`0 / ${253 * gamesEach}`);
-    const result = await runRoundRobin(perSide, (done, total) => setProgress(`${done} / ${total}`));
+    const result = await runRoundRobin(
+      perSide,
+      (done, total) => setProgress(`${done} / ${total}`),
+      { a: seatA, b: seatB },
+    );
     setDuels(result.duels);
     onReport?.(result.report);
     setBusy(false);
@@ -277,6 +284,8 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
               ))}
             </select>
           </label>
+          <SeatPick label="Row" value={seatA} disabled={busy} onChange={setSeatA} />
+          <SeatPick label="Column" value={seatB} disabled={busy} onChange={setSeatB} />
           <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run()}>
             {busy ? progress : duels ? "Run round robin again" : "Run 22×22"}
           </Button>
@@ -493,6 +502,33 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
         <p className="text-sm text-stone-500">Select at least two pathways to open the group table.</p>
       )}
     </section>
+  );
+}
+
+function SeatPick({
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: SeatController;
+  disabled: boolean;
+  onChange: (next: SeatController) => void;
+}) {
+  return (
+    <label className="text-xs text-stone-400">
+      {label}
+      <select
+        className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
+        value={value}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value as SeatController)}
+      >
+        <option value="ai">AI</option>
+        <option value="nn">NN</option>
+      </select>
+    </label>
   );
 }
 

@@ -338,6 +338,13 @@ function trainPair(state: GameState, seatId: string, better: string, worse: stri
   }
 }
 
+/** One action from the trained network, with no random exploration. */
+export function playNetworkTurn(state: GameState): boolean {
+  const choices = legalChoices(state);
+  if (!choices.length) return false;
+  return pickLearner(state, choices, 0).apply(state);
+}
+
 function pickLearner(state: GameState, choices: LegalChoice[], explore: number): LegalChoice {
   const seat = currentPlayer(state).id;
   if (Math.random() < explore) return choices[Math.floor(Math.random() * choices.length)]!;

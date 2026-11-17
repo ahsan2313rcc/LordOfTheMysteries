@@ -1,8 +1,11 @@
 import { runAiTurn } from "./ai";
 import { CARD_DEFS } from "./cards";
-import { createGame, endTurn, getRng } from "./engine";
+import { createGame, currentPlayer, endTurn, getRng } from "./engine";
+import { loadLearnerLocal, playNetworkTurn } from "./learner";
 import { PATHWAYS } from "./pathways";
 import type { GameState } from "./types";
+
+export type SeatController = "nn" | "ai";
 
 export interface SimPlay {
   defId: string;
@@ -28,7 +31,7 @@ export interface SeatFinish {
 export interface GameReplay {
   seed: number;
   players: number;
-  pathways: { name: string; pathwayId: string }[];
+  pathways: { name: string; pathwayId: string; controller?: SeatController }[];
   turns: number;
   timedOut: boolean;
   winReason: string;
@@ -162,6 +165,12 @@ export interface SimReport {
   cards: CardStat[];
   pathways: PathwayStat[];
   replays: GameReplay[];
+  /** Games where the table had both a neural network and a search AI. */
+  mixedGames: number;
+  nnWins: number;
+  aiWins: number;
+  controllerDraws: number;
+  seatControllers: SeatController[];
 }
 
 function shuffleIds(seed: number): string[] {
@@ -219,11 +228,34 @@ function noteTrail(state: GameState, trails: Map<string, Trail>) {
   }
 }
 
+function runNetworkTurn(state: GameState) {
+  const seatId = currentPlayer(state).id;
+  let guard = 0;
+  while (
+    (state.phase as string) === "action" &&
+    currentPlayer(state).id === seatId &&
+    currentPlayer(state).alive &&
+    !currentPlayer(state).sanityBroken &&
+    guard < 22
+  ) {
+    guard += 1;
+    if (!playNetworkTurn(state)) break;
+  }
+  if (
+    (state.phase as string) === "action" &&
+    currentPlayer(state).id === seatId &&
+    currentPlayer(state).alive
+  ) {
+    endTurn(state, getRng(state));
+  }
+}
+
 export function playAiGame(
   seed: number,
   players: 2 | 4,
   maxTurns = 280,
   arcanaConcealment = false,
+  controllers?: SeatController[],
 ): GameReplay {
   const ids = shuffleIds(seed);
   const state: GameState = createGame({
@@ -235,13 +267,16 @@ export function playAiGame(
   });
   for (const p of state.players) p.isHuman = false;
   state.simPlays = [];
+  const kinds: SeatController[] = state.players.map((_, i) => controllers?.[i] ?? "ai");
   const trails = new Map<string, Trail>();
 
   const ended = () => (state.phase as string) === "gameover";
   let guard = 0;
   while (!ended() && guard < maxTurns) {
     const before = state.turnNumber;
-    runAiTurn(state);
+    const idx = state.players.findIndex((p) => p.id === currentPlayer(state).id);
+    if (kinds[idx] === "nn") runNetworkTurn(state);
+    else runAiTurn(state);
     if (state.turnNumber === before && !ended()) {
       endTurn(state, getRng(state));
     }
@@ -249,10 +284,16 @@ export function playAiGame(
     guard += 1;
   }
 
-  return replayFrom(state, trails, seed, players);
+  return replayFrom(state, trails, seed, players, kinds);
 }
 
-function replayFrom(state: GameState, trails: Map<string, Trail>, seed: number, players: 2 | 4): GameReplay {
+function replayFrom(
+  state: GameState,
+  trails: Map<string, Trail>,
+  seed: number,
+  players: 2 | 4,
+  controllers?: SeatController[],
+): GameReplay {
   const winner = state.players.find((p) => p.id === state.winnerId);
   const others = state.players.filter((p) => p.id !== winner?.id);
   const bestOther =
@@ -273,9 +314,10 @@ function replayFrom(state: GameState, trails: Map<string, Trail>, seed: number, 
   return {
     seed,
     players,
-    pathways: state.players.map((p) => ({
+    pathways: state.players.map((p, i) => ({
       name: p.name,
       pathwayId: p.pathwayId,
+      controller: controllers?.[i],
     })),
     turns: state.turnNumber,
     timedOut: state.phase !== "gameover",
@@ -406,6 +448,11 @@ function emptyReport(players: number): SimReport {
       avgWinSequence: 0,
     })),
     replays: [],
+    mixedGames: 0,
+    nnWins: 0,
+    aiWins: 0,
+    controllerDraws: 0,
+    seatControllers: [],
   };
 }
 
@@ -428,6 +475,15 @@ function holdGear(gearById: Map<string, GearStat>, id: string | undefined, won: 
 
 function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
   report.games += 1;
+  const kinds = game.pathways.map((p) => p.controller).filter((c): c is SeatController => !!c);
+  if (kinds.includes("nn") && kinds.includes("ai")) {
+    report.mixedGames += 1;
+    const winnerIdx = game.pathways.findIndex((p) => p.pathwayId === game.winnerPathway && p.name === game.winnerName);
+    const winnerKind = winnerIdx >= 0 ? game.pathways[winnerIdx]?.controller : undefined;
+    if (winnerKind === "nn") report.nnWins += 1;
+    else if (winnerKind === "ai") report.aiWins += 1;
+    else report.controllerDraws += 1;
+  }
   if (game.timedOut) report.timeouts += 1;
   else report.finished += 1;
   tallyEnding(report, game);
@@ -596,15 +652,18 @@ export function runSimulation(opts: {
   /** Chronicle replays kept for the viewer. Stats still cover every game. */
   keepReplays?: number;
   arcanaConcealment?: boolean;
+  controllers?: SeatController[];
 }): SimReport {
   const report = emptyReport(opts.players);
+  report.seatControllers = (opts.controllers ?? []).slice(0, opts.players);
+  if (report.seatControllers.some((c) => c === "nn")) loadLearnerLocal();
   const keep = opts.keepReplays ?? opts.games;
   let turnSum = 0;
   let attackSum = 0;
   let hpSum = 0;
   const base = opts.seed ?? 4100;
   for (let i = 0; i < opts.games; i++) {
-    const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment);
+    const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment, opts.controllers);
     const keepThis = report.replays.length < keep;
     if (!keepThis) {
       game.log = [];
@@ -627,17 +686,20 @@ export async function runSimulationAsync(
     seed?: number;
     keepReplays?: number;
     arcanaConcealment?: boolean;
+    controllers?: SeatController[];
   },
   onProgress?: (done: number, total: number) => void,
 ): Promise<SimReport> {
   const report = emptyReport(opts.players);
+  report.seatControllers = (opts.controllers ?? []).slice(0, opts.players);
+  if (report.seatControllers.some((c) => c === "nn")) loadLearnerLocal();
   const keep = opts.keepReplays ?? 12;
   let turnSum = 0;
   let attackSum = 0;
   let hpSum = 0;
   const base = opts.seed ?? 4100;
   for (let i = 0; i < opts.games; i++) {
-    const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment);
+    const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment, opts.controllers);
     const keepThis = report.replays.length < keep;
     if (!keepThis) game.log = [];
     absorb(report, game, keepThis);
@@ -681,7 +743,13 @@ export interface PlayedDuel {
 }
 
 /** One duel. Pathways are fixed; the seed only shuffles the deck. */
-export function playDuel(a: string, b: string, seed: number, aFirst: boolean): PlayedDuel {
+export function playDuel(
+  a: string,
+  b: string,
+  seed: number,
+  aFirst: boolean,
+  controllers?: { a: SeatController; b: SeatController },
+): PlayedDuel {
   const first = aFirst ? a : b;
   const second = aFirst ? b : a;
   const state: GameState = createGame({
@@ -694,12 +762,17 @@ export function playDuel(a: string, b: string, seed: number, aFirst: boolean): P
   state.simQuiet = true;
   state.simPlays = [];
   for (const p of state.players) p.isHuman = false;
+  const kinds: SeatController[] = aFirst
+    ? [controllers?.a ?? "ai", controllers?.b ?? "ai"]
+    : [controllers?.b ?? "ai", controllers?.a ?? "ai"];
   const trails = new Map<string, Trail>();
 
   let guard = 0;
   while ((state.phase as string) !== "gameover" && guard < 280) {
     const before = state.turnNumber;
-    runAiTurn(state);
+    const idx = state.players.findIndex((p) => p.id === currentPlayer(state).id);
+    if (kinds[idx] === "nn") runNetworkTurn(state);
+    else runAiTurn(state);
     if (state.turnNumber === before && (state.phase as string) !== "gameover") {
       endTurn(state, getRng(state));
     }
@@ -734,7 +807,7 @@ export function playDuel(a: string, b: string, seed: number, aFirst: boolean): P
       seqA: seatA.sequence,
       seqB: seatB.sequence,
     },
-    replay: replayFrom(state, trails, seed, 2),
+    replay: replayFrom(state, trails, seed, 2, kinds),
   };
 }
 
@@ -793,6 +866,7 @@ export interface RoundRobinResult {
 export async function runRoundRobin(
   perSide = 5,
   onProgress?: (done: number, total: number) => void,
+  controllers?: { a: SeatController; b: SeatController },
 ): Promise<RoundRobinResult> {
   const gamesEachSide = Math.min(10, Math.max(1, Math.floor(perSide) || 1));
   const seeds = ROUND_ROBIN_SEEDS.slice(0, gamesEachSide);
@@ -804,6 +878,8 @@ export async function runRoundRobin(
   const total = pairs.length * seeds.length * 2;
   const duels: DuelResult[] = [];
   const report = emptyReport(2);
+  report.seatControllers = [controllers?.a ?? "ai", controllers?.b ?? "ai"];
+  if (report.seatControllers.some((c) => c === "nn")) loadLearnerLocal();
   let turnSum = 0;
   let attackSum = 0;
   let hpSum = 0;
@@ -813,7 +889,7 @@ export async function runRoundRobin(
       for (const aFirst of [true, false]) {
         let replay: GameReplay;
         try {
-          const played = playDuel(a, b, seed, aFirst);
+          const played = playDuel(a, b, seed, aFirst, controllers);
           duels.push(played.duel);
           replay = played.replay;
         } catch {

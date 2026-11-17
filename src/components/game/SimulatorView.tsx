@@ -1,7 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { runSimulationAsync, type GameReplay, type RateStat, type SimReport } from "@/game/simulate";
+import {
+  runSimulationAsync,
+  type GameReplay,
+  type RateStat,
+  type SeatController,
+  type SimReport,
+} from "@/game/simulate";
 import { PATHWAYS, curveLabel, pathwayCurve } from "@/game/pathways";
 import { LearnerPanel } from "./LearnerPanel";
 import { MatchupBoard } from "./MatchupBoard";
@@ -46,6 +52,7 @@ function reasonLabel(game: { timedOut: boolean; winReason: string }): string {
 export function SimulatorView({ onBack }: { onBack: () => void }) {
   const [players, setPlayers] = useState<2 | 4>(4);
   const [games, setGames] = useState(24);
+  const [seats, setSeats] = useState<SeatController[]>(["ai", "ai", "ai", "ai"]);
   const [concealment, setConcealment] = useState(false);
   const [report, setReport] = useState<SimReport | null>(null);
   const [reportFrom, setReportFrom] = useState("");
@@ -64,8 +71,16 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
   async function run() {
     setBusy(true);
     setProgress(`0 / ${games}`);
+    const controllers = seats.slice(0, players);
     const result = await runSimulationAsync(
-      { players, games, seed: 7000 + players * 13, keepReplays: 12, arcanaConcealment: concealment },
+      {
+        players,
+        games,
+        seed: 7000 + players * 13,
+        keepReplays: 12,
+        arcanaConcealment: concealment,
+        controllers,
+      },
       (done, total) => setProgress(`${done} / ${total}`),
     );
     setReport(result);
@@ -96,8 +111,8 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               AI Simulator
             </h1>
             <p className="max-w-2xl text-sm text-stone-400">
-              Search-based AIs play full games. The 22×22 round robin and the free-for-all batch both
-              fill Overview, Arcana, Items, Cards, and Replay.
+              Each seat is the search AI or the trained network. The 22×22 round robin and the
+              free-for-all batch both fill Overview, Arcana, Items, Cards, and Replay.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -126,6 +141,22 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                 <option value={1024}>1024</option>
               </select>
             </label>
+            {Array.from({ length: players }, (_, i) => (
+              <label key={i} className="text-xs text-stone-400">
+                Seat {i + 1}
+                <select
+                  className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
+                  value={seats[i]}
+                  disabled={busy}
+                  onChange={(e) =>
+                    setSeats((prev) => prev.map((seat, at) => (at === i ? (e.target.value as SeatController) : seat)))
+                  }
+                >
+                  <option value="ai">AI</option>
+                  <option value="nn">NN</option>
+                </select>
+              </label>
+            ))}
             <label className="flex items-center gap-2 pb-1 text-xs text-stone-300">
               <input
                 type="checkbox"
@@ -193,6 +224,21 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               <Stat label="Ascension" value={pct(report.endings.ascension, report.games)} />
               <Stat label="Potions drunk" value={perGame(report.pace.ascensions, report.games)} />
             </div>
+            {report.mixedGames > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <Stat label="NN wins" value={String(report.nnWins)} />
+                <Stat label="AI wins" value={String(report.aiWins)} />
+                <Stat label="Draws" value={String(report.controllerDraws)} />
+                <Stat
+                  label="NN win rate"
+                  value={
+                    report.nnWins + report.aiWins
+                      ? pct(report.nnWins, report.nnWins + report.aiWins)
+                      : "—"
+                  }
+                />
+              </div>
+            )}
 
             {tab === "overview" && <Overview report={report} />}
 
@@ -435,7 +481,12 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                     {replay.seqComeback && "Caught a sequence lead they had lost."}
                   </p>
                   <p className="mt-1 text-xs text-stone-500">
-                    {replay.pathways.map((p) => pathwayName(p.pathwayId)).join(" · ")}
+                    {replay.pathways
+                      .map((p) => {
+                        const who = p.controller === "nn" ? "NN" : p.controller === "ai" ? "AI" : "";
+                        return who ? `${pathwayName(p.pathwayId)} (${who})` : pathwayName(p.pathwayId);
+                      })
+                      .join(" · ")}
                   </p>
                   <div className="mt-2 flex gap-2">
                     <Button size="sm" variant="secondary" onClick={() => setLogCursor(0)}>
