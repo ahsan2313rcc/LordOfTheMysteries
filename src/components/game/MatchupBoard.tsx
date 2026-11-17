@@ -6,6 +6,7 @@ import {
   ROUND_ROBIN_SEEDS,
   runRoundRobin,
   type DuelResult,
+  type SimReport,
 } from "@/game/simulate";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
@@ -21,6 +22,7 @@ interface Cell {
   ascension: number;
   turns: number;
   firstWins: number;
+  secondWins: number;
 }
 
 interface SeatRow {
@@ -39,10 +41,10 @@ interface SeatRow {
 }
 
 function emptyCell(): Cell {
-  return { games: 0, wins: 0, hp: 0, sanity: 0, ascension: 0, turns: 0, firstWins: 0 };
+  return { games: 0, wins: 0, hp: 0, sanity: 0, ascension: 0, turns: 0, firstWins: 0, secondWins: 0 };
 }
 
-function buildMatrix(duels: DuelResult[]) {
+export function buildMatrix(duels: DuelResult[]) {
   const cells = new Map<string, Cell>();
   const key = (row: string, col: string) => `${row}|${col}`;
   const cell = (row: string, col: string) => {
@@ -66,6 +68,7 @@ function buildMatrix(duels: DuelResult[]) {
     const firstWon = (duel.aFirst && duel.winner === "a") || (!duel.aFirst && duel.winner === "b");
     if (duel.a === duel.b) {
       if (firstWon) ab.firstWins += 1;
+      else if (duel.winner) ab.secondWins += 1;
       continue;
     }
     if (duel.winner === "a") {
@@ -152,17 +155,21 @@ function tone(rate: number, games: number) {
   return "bg-stone-900/80 text-stone-300";
 }
 
-export function MatchupBoard() {
+export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => void }) {
   const [duels, setDuels] = useState<DuelResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
+  const [perSide, setPerSide] = useState(5);
   const [picked, setPicked] = useState<string[]>(IDS);
+  const [focus, setFocus] = useState<string[] | null>(null);
+  const [filter, setFilter] = useState<"all" | PathwayCurve | "custom">("all");
   const [sortCol, setSortCol] = useState<string>("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const tableSort = useSort<keyof SeatRow>("winRate");
 
   const cells = useMemo(() => (duels ? buildMatrix(duels) : null), [duels]);
-  const detail = useMemo(() => (duels ? seatRows(duels, picked) : []), [duels, picked]);
+  const detailIds = focus && focus.length >= 2 && focus[0] !== focus[1] ? focus : picked;
+  const detail = useMemo(() => (duels ? seatRows(duels, detailIds) : []), [duels, detailIds]);
   const sortedDetail = useMemo(() => {
     return [...detail].sort((a, b) =>
       compareValues(a[tableSort.key], b[tableSort.key], tableSort.direction),
@@ -170,10 +177,10 @@ export function MatchupBoard() {
   }, [detail, tableSort.key, tableSort.direction]);
 
   const groupDuels = useMemo(() => {
-    if (!duels || picked.length < 2) return [];
-    const set = new Set(picked);
+    if (!duels || detailIds.length < 2) return [];
+    const set = new Set(detailIds);
     return duels.filter((d) => set.has(d.a) && set.has(d.b));
-  }, [duels, picked]);
+  }, [duels, detailIds]);
 
   const endings = useMemo(() => {
     const tally = { hp: 0, sanity: 0, ascension: 0, timeout: 0 };
@@ -181,26 +188,27 @@ export function MatchupBoard() {
     return tally;
   }, [groupDuels]);
 
-  const orderedIds = useMemo(() => {
-    if (!cells) return IDS;
+  const axis = useMemo(() => {
+    if (!cells) return picked;
+    const against = sortCol !== "name" && sortCol !== "total" && picked.includes(sortCol) ? sortCol : "total";
     const score = (id: string) => {
       if (sortCol === "name") return PATHWAYS.find((p) => p.id === id)?.name ?? id;
-      if (sortCol === "total") {
+      if (against === "total") {
         let wins = 0;
-        let games = 0;
-        for (const other of IDS) {
+        let losses = 0;
+        for (const other of picked) {
           if (other === id) continue;
-          const c = cells.get(`${id}|${other}`);
-          wins += c?.wins ?? 0;
-          games += c?.games ?? 0;
+          wins += cells.get(`${id}|${other}`)?.wins ?? 0;
+          losses += cells.get(`${other}|${id}`)?.wins ?? 0;
         }
-        return games ? wins / games : 0;
+        return wins + losses ? wins / (wins + losses) : 0;
       }
-      const c = cells.get(`${id}|${sortCol}`);
-      return c?.games ? c.wins / c.games : 0;
+      const wins = cells.get(`${id}|${against}`)?.wins ?? 0;
+      const losses = cells.get(`${against}|${id}`)?.wins ?? 0;
+      return wins + losses ? wins / (wins + losses) : 0;
     };
-    return [...IDS].sort((a, b) => compareValues(score(a), score(b), sortDir));
-  }, [cells, sortCol, sortDir]);
+    return [...picked].sort((a, b) => compareValues(score(a), score(b), sortDir));
+  }, [cells, picked, sortCol, sortDir]);
 
   function headerSort(col: string) {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -211,21 +219,32 @@ export function MatchupBoard() {
   }
 
   function toggle(id: string) {
+    setFocus(null);
+    setFilter("custom");
     setPicked((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]));
   }
 
   function pickCurve(curve: PathwayCurve | "all") {
+    setFocus(null);
+    setFilter(curve);
+    setSortCol("total");
     if (curve === "all") setPicked(IDS);
     else setPicked(IDS.filter((id) => pathwayCurve(id) === curve));
   }
 
   async function run() {
+    const gamesEach = perSide * 2;
     setBusy(true);
-    setProgress("0 / 2530");
-    const result = await runRoundRobin((done, total) => setProgress(`${done} / ${total}`));
-    setDuels(result);
+    setFocus(null);
+    setProgress(`0 / ${253 * gamesEach}`);
+    const result = await runRoundRobin(perSide, (done, total) => setProgress(`${done} / ${total}`));
+    setDuels(result.duels);
+    onReport?.(result.report);
     setBusy(false);
   }
+
+  const gamesEach = perSide * 2;
+  const seeds = ROUND_ROBIN_SEEDS.slice(0, perSide);
 
   const short = (id: string) => PATHWAYS.find((p) => p.id === id)?.name.replace(/^The /, "") ?? id;
 
@@ -235,23 +254,49 @@ export function MatchupBoard() {
         <div className="max-w-3xl">
           <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-100">Round robin</h2>
           <p className="mt-1 text-sm text-stone-400">
-            Every pathway meets every pathway, including itself. Each pairing is played 10 times:
-            seeds {ROUND_ROBIN_SEEDS.join(", ")}, and each seat goes first once per seed. That is 253
-            pairings and 2,530 duels. Click a cell to inspect that pair. Select any group from 2
-            to 22 to read the duels inside it.
+            Every pathway meets every pathway, including itself. Each pairing is played {gamesEach}{" "}
+            times: seeds {seeds.join(", ")}, and each seat goes first once per seed. That is 253
+            pairings and {(253 * gamesEach).toLocaleString()} duels. A cell reads row wins / column
+            wins, so Fool 6/4 against Death is Death 4/6 against Fool. Filters hide pathways from
+            both axes. Overview, Arcana, Items, Cards, and Replay fill from this same run.
           </p>
         </div>
-        <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run()}>
-          {busy ? progress : duels ? "Run round robin again" : "Run 22×22"}
-        </Button>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-xs text-stone-400">
+            Games per side
+            <select
+              className="mt-1 block rounded border border-stone-600 bg-stone-900 px-2 py-1 text-sm text-stone-100"
+              value={perSide}
+              disabled={busy}
+              onChange={(e) => setPerSide(Number(e.target.value))}
+            >
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <option key={n} value={n}>
+                  {n} × 2 sides = {n * 2}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button className="bg-amber-600 text-stone-950 hover:bg-amber-500" disabled={busy} onClick={() => void run()}>
+            {busy ? progress : duels ? "Run round robin again" : "Run 22×22"}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Filter label="All 22" onClick={() => pickCurve("all")} />
-        <Filter label="Early peak" onClick={() => pickCurve("early")} />
-        <Filter label="Late peak" onClick={() => pickCurve("late")} />
-        <Filter label="Even" onClick={() => pickCurve("even")} />
-        <Filter label="Clear" onClick={() => setPicked([])} />
+        <Filter label="All 22" active={filter === "all"} onClick={() => pickCurve("all")} />
+        <Filter label="Early peak" active={filter === "early"} onClick={() => pickCurve("early")} />
+        <Filter label="Late peak" active={filter === "late"} onClick={() => pickCurve("late")} />
+        <Filter label="Even" active={filter === "even"} onClick={() => pickCurve("even")} />
+        <Filter
+          label="Clear"
+          active={picked.length === 0}
+          onClick={() => {
+            setFocus(null);
+            setFilter("custom");
+            setPicked([]);
+          }}
+        />
       </div>
       <div className="flex flex-wrap gap-1.5">
         {PATHWAYS.map((p) => {
@@ -289,7 +334,7 @@ export function MatchupBoard() {
               <tr>
                 <th className="sticky left-0 z-10 bg-stone-950 px-2 py-2">
                   <button type="button" className="uppercase tracking-wide text-stone-400 hover:text-amber-200" onClick={() => headerSort("name")}>
-                    Row wins {sortCol === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
+                    Pathway {sortCol === "name" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </button>
                 </th>
                 <th className="px-2 py-2">
@@ -297,7 +342,7 @@ export function MatchupBoard() {
                     Overall {sortCol === "total" ? (sortDir === "asc" ? "↑" : "↓") : ""}
                   </button>
                 </th>
-                {IDS.map((col) => (
+                {axis.map((col) => (
                   <th key={col} className="px-1 py-2 font-normal">
                     <button
                       type="button"
@@ -313,43 +358,44 @@ export function MatchupBoard() {
               </tr>
             </thead>
             <tbody>
-              {orderedIds.map((row) => {
+              {axis.map((row) => {
                 let wins = 0;
-                let games = 0;
-                for (const other of IDS) {
+                let losses = 0;
+                for (const other of axis) {
                   if (other === row) continue;
-                  const c = cells.get(`${row}|${other}`);
-                  wins += c?.wins ?? 0;
-                  games += c?.games ?? 0;
+                  wins += cells.get(`${row}|${other}`)?.wins ?? 0;
+                  losses += cells.get(`${other}|${row}`)?.wins ?? 0;
                 }
+                const decided = wins + losses;
                 return (
                   <tr key={row} className="border-t border-stone-800">
                     <th className="sticky left-0 z-10 bg-stone-950 px-2 py-1 text-left font-normal text-stone-200">
                       {short(row)}
                     </th>
-                    <td className="px-2 py-1 text-stone-300">{games ? `${Math.round((100 * wins) / games)}%` : "—"}</td>
-                    {IDS.map((col) => {
+                    <td className="px-2 py-1 text-stone-300">
+                      {decided ? `${Math.round((100 * wins) / decided)}%` : "—"}
+                    </td>
+                    {axis.map((col) => {
                       const c = cells.get(`${row}|${col}`) ?? emptyCell();
+                      const opp = cells.get(`${col}|${row}`) ?? emptyCell();
                       const mirror = row === col;
-                      const label = mirror
-                        ? c.games
-                          ? `${c.firstWins}/${c.games}`
-                          : "—"
-                        : c.games
-                          ? `${c.wins}-${c.games - c.wins}`
-                          : "—";
-                      const rate = mirror ? (c.games ? c.firstWins / c.games : 0) : c.games ? c.wins / c.games : 0;
+                      const rowWins = mirror ? c.firstWins : c.wins;
+                      const colWins = mirror ? c.secondWins : opp.wins;
+                      const pairDecided = rowWins + colWins;
+                      const label = c.games ? `${rowWins}/${colWins}` : "—";
+                      const rate = pairDecided ? rowWins / pairDecided : 0;
+                      const undecided = c.games - pairDecided;
                       return (
                         <td key={col} className="p-0.5">
                           <button
                             type="button"
                             title={
                               mirror
-                                ? `${short(row)} mirror. First player won ${c.firstWins} of ${c.games}.`
-                                : `${short(row)} vs ${short(col)}: ${c.wins} wins in ${c.games}. HP ${c.hp}, Sanity ${c.sanity}, Ascension ${c.ascension}.`
+                                ? `${short(row)} mirror. First player ${c.firstWins}, second player ${c.secondWins}${undecided ? `, ${undecided} with no winner` : ""}.`
+                                : `${short(row)} ${rowWins} / ${short(col)} ${colWins}. HP ${c.hp}, Sanity ${c.sanity}, Ascension ${c.ascension}${undecided ? `. ${undecided} with no winner` : ""}.`
                             }
-                            onClick={() => setPicked(mirror ? [row] : [row, col])}
-                            className={cn("w-full rounded px-1 py-1 tabular-nums", tone(rate, c.games))}
+                            onClick={() => setFocus(mirror ? [row] : [row, col])}
+                            className={cn("w-full rounded px-1 py-1 tabular-nums", tone(rate, pairDecided))}
                           >
                             {label}
                           </button>
@@ -362,21 +408,26 @@ export function MatchupBoard() {
             </tbody>
           </table>
           <p className="px-3 py-2 text-xs text-stone-500">
-            A cell is the row’s wins against the column, out of 10. Green is 60% or better, rose is
-            40% or worse. The diagonal is a mirror match and shows how often the first player won.
-            Column headers sort the rows.
+            A cell is the row’s wins over the column’s wins. Green is 60% of decided games or better,
+            rose is 40% or worse. A Sanity wipe or a timeout has no winner, so it sits in neither
+            number. The diagonal is the mirror match: first player / second player. Headers sort rows
+            and columns together, so the diagonal stays the mirrors.
           </p>
         </div>
       )}
 
-      {duels && picked.length >= 2 && (
+      {duels && axis.length === 0 && (
+        <p className="text-sm text-stone-500">Choose pathways, or All 22, to fill the table.</p>
+      )}
+
+      {duels && detailIds.length >= 2 && (
         <div className="flex flex-col gap-3">
           <div>
             <h3 className="text-sm text-amber-100">
-              {picked.length} pathways · {groupDuels.length} duels
+              {detailIds.length} pathways · {groupDuels.length} duels
             </h3>
             <p className="mt-1 text-xs text-stone-500">
-              {picked.map((id) => short(id)).join(", ")}. These are the pairwise duels inside the
+              {detailIds.map((id) => short(id)).join(", ")}. These are the pairwise duels inside the
               selection, including mirrors. HP {endings.hp}, Sanity {endings.sanity}, Ascension{" "}
               {endings.ascension}, timeout {endings.timeout}.
             </p>
@@ -438,19 +489,25 @@ export function MatchupBoard() {
         </div>
       )}
 
-      {duels && picked.length < 2 && (
+      {duels && detailIds.length < 2 && (
         <p className="text-sm text-stone-500">Select at least two pathways to open the group table.</p>
       )}
     </section>
   );
 }
 
-function Filter({ label, onClick }: { label: string; onClick: () => void }) {
+function Filter({ label, active, onClick }: { label: string; active?: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="rounded-full border border-stone-600 px-3 py-1 text-xs text-stone-300 hover:border-amber-600 hover:text-amber-100"
+      aria-pressed={active}
+      className={cn(
+        "rounded-full border px-3 py-1 text-xs",
+        active
+          ? "border-amber-500 bg-amber-950/50 text-amber-100"
+          : "border-stone-600 text-stone-300 hover:border-amber-600 hover:text-amber-100",
+      )}
     >
       {label}
     </button>

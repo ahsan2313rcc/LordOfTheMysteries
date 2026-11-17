@@ -46,6 +46,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
   const [games, setGames] = useState(24);
   const [concealment, setConcealment] = useState(false);
   const [report, setReport] = useState<SimReport | null>(null);
+  const [reportFrom, setReportFrom] = useState("");
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [tab, setTab] = useState<SimTab>("matchups");
@@ -66,6 +67,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
       (done, total) => setProgress(`${done} / ${total}`),
     );
     setReport(result);
+    setReportFrom(`${players}-player batch`);
     setReplayIdx(0);
     setLogCursor(0);
     setBusy(false);
@@ -92,8 +94,8 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               AI Simulator
             </h1>
             <p className="max-w-2xl text-sm text-stone-400">
-              Search-based AIs play full games. After a batch, the overview shows how matches ended,
-              who won from behind, and which Arcana, items, and relics kept winning.
+              Search-based AIs play full games. The 22×22 round robin and the free-for-all batch both
+              fill Overview, Arcana, Items, Cards, and Replay.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-2">
@@ -155,18 +157,30 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
           ))}
         </div>
 
-        {tab === "matchups" && <MatchupBoard />}
+        {tab === "matchups" && (
+          <MatchupBoard
+            onReport={(next) => {
+              setReport(next);
+              setReportFrom("22×22 round robin");
+              setReplayIdx(0);
+              setLogCursor(0);
+            }}
+          />
+        )}
 
         {tab !== "matchups" && !report && (
           <p className="rounded-xl border border-stone-700/60 bg-stone-950/70 p-6 text-sm text-stone-400">
-            Choose a table size and run. 1024 games keep the page responsive and store the first 12
-            chronicles. Two-player games stress 1v1 matchups. Four-player games show free-for-all pressure.
-            Click a column header on any table to sort it.
+            Run the 22×22 on Matchups, or a free-for-all batch above. Either one fills these tables.
+            The round robin keeps the first 8 results. A batch stores the first 12 chronicles. Click a
+            column header to sort.
           </p>
         )}
 
         {tab !== "matchups" && report && (
           <>
+            {reportFrom && (
+              <p className="text-xs text-stone-500">These tables are the {reportFrom}.</p>
+            )}
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <Stat label="Finished" value={`${report.finished}/${report.games}`} />
               <Stat label="Avg turns" value={report.avgTurns.toFixed(0)} />

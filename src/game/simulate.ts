@@ -249,6 +249,10 @@ export function playAiGame(
     guard += 1;
   }
 
+  return replayFrom(state, trails, seed, players);
+}
+
+function replayFrom(state: GameState, trails: Map<string, Trail>, seed: number, players: 2 | 4): GameReplay {
   const winner = state.players.find((p) => p.id === state.winnerId);
   const others = state.players.filter((p) => p.id !== winner?.id);
   const bestOther =
@@ -261,7 +265,11 @@ export function playAiGame(
     !!winner &&
     !!trail?.seqBehind &&
     winner.sequence <= trail.bestOppWhileBehind;
-  const plays = state.simPlays ?? [];
+  const reason = state.winReason ?? (state.phase === "gameover" ? "unknown" : "timeout");
+  const summary = winner
+    ? `${winner.name} won by ${reason} in ${state.turnNumber} turns.`
+    : `No winner after ${state.turnNumber} turns (${reason}).`;
+  const logged = state.log.slice(-220).map((e) => ({ text: e.text, tone: e.tone }));
   return {
     seed,
     players,
@@ -271,7 +279,7 @@ export function playAiGame(
     })),
     turns: state.turnNumber,
     timedOut: state.phase !== "gameover",
-    winReason: state.winReason ?? (state.phase === "gameover" ? "unknown" : "timeout"),
+    winReason: reason,
     winnerPathway: winner?.pathwayId ?? "",
     winnerName: winner?.name ?? "",
     winnerSequence: winner?.sequence,
@@ -293,7 +301,7 @@ export function playAiGame(
       charmIds: p.charms.map((c) => c.defId),
       artifactId: p.artifact?.defId,
     })),
-    plays,
+    plays: state.simPlays ?? [],
     attacks: state.simAttacks ?? 0,
     hpDealt: state.simHpDealt ?? 0,
     ascensions: state.simAscensions ?? 0,
@@ -301,7 +309,7 @@ export function playAiGame(
     sanityDealt: state.simSanityDealt ?? 0,
     unarmed: state.simUnarmed ?? 0,
     steps: state.players.reduce((n, p) => n + (9 - p.sequence), 0),
-    log: state.log.slice(-220).map((e) => ({ text: e.text, tone: e.tone })),
+    log: logged.length ? logged : [{ text: summary, tone: "system" }],
   };
 }
 
@@ -449,8 +457,11 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
     }
   }
 
+  const mirrorTable =
+    game.sequences.length > 1 &&
+    game.sequences.every((seat) => seat.pathwayId === game.sequences[0]!.pathwayId);
   const pathById = new Map(report.pathways.map((p) => [p.id, p]));
-  for (const seat of game.sequences) {
+  if (!mirrorTable) for (const seat of game.sequences) {
     const row = pathById.get(seat.pathwayId);
     if (!row) continue;
     const games = row.games + 1;
@@ -658,11 +669,19 @@ export interface DuelResult {
   seqB: number;
 }
 
-/** Five shared seeds. Each pairing is also played with the other seat going first. */
-export const ROUND_ROBIN_SEEDS = [11, 23, 37, 41, 53];
+/**
+ * Up to ten shared seeds. A round robin plays the first `perSide` of these,
+ * once with each pathway going first.
+ */
+export const ROUND_ROBIN_SEEDS = [11, 23, 37, 41, 53, 67, 71, 83, 97, 101];
+
+export interface PlayedDuel {
+  duel: DuelResult;
+  replay: GameReplay;
+}
 
 /** One duel. Pathways are fixed; the seed only shuffles the deck. */
-export function playDuel(a: string, b: string, seed: number, aFirst: boolean): DuelResult {
+export function playDuel(a: string, b: string, seed: number, aFirst: boolean): PlayedDuel {
   const first = aFirst ? a : b;
   const second = aFirst ? b : a;
   const state: GameState = createGame({
@@ -675,6 +694,7 @@ export function playDuel(a: string, b: string, seed: number, aFirst: boolean): D
   state.simQuiet = true;
   state.simPlays = [];
   for (const p of state.players) p.isHuman = false;
+  const trails = new Map<string, Trail>();
 
   let guard = 0;
   while ((state.phase as string) !== "gameover" && guard < 280) {
@@ -683,6 +703,7 @@ export function playDuel(a: string, b: string, seed: number, aFirst: boolean): D
     if (state.turnNumber === before && (state.phase as string) !== "gameover") {
       endTurn(state, getRng(state));
     }
+    noteTrail(state, trails);
     guard += 1;
   }
 
@@ -702,41 +723,101 @@ export function playDuel(a: string, b: string, seed: number, aFirst: boolean): D
             ? "hp"
             : "timeout";
   return {
-    a,
-    b,
-    seed,
-    aFirst,
-    winner,
-    reason,
-    turns: state.turnNumber,
-    seqA: seatA.sequence,
-    seqB: seatB.sequence,
+    duel: {
+      a,
+      b,
+      seed,
+      aFirst,
+      winner,
+      reason,
+      turns: state.turnNumber,
+      seqA: seatA.sequence,
+      seqB: seatB.sequence,
+    },
+    replay: replayFrom(state, trails, seed, 2),
   };
+}
+
+function timeoutReplay(a: string, b: string, seed: number): GameReplay {
+  const name = (id: string) => PATHWAYS.find((p) => p.id === id)?.name ?? id;
+  const seat = (id: string): SeatFinish => ({
+    pathwayId: id,
+    sequence: 9,
+    alive: true,
+    hp: 20,
+    sanity: 20,
+    sanityBroken: false,
+    charmIds: [],
+  });
+  return {
+    seed,
+    players: 2,
+    pathways: [
+      { name: name(a), pathwayId: a },
+      { name: name(b), pathwayId: b },
+    ],
+    turns: 0,
+    timedOut: true,
+    winReason: "timeout",
+    winnerPathway: "",
+    winnerName: "",
+    lowerSeqWin: false,
+    seqLeadWin: false,
+    seqTie: false,
+    hpComeback: false,
+    healedComeback: false,
+    seqComeback: false,
+    attacks: 0,
+    hpDealt: 0,
+    ascensions: 0,
+    abilities: 0,
+    sanityDealt: 0,
+    unarmed: 0,
+    steps: 0,
+    sequences: [seat(a), seat(b)],
+    plays: [],
+    log: [{ text: "The duel stopped before a result.", tone: "system" }],
+  };
+}
+
+export interface RoundRobinResult {
+  duels: DuelResult[];
+  report: SimReport;
 }
 
 /**
  * Every pathway against every pathway, including itself.
- * Ten games each: five seeds, and each seat goes first once per seed.
- * That is 253 pairings × 10 = 2,530 duels, shown as a 22×22 table.
+ * `perSide` is 1–10. Each seed is played twice, once with each seat going first.
+ * 253 pairings × perSide × 2 duels. The report feeds Overview, Arcana, Items, and Cards.
  */
 export async function runRoundRobin(
+  perSide = 5,
   onProgress?: (done: number, total: number) => void,
-): Promise<DuelResult[]> {
+): Promise<RoundRobinResult> {
+  const gamesEachSide = Math.min(10, Math.max(1, Math.floor(perSide) || 1));
+  const seeds = ROUND_ROBIN_SEEDS.slice(0, gamesEachSide);
   const ids = PATHWAYS.map((p) => p.id);
   const pairs: [string, string][] = [];
   for (let i = 0; i < ids.length; i++) {
     for (let j = i; j < ids.length; j++) pairs.push([ids[i]!, ids[j]!]);
   }
-  const total = pairs.length * ROUND_ROBIN_SEEDS.length * 2;
-  const out: DuelResult[] = [];
+  const total = pairs.length * seeds.length * 2;
+  const duels: DuelResult[] = [];
+  const report = emptyReport(2);
+  let turnSum = 0;
+  let attackSum = 0;
+  let hpSum = 0;
   let done = 0;
   for (const [a, b] of pairs) {
-    for (const seed of ROUND_ROBIN_SEEDS) {
+    for (const seed of seeds) {
       for (const aFirst of [true, false]) {
+        let replay: GameReplay;
         try {
-          out.push(playDuel(a, b, seed, aFirst));
+          const played = playDuel(a, b, seed, aFirst);
+          duels.push(played.duel);
+          replay = played.replay;
         } catch {
-          out.push({
+          duels.push({
             a,
             b,
             seed,
@@ -747,12 +828,20 @@ export async function runRoundRobin(
             seqA: 9,
             seqB: 9,
           });
+          replay = timeoutReplay(a, b, seed);
         }
+        const keep = report.replays.length < 8;
+        absorb(report, replay, keep);
+        if (!replay.timedOut) turnSum += replay.turns;
+        attackSum += replay.attacks;
+        hpSum += replay.hpDealt;
         done += 1;
         onProgress?.(done, total);
         await new Promise((resolve) => setTimeout(resolve, 0));
       }
     }
   }
-  return out;
+  finalize(report, attackSum, hpSum);
+  report.avgTurns = report.finished ? turnSum / report.finished : 0;
+  return { duels, report };
 }

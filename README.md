@@ -44,7 +44,7 @@ npm run sim:four        # 24× auto 4-player games → length & economy metrics
 npm run test:cards      # card text matches engine behavior
 ```
 
-The in-game **AI Simulator** (title screen) runs 2- or 4-player AI tables, from 8 games up to 1024, then shows pathway win rates, which cards get played, and a step-through chronicle. **Rules** on the title screen is the current ruleset.
+The in-game **AI Simulator** (title screen) has two runs. **Matchups** plays every pathway against every pathway, 1 to 10 games per side and the same number with the other seat going first, then shows the 22×22 win table. **Run AIs** plays random 2- or 4-player tables, from 8 games up to 1024. Either run fills Overview, Arcana, Items, Cards, and Replay. **Rules** on the title screen is the current ruleset.
 
 Potions do not discard their ingredients. You reveal those cards to the table and keep them.
 
