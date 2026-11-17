@@ -517,7 +517,7 @@ export function GameApp() {
 
       <div className="z-30 shrink-0 border-t border-stone-800 bg-stone-950/95 px-3 py-2">
         <div className="mb-2 flex flex-wrap items-center gap-2">
-          <ActionChip label="Draw / Play" used={state.actionsUsed.standard} extra={state.extraStandard} />
+          <ActionChip label="Draw" used={state.actionsUsed.standard} extra={state.extraStandard} />
           <ActionChip label="Sequence" used={state.actionsUsed.sequence} />
           <ActionChip label="Attack" used={state.actionsUsed.attack} />
           {myTurn && human.sanityBroken && (
@@ -740,14 +740,17 @@ function DesignNotes({ onBack }: { onBack: () => void }) {
               build uses pathway sheet gains for excitement at the top.
             </li>
             <li>
-              The Standard action is a draw or one card. Commons are the early tools and the potion
-              pieces. Rares cost more until Sequence 6, then ease off from Sequence 3. Equipped cards
-              still pay the current potion, so a filled slot does not clog the recipe.
+              Draw is once per turn. You may play any number of cards in the same turn, each for its
+              printed Spirituality cost. A full hand still sets aside cards that are not in the potion.
+              Equipped cards still pay the current potion.
             </li>
             <li>
-              Early peak: Sun, Tyrant, Twilight Giant, Demoness, Chained, Abyss, Red Priest, Hanged Man.
-              Late peak: Mother, Visionary, Wheel of Fortune, Fool, Door, Hermit, Death, Darkness, Moon,
-              Paragon, Error. Even: White Tower, Justiciar, Black Emperor.
+              Early peak: Sun, Tyrant, Red Priest, Hanged Man, Demoness. Mid peak: Twilight Giant,
+              Chained, Abyss, Darkness, Door, Death. Late peak: Mother, Visionary, Wheel of Fortune,
+              Fool, Hermit, Moon, Paragon, Error. Even: White Tower, Justiciar, Black Emperor.
+              Every Sequence has its own ability. The curve only says when that kit hits hardest.
+              The Mother mends 2 HP at the start of her turn while she is at 10 or below, and each
+              potion she drinks pulls an ingredient for the next recipe from the top three cards.
             </li>
             <li>
               Spirit Entanglement, Rust & Ruin, Item Refinement, Wind Blade→top-deck are strong

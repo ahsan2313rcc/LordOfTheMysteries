@@ -3,12 +3,13 @@
 import { Button } from "@/components/ui/button";
 import { runSimulationAsync, type GameReplay, type RateStat, type SimReport } from "@/game/simulate";
 import { PATHWAYS, curveLabel, pathwayCurve } from "@/game/pathways";
+import { LearnerPanel } from "./LearnerPanel";
 import { MatchupBoard } from "./MatchupBoard";
 import { compareValues, SortTh, useSort } from "./sort-table";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
 
-type SimTab = "matchups" | "overview" | "arcana" | "items" | "cards" | "replay";
+type SimTab = "matchups" | "overview" | "arcana" | "items" | "cards" | "replay" | "learner";
 
 const TABS: { id: SimTab; label: string }[] = [
   { id: "matchups", label: "Matchups" },
@@ -17,6 +18,7 @@ const TABS: { id: SimTab; label: string }[] = [
   { id: "items", label: "Items" },
   { id: "cards", label: "Cards" },
   { id: "replay", label: "Replay" },
+  { id: "learner", label: "Learner" },
 ];
 
 function perGame(total: number, games: number): string {
@@ -157,6 +159,8 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
           ))}
         </div>
 
+        {tab === "learner" && <LearnerPanel />}
+
         {tab === "matchups" && (
           <MatchupBoard
             onReport={(next) => {
@@ -257,7 +261,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                   </tbody>
                 </table>
                 <p className="px-3 py-2 text-xs text-stone-500">
-                  Curve is the design: Early peak is stronger at Sequence 9–6, Late peak is quiet then and stronger from Sequence 6 down, Even holds a similar weight the whole way. Green is ahead of the pack, rose is lagging. With {report.games} games a pathway
+                  Curve is when the kit is heaviest. Early peak is Sequence 9–7, mid peak is 6–4, late peak is 3–1, and Even holds a similar weight the whole way. Each Sequence still has its own ability. Green is ahead of the pack, rose is lagging. With {report.games} games a pathway
                   appears only a handful of times — run 64 or more before treating a gap as a real imbalance.
                   On a 4-player table an even pathway wins about 25% of its games. On a 2-player table, about half.
                 </p>

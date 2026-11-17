@@ -27,7 +27,7 @@ Open [http://127.0.0.1:43123](http://127.0.0.1:43123).
 - Full turn loop: Begin → Draw → Action (Standard / Sequence / Attack) → End
 - Deck of 78 unique cards, one copy each (56 common, 22 rare). Drawing the last card reshuffles the discard. Major Arcana is not a card.
 - Ascension with **sticky Acting Conditions**. Casting the Sequence ability locks the condition for that step. Potions cost no Sanity, and you may cast and drink on the same turn.
-- Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). The Standard action is a draw or one card. Commons cost 1 Spirituality. Rares cost 4 more than printed at Sequence 9–7, the printed cost at 6–4, and 1 less from Sequence 3. Equipped cards still pay the potion. A bare attack deals no damage.
+- Pathway abilities cost Sanity (1 / 2 / 3 across Sequences 9–7, 6–4, 3–1). Draw is once per turn. Any number of cards may be played in that turn, each at its printed Spirituality cost. Equipped cards still pay the potion. A bare attack deals no damage.
 - Passive recovery: +1 HP if no HP taken, +1 Sanity if no Sanity taken, SP every turn from Pathway/Seq
 - Artifact powers + Contention (steal)
 - 0 Sanity removes you as a contender. The body deals 1 HP to everyone, including itself, until that HP is gone.

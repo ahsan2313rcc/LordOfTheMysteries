@@ -1,6 +1,7 @@
 /**
  * Cards must do what their text says. Run: npx tsx scripts/test-card-fidelity.ts
  */
+import { readFileSync } from "node:fs";
 import { buildMainDeckCounts, CARD_DEFS, getCardDef, playCost } from "../src/game/cards";
 import {
   activateArtifactPower,
@@ -13,6 +14,7 @@ import {
   getRng,
 } from "../src/game/engine";
 import { PATHWAYS } from "../src/game/pathways";
+import { HANDLED_ABILITY_IDS } from "../src/game/unique-abilities";
 import type { GameState, PlayerState } from "../src/game/types";
 
 let failed = 0;
@@ -145,15 +147,19 @@ function give(state: GameState, p: PlayerState, defId: string) {
   check("cannot attack a concealed player", !missed.ok);
   check("failed attack does not expose the attacker", !me.revealed);
   const blade = getCardDef("slumbering_blade");
-  check("a rare costs more at Sequence 9", playCost(blade, 9) === blade.spCost + 4);
-  check("a rare eases off at Sequence 2", playCost(blade, 2) === blade.spCost - 1);
+  check("a rare costs its printed Spirituality at Sequence 9", playCost(blade, 9) === blade.spCost);
+  check("a rare costs its printed Spirituality at Sequence 2", playCost(blade, 2) === blade.spCost);
   me.sp = playCost(blade, me.sequence);
   const card = give(state, me, "slumbering_blade");
   const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
   check("a rare card exposes the target", played.ok && !!foe.revealed, played.error);
   check("playing a rare leaves you concealed", !me.revealed);
   check("their board was shown", state.reveals[0]?.subjectName === foe.name);
-  check("the rare play spent the standard action", state.actionsUsed.standard);
+  check("playing a card leaves the draw available", !state.actionsUsed.standard);
+  const second = give(state, me, "paper_figurine");
+  me.sp = 4;
+  const again = playCardFromHand(state, second.instanceId, foe.id, getRng(state));
+  check("a second card can be played in the same turn", again.ok, again.error);
   const swing = performAttack(state, foe.id, getRng(state));
   check("attacking an exposed player is legal", swing.ok, swing.error);
   check("the attacker is now exposed", !!me.revealed);
@@ -295,6 +301,20 @@ function give(state: GameState, p: PlayerState, defId: string) {
   const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
   check("two mimicries do not recurse", played.ok, played.error);
   check("mimicry replays the earlier spell", foe.hp < before, `hp ${foe.hp}`);
+}
+
+{
+  const engine = readFileSync(new URL("../src/game/engine.ts", import.meta.url), "utf8");
+  const cased = new Set([...engine.matchAll(/case "([a-z0-9_]+)":/g)].map((m) => m[1]));
+  const handled = new Set<string>(HANDLED_ABILITY_IDS);
+  const missing: string[] = [];
+  for (const path of PATHWAYS) {
+    for (const seq of path.sequences) {
+      if (seq.abilityId === "apotheosis") continue;
+      if (!cased.has(seq.abilityId) && !handled.has(seq.abilityId)) missing.push(seq.abilityId);
+    }
+  }
+  check("every Sequence ability has its own effect", missing.length === 0, missing.join(", "));
 }
 
 console.log(failed ? `\n${failed} fidelity checks failed` : "\nAll card fidelity checks passed.");

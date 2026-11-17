@@ -50,19 +50,19 @@ export function RulesView({ onBack }: { onBack: () => void }) {
               <strong className="text-stone-100">Draw</strong> 1 card.
             </li>
             <li>
-              <strong className="text-stone-100">Act,</strong> then end the turn. You may take each
-              of these once, in any order:
+              <strong className="text-stone-100">Act,</strong> then end the turn. Draw, the Sequence
+              ability, and the attack are each once. Cards may be played more than once if you can
+              pay:
             </li>
           </ol>
           <ul className="list-disc space-y-1 pl-5 text-sm leading-relaxed">
             <li>
-              <strong className="text-stone-100">Standard — draw a card, or play one.</strong> You
-              choose. Draw when the card in hand is not the ingredient or the tool you need. Commons
-              cost 1 Spirituality and are the early tools. A rare costs 4 more than printed at
-              Sequence 9–7, its printed cost at 6–4, and 1 less from Sequence 3 down, so a rare is
-              for the late game. Traps use the Attack action. A full hand sets aside cards that are
-              not paying the current potion, including right after a Standard draw. Equipped cards
-              still pay the potion, so a filled slot does not trap those ingredients in hand.
+              <strong className="text-stone-100">Draw once, and play any number of cards.</strong> The
+              Standard action is the extra draw. Each card costs the Spirituality printed on it,
+              commons and rares alike, and you may play several in one turn while you can pay.
+              Traps use the Attack action. A full hand sets aside cards that are not paying the
+              current potion, including right after a draw. Equipped cards still pay the potion, so
+              a filled slot does not trap those ingredients in hand.
             </li>
             <li>
               <strong className="text-stone-100">Sequence — cast your pathway ability.</strong> Pay

@@ -1,15 +1,10 @@
 import type { CardDef, Ingredient } from "./types";
 
 /**
- * Spirituality to play a card.
- * Commons stay at their printed cost.
- * Rares (including the two relics) cost 4 more at Sequence 9–7, the printed cost at 6–4,
- * and 1 less from Sequence 3 down, so a rare is a late tool.
+ * Spirituality to play a card. Every card costs what is printed on it.
+ * `sequence` is accepted so callers can keep passing the seat's Sequence.
  */
-export function playCost(def: Pick<CardDef, "spCost" | "rarity" | "type">, sequence: number): number {
-  if (def.rarity !== "rare") return def.spCost;
-  if (sequence >= 7) return def.spCost + 4;
-  if (sequence <= 3) return Math.max(def.type === "trap" ? 0 : 2, def.spCost - 1);
+export function playCost(def: Pick<CardDef, "spCost">, _sequence?: number): number {
   return def.spCost;
 }
 

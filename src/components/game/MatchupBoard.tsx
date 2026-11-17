@@ -286,6 +286,7 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
       <div className="flex flex-wrap gap-2">
         <Filter label="All 22" active={filter === "all"} onClick={() => pickCurve("all")} />
         <Filter label="Early peak" active={filter === "early"} onClick={() => pickCurve("early")} />
+        <Filter label="Mid peak" active={filter === "mid"} onClick={() => pickCurve("mid")} />
         <Filter label="Late peak" active={filter === "late"} onClick={() => pickCurve("late")} />
         <Filter label="Even" active={filter === "even"} onClick={() => pickCurve("even")} />
         <Filter

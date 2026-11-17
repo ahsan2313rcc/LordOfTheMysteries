@@ -111,6 +111,78 @@ function tryAction(state: GameState, myId: string, apply: (s: GameState) => bool
   return score(clone, myId) + tempo;
 }
 
+export interface LegalChoice {
+  label: string;
+  apply: (g: GameState) => boolean;
+}
+
+/** Every action the search AI is allowed to take from this position. */
+export function legalChoices(state: GameState): LegalChoice[] {
+  const out: LegalChoice[] = [];
+  const p = currentPlayer(state);
+  const myId = p.id;
+  const opps = opponentsOf(state, myId);
+  const add = (label: string, apply: (g: GameState) => boolean) => out.push({ label, apply });
+
+  if (!state.potionDrunk && matchRecipe(p)?.canPay) {
+    add("ascend", (g) => attemptAscension(g, getRng(g)).ok);
+  }
+  if (!p.requiemUsed && p.hp < p.maxHp && p.charms.some((c) => c.defId === "requiem_charm")) {
+    add("requiem", (g) => sacrificeRequiem(g).ok);
+  }
+  if (!state.actionsUsed.standard && p.artifact) {
+    const id = p.artifact.defId;
+    if (id === "wishing_lamp") {
+      for (const wish of ["hp", "sanity", "sp"] as Wish[]) {
+        add(`wish:${wish}`, (g) => activateArtifactPower(g, undefined, getRng(g), wish).ok);
+      }
+    } else {
+      for (const t of opps) add(`artifact:${t.id}`, (g) => activateArtifactPower(g, t.id, getRng(g)).ok);
+      add("artifact:self", (g) => activateArtifactPower(g, undefined, getRng(g)).ok);
+    }
+  }
+  if (!state.actionsUsed.standard) {
+    for (const o of opps) {
+      if (o.artifact && p.sp >= 5) add(`contend:${o.id}`, (g) => contendArtifact(g, o.id, getRng(g)).ok);
+    }
+  }
+  if (!state.actionsUsed.sequence) {
+    for (const t of opps.length ? opps : [p]) {
+      add(`cast:${t.id}`, (g) => castSequenceAbility(g, t.id, getRng(g)).ok);
+    }
+    add("cast:self", (g) => castSequenceAbility(g, undefined, getRng(g)).ok);
+  }
+  const canStrike =
+    (!!p.weapon && !p.status.weaponDisabled) ||
+    p.status.attackModifier > 0 ||
+    !!p.status.unblockableAttack;
+  if (!state.actionsUsed.attack && canStrike) {
+    for (const t of warTargets(state, myId)) add(`attack:${t.id}`, (g) => performAttack(g, t.id, getRng(g)).ok);
+  }
+  if (!state.actionsUsed.standard) add("draw", (g) => drawAsStandard(g, getRng(g)).ok);
+  const targets: PlayerState[] = [...opps, p];
+  for (const card of p.hand) {
+    const d = getCardDef(card.defId);
+    if (p.sp < playCost(d, p.sequence) + (p.nextCardTax ?? 0) && !card.free) continue;
+    if (d.type === "trap") {
+      if (!p.trap && !state.actionsUsed.attack) {
+        add(`trap:${card.instanceId}`, (g) => playCardFromHand(g, card.instanceId, undefined, getRng(g)).ok);
+      }
+      continue;
+    }
+    const pool = d.type === "utility" || d.id === "aegis_mind" ? targets : opps;
+    const list = pool.length ? pool : targets;
+    for (const t of list) {
+      add(`play:${card.instanceId}:${t.id}`, (g) => playCardFromHand(g, card.instanceId, t.id, getRng(g)).ok);
+    }
+  }
+  return out;
+}
+
+export function choiceValue(state: GameState, apply: (g: GameState) => boolean): number | null {
+  return tryAction(state, currentPlayer(state).id, apply);
+}
+
 /** Search one ply of every legal action and take the best. */
 export function runAiTurn(state: GameState): GameState {
   const s = state;
@@ -121,91 +193,26 @@ export function runAiTurn(state: GameState): GameState {
     currentPlayer(s).alive &&
     !currentPlayer(s).sanityBroken &&
     !currentPlayer(s).isHuman &&
-    guard < 14
+    guard < 22
   ) {
     guard += 1;
     const p = currentPlayer(s);
     const myId = p.id;
-    const opps = opponentsOf(s, p.id);
     const base = score(s, myId);
     let best = base;
     const plan: { run: ((g: GameState) => boolean) | null } = { run: null };
-
-    const consider = (apply: (g: GameState) => boolean) => {
-      const val = tryAction(s, myId, apply);
+    const choices = legalChoices(s);
+    for (const choice of choices) {
+      const val = choiceValue(s, choice.apply);
       if (val != null && val > best + 0.25) {
         best = val;
-        plan.run = apply;
-      }
-    };
-
-    if (!s.potionDrunk && matchRecipe(p)?.canPay) {
-      consider((g) => attemptAscension(g, getRng(g)).ok);
-    }
-
-    if (!p.requiemUsed && p.hp < p.maxHp && p.charms.some((c) => c.defId === "requiem_charm")) {
-      consider((g) => sacrificeRequiem(g).ok);
-    }
-
-    if (!s.actionsUsed.standard && p.artifact) {
-      const id = p.artifact.defId;
-      if (id === "wishing_lamp") {
-        for (const wish of ["hp", "sanity", "sp"] as Wish[]) {
-          consider((g) => activateArtifactPower(g, undefined, getRng(g), wish).ok);
-        }
-      } else {
-        for (const t of opps) {
-          consider((g) => activateArtifactPower(g, t.id, getRng(g)).ok);
-        }
-        consider((g) => activateArtifactPower(g, undefined, getRng(g)).ok);
+        plan.run = choice.apply;
       }
     }
-
-    if (!s.actionsUsed.standard) {
-      for (const o of opps) {
-        if (o.artifact && p.sp >= 5) {
-          consider((g) => contendArtifact(g, o.id, getRng(g)).ok);
-        }
-      }
-    }
-
-    if (!s.actionsUsed.sequence) {
-      for (const t of opps.length ? opps : [p]) {
-        consider((g) => castSequenceAbility(g, t.id, getRng(g)).ok);
-      }
-      consider((g) => castSequenceAbility(g, undefined, getRng(g)).ok);
-    }
-
     const canStrike =
       (!!p.weapon && !p.status.weaponDisabled) ||
       p.status.attackModifier > 0 ||
       !!p.status.unblockableAttack;
-    if (!s.actionsUsed.attack && canStrike) {
-      for (const t of warTargets(s, myId)) consider((g) => performAttack(g, t.id, getRng(g)).ok);
-    }
-
-    if (!s.actionsUsed.standard) {
-      consider((g) => drawAsStandard(g, getRng(g)).ok);
-    }
-
-    if (!s.actionsUsed.standard || (s.extraStandard ?? 0) > 0) {
-      const targets: PlayerState[] = [...opps, p];
-      for (const card of p.hand) {
-        const d = getCardDef(card.defId);
-        if (p.sp < playCost(d, p.sequence) + (p.nextCardTax ?? 0)) continue;
-        if (d.type === "trap") {
-          if (!p.trap && !s.actionsUsed.attack) {
-            consider((g) => playCardFromHand(g, card.instanceId, undefined, getRng(g)).ok);
-          }
-          continue;
-        }
-        const pool = d.type === "utility" || d.id === "aegis_mind" ? targets : opps;
-        const list = pool.length ? pool : targets;
-        for (const t of list) {
-          consider((g) => playCardFromHand(g, card.instanceId, t.id, getRng(g)).ok);
-        }
-      }
-    }
 
     if (!plan.run) break;
 

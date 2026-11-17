@@ -8,6 +8,7 @@ import {
 import { heldCards, matchRecipe } from "./ascension";
 import { buildMainDeckCounts, getCardDef, playCost } from "./cards";
 import { abilitySanityCost, getPathway, getSequence, pathwayCurve, spGainFor } from "./pathways";
+import { scriptUniqueAbility } from "./unique-abilities";
 import { createRng, type Rng } from "./rng";
 import type {
   ActionBucket,
@@ -309,6 +310,14 @@ export function dealDamage(
 ): number {
   if (!target.alive || amount <= 0) return 0;
   const dtype = opts.type ?? "hp";
+  if (dtype === "hp" && target.marks?.ironBody) {
+    log(state, `${target.name} is indestructible — the blow lands nowhere.`, "system");
+    return 0;
+  }
+  if (dtype === "sanity" && target.marks?.sanityImmune) {
+    log(state, `${target.name} sheds the Sanity loss.`, "system");
+    return 0;
+  }
 
   // Melee / ranged immunities
   if (opts.melee) {
@@ -512,6 +521,20 @@ function checkElimination(
 ) {
   if (target.hp > 0 || !target.alive) return;
 
+  if (target.marks?.redirectFatalTo) {
+    const other = state.players.find(
+      (pl) => pl.id === target.marks?.redirectFatalTo && pl.alive && pl.id !== target.id,
+    );
+    target.marks.redirectFatalTo = undefined;
+    if (other) {
+      target.hp = 1;
+      target.turnFlags.survivedFatal = true;
+      log(state, `${target.name} grafts the fatal blow onto ${other.name}.`, "heal");
+      dealDamage(state, target, other, 6, { unblockable: true }, rng);
+      return;
+    }
+  }
+
   if (target.fatalSafetyHp != null) {
     target.hp = target.fatalSafetyHp;
     target.fatalSafetyHp = undefined;
@@ -589,6 +612,7 @@ export function maybeTriggerTraps(
   rng: Rng,
   meta?: { targetId?: string; equippedId?: string; skipDefIds?: string[] },
 ): boolean {
+  if (actor.marks?.ignoreTraps) return false;
   let nullifyEvade = false;
   for (const owner of state.players) {
     if (!owner.alive || !owner.trap || owner.id === actor.id) continue;
@@ -602,6 +626,10 @@ export function maybeTriggerTraps(
     owner.turnFlags.triggeredTrap = true;
     actor.turnFlags.triggeredTrap = true;
     log(state, `${owner.name} springs ${def.name}!`, "system");
+    if (owner.marks?.trapBonus) {
+      dealDamage(state, owner, actor, owner.marks.trapBonus, { unblockable: true }, rng);
+      owner.marks.trapBonus = 0;
+    }
 
     switch (trigger) {
       case "attacked":
@@ -814,6 +842,15 @@ export function runBeginPhase(state: GameState, rng: Rng) {
   }
 
   state.phase = "begin";
+  if (p.marks) {
+    p.marks.ironBody = false;
+    p.marks.sanityImmune = false;
+    p.marks.redirectFatalTo = undefined;
+    p.marks.ignoreHandLimit = false;
+    p.marks.untouchable = false;
+    p.marks.ignoreBlockNext = false;
+    p.marks.echoNextCard = false;
+  }
   // Turn-local flags reset; Acting bank + actingMet persist until Ascension.
   p.turnFlags = emptyFlags();
   state.actionsUsed = { standard: false, sequence: false, attack: false };
@@ -910,18 +947,34 @@ export function runBeginPhase(state: GameState, rng: Rng) {
 
   // Passive recovery: HP if no HP taken; Sanity if no Sanity taken (full cycle).
   const cycle = state.cycleDamage[p.id] ?? { hpTaken: false, sanityTaken: false };
-  if (!cycle.hpTaken) {
-    p.hp = Math.min(p.maxHp, p.hp + 1);
-    log(state, `${p.name} recovers 1 HP (no HP damage last cycle).`, "heal");
-  }
+  const blockedHeal = !!p.cannotHealNextBegin;
+  if (p.cannotHealNextBegin) p.cannotHealNextBegin = false;
+  const grantHp = (amount: number, why: string) => {
+    if (blockedHeal || amount <= 0) return;
+    const thiefId = p.marks?.stealHealFor;
+    if (thiefId) {
+      p.marks!.stealHealFor = undefined;
+      const thief = state.players.find((pl) => pl.id === thiefId && pl.alive);
+      if (thief) {
+        thief.hp = Math.min(thief.maxHp, thief.hp + amount);
+        log(state, `${thief.name} steals ${p.name}'s heal (${amount} HP).`, "heal");
+        return;
+      }
+    }
+    p.hp = Math.min(p.maxHp, p.hp + amount);
+    log(state, why, "heal");
+  };
+  if (!cycle.hpTaken) grantHp(1, `${p.name} recovers 1 HP (no HP damage last cycle).`);
   if (!cycle.sanityTaken) {
     p.sanity = Math.min(20, p.sanity + 1);
     updateMadness(p, state);
     log(state, `${p.name} steadies 1 Sanity (no Sanity damage last cycle).`, "heal");
   }
-  if (p.sequence <= 6 && p.hp < p.maxHp) {
-    p.hp = Math.min(p.maxHp, p.hp + 1);
-    log(state, `${p.name}'s deeper Sequence knits 1 HP.`, "heal");
+  if (!blockedHeal && p.sequence <= 6 && p.hp < p.maxHp) {
+    grantHp(1, `${p.name}'s deeper Sequence knits 1 HP.`);
+  }
+  if (p.pathwayId === "mother" && p.hp <= 10) {
+    grantHp(2, `${p.name}'s blood answers the wound (+2 HP).`);
   }
   state.cycleDamage[p.id] = { hpTaken: false, sanityTaken: false };
 
@@ -1004,6 +1057,11 @@ export function runEndPhase(state: GameState, rng: Rng) {
   if (!p.rustSourceId) p.status.weaponDisabled = false;
 
   trimHand(state, p);
+  if (p.marks) {
+    p.marks.ignoreTraps = false;
+    p.marks.spellLock = false;
+    p.marks.negateNextSpell = false;
+  }
 
   // Bank Acting progress across rounds — does NOT clear actingMet
   const wasMet = p.actingMet;
@@ -1015,6 +1073,13 @@ export function runEndPhase(state: GameState, rng: Rng) {
       `${p.name}'s Acting Condition for ${seq.title} is locked in for future turns.`,
       "ascend",
     );
+  }
+
+  if (p.marks?.extraTurn && p.alive && !isGameOver(state)) {
+    p.marks.extraTurn = false;
+    log(state, `${p.name} takes the extra turn.`, "system");
+    runBeginPhase(state, rng);
+    return;
   }
 
   advanceTurn(state, rng);
@@ -1039,6 +1104,7 @@ export function canUseBucket(state: GameState, bucket: ActionBucket): boolean {
 
 /** Drop cards that are not paying the current potion once the hand is over its limit. */
 function trimHand(state: GameState, p: PlayerState) {
+  if (p.marks?.ignoreHandLimit) return;
   const lim = handLimit(p);
   const recipe = matchRecipe(p);
   const keep = new Set(recipe?.discardInstanceIds ?? []);
@@ -1053,7 +1119,7 @@ function trimHand(state: GameState, p: PlayerState) {
   }
 }
 
-/** Spend the Standard action to draw. Playing a card uses this same action, so you choose one. */
+/** Spend the Standard action to draw. Cards are separate: play as many as Spirituality allows. */
 export function drawAsStandard(state: GameState, rng: Rng): { ok: boolean; error?: string } {
   const p = currentPlayer(state);
   if (p.sanityBroken) return { ok: false, error: "Lost to Madness" };
@@ -1099,15 +1165,19 @@ export function playCardFromHand(
     return { ok: true };
   }
 
-  // Weapons/charms/artifacts/spells/utilities use Standard
-  if (!canUseBucket(state, "standard")) {
-    if (!(state.extraStandard && state.extraStandard > 0)) {
-      return { ok: false, error: "Standard action already used" };
+  if (p.marks?.spellLock && (def.type === "spell" || def.type === "weapon")) {
+    return { ok: false, error: "Spells and weapons are locked this turn" };
+  }
+  if (targetId) {
+    const aimed = state.players.find((x) => x.id === targetId);
+    if (aimed && aimed.id !== p.id && aimed.marks?.untouchable && (def.type === "spell" || def.type === "weapon")) {
+      return { ok: false, error: `${aimed.name} cannot be targeted` };
     }
   }
 
   const tax = p.nextCardTax ?? 0;
-  const totalCost = playCost(def, p.sequence) + tax;
+  const printed = card.free ? 0 : playCost(def, p.sequence);
+  const totalCost = printed + tax;
   if (!paySp(p, totalCost, state)) {
     return { ok: false, error: tax ? `Not enough SP (tax +${tax})` : "Not enough SP" };
   }
@@ -1125,7 +1195,6 @@ export function playCardFromHand(
       p.status.fizzleSpell = false;
       p.hand.splice(idx, 1);
       discardToPile(state, card);
-      markStandard(state);
       if (state.simPlays) {
         state.simPlays.push({
           defId: def.id,
@@ -1149,13 +1218,31 @@ export function playCardFromHand(
     (targetId && state.players.find((x) => x.id === targetId)) ||
     opponentsOf(state, p.id)[0];
 
+  if (
+    target &&
+    target.id !== p.id &&
+    target.marks?.negateNextSpell &&
+    (def.type === "spell" || def.type === "utility")
+  ) {
+    target.marks.negateNextSpell = false;
+    discardToPile(state, card);
+    log(state, `${target.name} notarizes ${def.name} away.`, "system");
+    noteActing(state, p);
+    return { ok: true };
+  }
+
   resolveCardEffect(state, p, card, def.effectId, target, rng);
+  if (p.marks?.echoNextCard) {
+    p.marks.echoNextCard = false;
+    resolveCardEffect(state, p, card, def.effectId, target, rng, 1);
+    log(state, `${def.name} resolves a second time.`, "system");
+  }
+  if (card.free) card.free = false;
   if (state.arcanaConcealment && def.rarity === "rare") {
     const foe =
       target && target.id !== p.id && target.alive ? target : opponentsOf(state, p.id)[0];
     if (foe) revealBoard(state, p, foe);
   }
-  markStandard(state);
   noteActing(state, p);
   if (state.simPlays) {
     state.simPlays.push({
@@ -1759,6 +1846,7 @@ export function performAttack(
   if (!canUseBucket(state, "attack")) return { ok: false, error: "Attack already used" };
   const target = state.players.find((x) => x.id === targetId);
   if (!target?.alive) return { ok: false, error: "Invalid target" };
+  if (target.marks?.untouchable) return { ok: false, error: `${target.name} cannot be targeted` };
   if (state.arcanaConcealment && !target.revealed) {
     return { ok: false, error: "That Beyonder is still concealed" };
   }
@@ -1834,6 +1922,12 @@ export function performAttack(
 
   dmg += p.status.attackModifier;
   dmg = Math.max(0, dmg);
+  if (p.marks?.ignoreBlockNext) {
+    p.marks.ignoreBlockNext = false;
+    ignoreBlock = 99;
+    ignoreEvade = true;
+    unblockable = true;
+  }
 
   const dealt = dealDamage(
     state,
@@ -1921,7 +2015,9 @@ export function castSequenceAbility(
 
   resolveAbility(state, p, seq.abilityId, target, rng);
   if (state.simPlays) state.simAbilities = (state.simAbilities ?? 0) + 1;
-  if (pathwayCurve(p.pathwayId) === "late" && p.sequence <= 6) drawCards(state, p, 1, rng, true);
+  const curveNow = pathwayCurve(p.pathwayId);
+  if (curveNow === "late" && p.sequence <= 6) drawCards(state, p, 1, rng, true);
+  if (curveNow === "mid" && p.sequence <= 6 && p.sequence >= 4) drawCards(state, p, 1, rng, true);
   state.actionsUsed.sequence = true;
   p.turnFlags.cardsPlayed += 1;
   noteActing(state, p);
@@ -2394,7 +2490,7 @@ function resolveAbility(
     case "hanged_blood":
       dealDamage(state, p, p, 1, { unblockable: true }, rng);
       p.turnFlags.sacrificedHp = true;
-      p.sp = Math.min(20, p.sp + 2);
+      p.sp = Math.min(20, p.sp + 3);
       break;
     case "hanged_whispers":
       dealDamage(state, p, p, 1, { type: "sanity", unblockable: true }, rng);
@@ -2402,11 +2498,12 @@ function resolveAbility(
       break;
     case "hanged_hide":
       p.status.evade += 1;
+      p.status.block += 1;
       p.turnFlags.evadedOrBlocked = true;
       break;
     case "hanged_flesh":
       if (target) {
-        const d = dealDamage(state, p, target, 2, {}, rng);
+        const d = dealDamage(state, p, target, 3, {}, rng);
         p.hp = Math.min(p.maxHp, p.hp + d);
         p.turnFlags.healedHp += d;
       }
@@ -2442,11 +2539,11 @@ function resolveAbility(
       break;
     case "hanged_bomb":
       p.turnFlags.sacrificedHp = true;
-      dealDamage(state, p, p, 5, { unblockable: true }, rng);
+      dealDamage(state, p, p, 4, { unblockable: true }, rng);
       {
         let hits = 0;
         for (const o of opponentsOf(state, p.id)) {
-          dealDamage(state, p, o, 5, {}, rng);
+          dealDamage(state, p, o, 6, {}, rng);
           hits++;
         }
         p.turnFlags.targetsHitInAction = hits;
@@ -2472,8 +2569,8 @@ function resolveAbility(
       break;
 
     case "demoness_shadow":
-      p.status.attackModifier += 3;
-      log(state, `${p.name} arms Shadow Strike (+3 next Attack).`, "system");
+      p.status.attackModifier += 1;
+      log(state, `${p.name} arms Shadow Strike (+1 next Attack).`, "system");
       break;
     case "demoness_incite":
       if (target) {
@@ -2483,13 +2580,13 @@ function resolveAbility(
           p.turnFlags.forcedSkip = true;
           log(state, `${target.name}'s Trap is discarded by Incite.`, "system");
         } else {
-          dealDamage(state, p, target, 2, { type: "sanity", unblockable: true }, rng);
+          dealDamage(state, p, target, 1, { type: "sanity", unblockable: true }, rng);
         }
       }
       break;
     case "demoness_flame":
       if (target) {
-        dealDamage(state, p, target, 3, {}, rng);
+        dealDamage(state, p, target, 2, {}, rng);
         target.cannotHealNextBegin = true;
         p.turnFlags.playedSpells += 1;
       }
@@ -2511,27 +2608,26 @@ function resolveAbility(
     case "demoness_plague": {
       let hits = 0;
       for (const o of opponentsOf(state, p.id)) {
-        dealDamage(state, p, o, 3, {}, rng);
-        dealDamage(state, p, o, 1, { type: "sanity", unblockable: true }, rng);
+        dealDamage(state, p, o, 2, {}, rng);
         hits++;
       }
       p.turnFlags.targetsHitInAction = hits;
       break;
     }
     case "demoness_mirror":
-      p.fatalSafetyHp = 10;
+      p.fatalSafetyHp = 6;
       p.turnFlags.evadedOrBlocked = true;
       log(state, `${p.name} prepares Mirror Substitution.`, "heal");
       break;
     case "demoness_frostfire": {
       let hits = 0;
       for (const o of opponentsOf(state, p.id)) {
-        for (let i = 0; i < 2 && o.hand.length; i++) {
+        for (let i = 0; i < 1 && o.hand.length; i++) {
           const idx = rng.int(o.hand.length);
           const [c] = o.hand.splice(idx, 1);
           if (c) discardToPile(state, c);
         }
-        dealDamage(state, p, o, 5, {}, rng);
+        dealDamage(state, p, o, 3, {}, rng);
         hits++;
       }
       p.turnFlags.targetsHitInAction = hits;
@@ -2551,6 +2647,7 @@ function resolveAbility(
     case "tower_analyze":
       p.turnFlags.lookedAtDeck = true;
       revealDeckTop(state, 3, "Analyze — Top of the Deck");
+      drawCards(state, p, 1, rng, true);
       break;
     case "tower_deduce":
     case "just_interrogate":
@@ -2613,6 +2710,7 @@ function resolveAbility(
     }
     case "tower_foresight":
       p.status.evade += 1;
+      p.status.block += 2;
       p.turnFlags.evadedOrBlocked = true;
       for (const o of opponentsOf(state, p.id)) {
         p.turnFlags.lookedAtHand = true;
@@ -2632,6 +2730,7 @@ function resolveAbility(
       break;
     case "tower_counter":
       p.status.evade += 1;
+      p.status.block += 1;
       p.reflectNextHit = true;
       p.turnFlags.evadedOrBlocked = true;
       break;
@@ -2640,6 +2739,7 @@ function resolveAbility(
       break;
 
     case "wheel_premonition": {
+      p.status.block += 2;
       p.turnFlags.lookedAtDeck = true;
       ensureDeck(state, rng);
       const seen = state.deck.splice(-2);
@@ -2647,6 +2747,7 @@ function resolveAbility(
         const keep = seen[seen.length - 1]!;
         const rest = seen.slice(0, -1);
         state.deck.unshift(...rest);
+        keep.free = true;
         p.hand.push(keep);
         p.turnFlags.drewExtra = true;
         pushReveal(state, {
@@ -2659,8 +2760,9 @@ function resolveAbility(
       break;
     }
     case "wheel_calc":
-      p.status.block += 3;
+      p.status.block += 6;
       p.turnFlags.evadedOrBlocked = true;
+      drawCards(state, p, 1, rng, true);
       break;
     case "moon_beast":
       p.status.block += 2;
@@ -2670,12 +2772,12 @@ function resolveAbility(
       const before = p.hand.length;
       drawCards(state, p, 2, rng, true);
       const drawn = p.hand.slice(before);
-      let healed = drawn.length ? 2 : 0;
+      let healed = drawn.length ? 5 : 0;
       if (
         drawn.length === 2 &&
         getCardDef(drawn[0]!.defId).type === getCardDef(drawn[1]!.defId).type
       ) {
-        healed = 3;
+        healed = 6;
       }
       if (healed) {
         p.hp = Math.min(p.maxHp, p.hp + healed);
@@ -2699,6 +2801,7 @@ function resolveAbility(
         const victim = sorted[0]!;
         target.hand = target.hand.filter((c) => c.instanceId !== victim.instanceId);
         discardToPile(state, victim);
+        dealDamage(state, p, target, 2, {}, rng);
         p.turnFlags.forcedSkip = true;
         pushReveal(state, {
           kind: "info",
@@ -2709,7 +2812,8 @@ function resolveAbility(
       }
       break;
     case "wheel_armor":
-      p.status.evade += 1;
+      p.status.evade += 2;
+      p.status.block += 2;
       p.turnFlags.evadedOrBlocked = true;
       break;
     case "wheel_randomize": {
@@ -2724,12 +2828,12 @@ function resolveAbility(
       break;
     }
     case "wheel_weave":
-      drawCards(state, p, 2, rng, true);
+      drawCards(state, p, 3, rng, true);
       p.sp = 10;
       break;
     case "wheel_reboot":
-      p.hp = Math.min(p.maxHp, 15);
-      p.sanity = 15;
+      p.hp = Math.min(p.maxHp, 18);
+      p.sanity = 18;
       p.turnFlags.sanityRestored += 3;
       p.turnFlags.healedHp += 5;
       updateMadness(p, state);
@@ -2738,24 +2842,31 @@ function resolveAbility(
     case "mother_sow":
       {
         const t = target ?? p;
-        t.hp = Math.min(t.maxHp, t.hp + 2);
-        p.turnFlags.healedHp += 2;
+        t.hp = Math.min(t.maxHp, t.hp + 4);
+        t.status.block += 1;
+        p.turnFlags.healedHp += 4;
+        p.sp = Math.min(20, p.sp + 1);
+        drawCards(state, p, 1, rng, true);
         if (t.id !== p.id) p.turnFlags.healedAlly = true;
       }
       break;
     case "mother_cure":
       {
         const t = target ?? p;
-        t.hp = Math.min(t.maxHp, t.hp + 4);
+        t.hp = Math.min(t.maxHp, t.hp + 6);
         t.status.stunned = false;
         t.status.skipAction = false;
-        p.turnFlags.healedHp += 4;
+        p.turnFlags.healedHp += 6;
+        p.sp = Math.min(20, p.sp + 1);
+        drawCards(state, p, 1, rng, true);
         p.turnFlags.healedAlly = true;
       }
       break;
     case "mother_harvest": {
-      const missing = Math.max(1, Math.floor((p.maxHp - p.hp) / 5) || 1);
+      const missing = Math.max(2, Math.floor((p.maxHp - p.hp) / 4) || 2);
       drawCards(state, p, missing, rng, true);
+      p.hp = Math.min(p.maxHp, p.hp + 2);
+      p.turnFlags.healedHp += 2;
       break;
     }
     case "mother_mutate":
@@ -2763,16 +2874,17 @@ function resolveAbility(
         discardToPile(state, p.hand.pop()!);
         p.turnFlags.discardedVoluntarily = true;
       }
-      drawCards(state, p, 2, rng, true);
+      drawCards(state, p, 3, rng, true);
       break;
     case "mother_hide":
-      p.status.block += 2;
-      p.status.attackModifier += 1;
+      p.status.block += 4;
+      p.status.attackModifier += 2;
+      drawCards(state, p, 1, rng, true);
       p.turnFlags.evadedOrBlocked = true;
       break;
     case "mother_vitality": {
       const before = p.hp;
-      p.hp += 5;
+      p.hp += 7;
       if (p.hp > p.maxHp) {
         const over = p.hp - p.maxHp;
         p.maxHp = Math.min(p.maxHp + over, p.maxHp + 5);
@@ -2826,10 +2938,10 @@ function resolveAbility(
     case "moon_lifesteal":
     case "abyss_feast":
       if (target) {
-        const amt = abilityId === "abyss_feast" ? 4 : 2;
+        const amt = abilityId === "abyss_feast" ? 3 : 2;
         const d = dealDamage(state, p, target, amt, {}, rng);
-        p.hp = Math.min(p.maxHp, p.hp + (abilityId === "abyss_feast" ? 4 : d));
-        p.turnFlags.healedHp += abilityId === "abyss_feast" ? 4 : d;
+        p.hp = Math.min(p.maxHp, p.hp + d);
+        p.turnFlags.healedHp += d;
         p.turnFlags.playedSpells += 1;
       }
       break;
@@ -3143,7 +3255,7 @@ function resolveAbility(
       break;
     case "abyss_malice":
       if (target) {
-        dealDamage(state, p, target, 2, {}, rng);
+        dealDamage(state, p, target, 1, {}, rng);
         dealDamage(state, p, target, 1, { type: "sanity" }, rng);
         p.turnFlags.sanityRestored += 0;
         // swap_sanity needs sanityRestored — grant 0 heal but mark dealtSanity; soft-complete via dealtSanity+fake
@@ -3151,8 +3263,8 @@ function resolveAbility(
       }
       break;
     case "abyss_mark":
-      p.status.attackModifier += 2;
-      log(state, `${p.name} marks prey for death (+2 Attack).`, "system");
+      p.status.attackModifier += 1;
+      log(state, `${p.name} marks prey for death (+1 Attack).`, "system");
       break;
     case "abyss_intuition":
       if (target?.trap) {
@@ -3172,15 +3284,15 @@ function resolveAbility(
       break;
     case "abyss_ignite":
       if (target) {
-        dealDamage(state, p, target, 4, { type: "sanity" }, rng);
+        dealDamage(state, p, target, 2, { type: "sanity" }, rng);
         if (target.mad) p.sp = Math.min(20, p.sp + 2);
       }
       break;
     case "abyss_corrupt_env": {
       let hits = 0;
       for (const o of opponentsOf(state, p.id)) {
-        o.sp = Math.max(0, o.sp - 2);
-        dealDamage(state, p, o, 2, {}, rng);
+        o.sp = Math.max(0, o.sp - 1);
+        dealDamage(state, p, o, 1, {}, rng);
         hits++;
       }
       p.turnFlags.targetsHitInAction = hits;
@@ -3190,14 +3302,14 @@ function resolveAbility(
     case "abyss_blasphemy": {
       let hits = 0;
       for (const o of opponentsOf(state, p.id)) {
-        dealDamage(state, p, o, 8, { type: "sanity", unblockable: true }, rng);
+        dealDamage(state, p, o, 5, { type: "sanity", unblockable: true }, rng);
         hits++;
       }
       p.turnFlags.targetsHitInAction = hits;
       break;
     }
     case "abyss_descent":
-      if (target && target.sanity <= 5) {
+      if (target && target.sanity <= 3) {
         target.hp = 0;
         checkElimination(state, target, p, rng);
         p.turnFlags.dealtDamage = true;
@@ -3334,12 +3446,23 @@ function resolveAbility(
       break;
 
     default: {
-      // Unscripted abilities follow the pathway's curve.
-      // Early-peak kits hit harder while Sequences are high and taper off.
-      // Late-peak kits barely scratch at Sequence 9, then draw and press Sanity.
       const seqDef = getSequence(p.pathwayId, p.sequence);
+      const scripted = scriptUniqueAbility(state, p, abilityId, target, rng, {
+        damage: (who, amount, opts) => dealDamage(state, p, who, amount, opts ?? {}, rng),
+        draw: (who, count) => drawCards(state, who, count, rng, true),
+        discard: (card) => discardToPile(state, card),
+        opponents: () => opponentsOf(state, p.id),
+        log: (text, tone) => log(state, text, tone),
+        replay: (card, who) => resolveCardEffect(state, p, card, getCardDef(card.defId).effectId, who, rng, 1),
+      });
+      if (scripted) {
+        log(state, `${p.name} uses ${seqDef.abilityName}.`, "system");
+        break;
+      }
+      // Safety net if an ability id has no effect of its own.
       const curve = pathwayCurve(p.pathwayId);
       const early = curve === "early";
+      const mid = curve === "mid";
       const late = curve === "late";
       const foe = target && target.id !== p.id ? target : undefined;
       if (p.sequence >= 7) {
@@ -3349,6 +3472,9 @@ function resolveAbility(
         if (late) {
           drawCards(state, p, 2, rng, true);
           if (foe) dealDamage(state, p, foe, 2, { type: "sanity" }, rng);
+        } else if (mid) {
+          drawCards(state, p, 1, rng, true);
+          if (foe) dealDamage(state, p, foe, 2, {}, rng);
         } else if (early && foe) {
           dealDamage(state, p, foe, 2, {}, rng);
         } else {
@@ -3442,6 +3568,17 @@ export function attemptAscension(
   p.turnFlags.drankPotion = true;
   p.sequence = nextSeq;
   drawCards(state, p, 1, rng, true);
+  if (p.pathwayId === "mother" && p.sequence > 0) {
+    ensureDeck(state, rng);
+    const look = state.deck.slice(-3);
+    const need = new Set(matchRecipe(p)?.remaining ?? []);
+    const hit = [...look].reverse().find((c) => getCardDef(c.defId).ingredients.some((ing) => need.has(ing)));
+    if (hit) {
+      state.deck = state.deck.filter((c) => c.instanceId !== hit.instanceId);
+      p.hand.push(hit);
+      log(state, `${p.name} harvests ${getCardDef(hit.defId).name} for the next potion.`, "ascend");
+    }
+  }
   if (state.simPlays) state.simAscensions = (state.simAscensions ?? 0) + 1;
   state.potionDrunk = true;
 

@@ -1578,42 +1578,37 @@ export function spGainFor(pathwayId: string, sequence: number): number {
   return getSequence(pathwayId, sequence).spGain;
 }
 
-export type PathwayCurve = "early" | "late" | "even";
+export type PathwayCurve = "early" | "mid" | "late" | "even";
 
-const EARLY_PATHWAYS = new Set([
-  "sun",
-  "tyrant",
-  "giant",
-  "demoness",
-  "chained",
-  "abyss",
-  "priest",
-  "hanged",
-]);
+const EARLY_PATHWAYS = new Set(["sun", "tyrant", "priest", "hanged", "demoness"]);
+
+const MID_PATHWAYS = new Set(["giant", "chained", "abyss", "darkness", "door", "death"]);
 
 const LATE_PATHWAYS = new Set([
   "mother",
   "visionary",
   "wheel",
   "fool",
-  "door",
   "hermit",
-  "death",
-  "darkness",
   "moon",
   "paragon",
   "error",
 ]);
 
-/** Early peaks hit harder at Sequence 9–6. Late peaks draw and press Sanity from Sequence 6 down. */
+/**
+ * When the kit is heaviest. Early is Sequence 9–7, mid is 6–4, late is 3–1.
+ * Even holds a similar weight the whole climb. The ability itself stays that pathway's.
+ */
 export function pathwayCurve(id: string): PathwayCurve {
   if (EARLY_PATHWAYS.has(id)) return "early";
+  if (MID_PATHWAYS.has(id)) return "mid";
   if (LATE_PATHWAYS.has(id)) return "late";
   return "even";
 }
 
 export function curveLabel(curve: PathwayCurve): string {
   if (curve === "early") return "Early peak";
+  if (curve === "mid") return "Mid peak";
   if (curve === "late") return "Late peak";
   return "Even";
 }

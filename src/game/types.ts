@@ -115,6 +115,27 @@ export interface CardInstance {
   revealed?: boolean;
   /** Sequence the card was shown from. It cannot pay the next potion. */
   potionSeq?: number;
+  /** The next time this card is played, its Spirituality cost is 0. */
+  free?: boolean;
+}
+
+/** Short-lived marks from a Sequence ability. Most clear on that player's Begin. */
+export interface AbilityMarks {
+  sanityImmune?: boolean;
+  ironBody?: boolean;
+  redirectFatalTo?: string;
+  /** Player who receives this seat's next passive heal. */
+  stealHealFor?: string;
+  extraTurn?: boolean;
+  ignoreHandLimit?: boolean;
+  ignoreTraps?: boolean;
+  echoNextCard?: boolean;
+  untouchable?: boolean;
+  /** Cannot play spells or equip weapons. Clears at the end of this seat's turn. */
+  spellLock?: boolean;
+  ignoreBlockNext?: boolean;
+  negateNextSpell?: boolean;
+  trapBonus?: number;
 }
 
 export interface StatusFlags {
@@ -228,6 +249,7 @@ export interface PlayerState {
   requiemUsed?: boolean;
   /** Arcana Concealment variant: false until an Arcana exposes this player, or they attack an exposed player. */
   revealed?: boolean;
+  marks?: AbilityMarks;
 }
 
 export interface GameLogEntry {
