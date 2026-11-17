@@ -76,7 +76,6 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
       {
         players,
         games,
-        seed: 7000 + players * 13,
         keepReplays: 12,
         arcanaConcealment: concealment,
         controllers,

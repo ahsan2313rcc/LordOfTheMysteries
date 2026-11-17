@@ -661,7 +661,7 @@ export function runSimulation(opts: {
   let turnSum = 0;
   let attackSum = 0;
   let hpSum = 0;
-  const base = opts.seed ?? 4100;
+  const base = opts.seed ?? 1 + Math.floor(Math.random() * 1_000_000_000);
   for (let i = 0; i < opts.games; i++) {
     const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment, opts.controllers);
     const keepThis = report.replays.length < keep;
@@ -697,7 +697,7 @@ export async function runSimulationAsync(
   let turnSum = 0;
   let attackSum = 0;
   let hpSum = 0;
-  const base = opts.seed ?? 4100;
+  const base = opts.seed ?? 1 + Math.floor(Math.random() * 1_000_000_000);
   for (let i = 0; i < opts.games; i++) {
     const game = playAiGame(base + i * 97, opts.players, 280, !!opts.arcanaConcealment, opts.controllers);
     const keepThis = report.replays.length < keep;
@@ -731,11 +731,15 @@ export interface DuelResult {
   seqB: number;
 }
 
-/**
- * Up to ten shared seeds. A round robin plays the first `perSide` of these,
- * once with each pathway going first.
- */
-export const ROUND_ROBIN_SEEDS = [11, 23, 37, 41, 53, 67, 71, 83, 97, 101];
+/** Fresh seeds for one round robin. Each seed is still played from both seats. */
+export function drawSeeds(count: number): number[] {
+  const seeds: number[] = [];
+  while (seeds.length < count) {
+    const next = 1 + Math.floor(Math.random() * 1_000_000_000);
+    if (!seeds.includes(next)) seeds.push(next);
+  }
+  return seeds;
+}
 
 export interface PlayedDuel {
   duel: DuelResult;
@@ -856,6 +860,7 @@ function timeoutReplay(a: string, b: string, seed: number): GameReplay {
 export interface RoundRobinResult {
   duels: DuelResult[];
   report: SimReport;
+  seeds: number[];
 }
 
 /**
@@ -869,7 +874,7 @@ export async function runRoundRobin(
   controllers?: { a: SeatController; b: SeatController },
 ): Promise<RoundRobinResult> {
   const gamesEachSide = Math.min(10, Math.max(1, Math.floor(perSide) || 1));
-  const seeds = ROUND_ROBIN_SEEDS.slice(0, gamesEachSide);
+  const seeds = drawSeeds(gamesEachSide);
   const ids = PATHWAYS.map((p) => p.id);
   const pairs: [string, string][] = [];
   for (let i = 0; i < ids.length; i++) {
@@ -919,5 +924,5 @@ export async function runRoundRobin(
   }
   finalize(report, attackSum, hpSum);
   report.avgTurns = report.finished ? turnSum / report.finished : 0;
-  return { duels, report };
+  return { duels, report, seeds };
 }

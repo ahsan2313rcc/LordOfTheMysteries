@@ -269,8 +269,8 @@ export function scriptUniqueAbility(
     }
     case "sun_flame": {
       if (t) {
-        const bonus = t.sanityBroken || t.mad ? n(p, 2) : 0;
-        api.damage(t, n(p, 4) + bonus);
+        const bonus = t.sanityBroken || t.mad ? n(p, 3) : 0;
+        api.damage(t, n(p, 6) + bonus);
         if (t.sanityBroken || t.mad) p.turnFlags.dealtDamage = true;
       }
       return true;
@@ -288,15 +288,15 @@ export function scriptUniqueAbility(
       return true;
     }
     case "sun_scales": {
-      const taken = p.turnFlags.tookDamage ? n(p, 4) : n(p, 2);
+      const taken = p.turnFlags.tookDamage ? n(p, 6) : n(p, 3);
       if (t) api.damage(t, taken);
       api.log(`${p.name} returns ${taken} of the harm taken this turn.`, "damage");
       return true;
     }
     case "sun_ocean": {
-      for (const o of api.opponents()) api.damage(o, n(p, 6));
-      p.hp = Math.min(p.maxHp, p.hp + n(p, 6));
-      p.turnFlags.healedHp += n(p, 6);
+      for (const o of api.opponents()) api.damage(o, n(p, 8));
+      p.hp = Math.min(p.maxHp, p.hp + n(p, 8));
+      p.turnFlags.healedHp += n(p, 8);
       return true;
     }
     case "sun_vow": {

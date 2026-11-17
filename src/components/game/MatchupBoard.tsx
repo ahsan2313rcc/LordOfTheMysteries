@@ -3,7 +3,6 @@
 import { Button } from "@/components/ui/button";
 import { PATHWAYS, curveLabel, pathwayCurve, type PathwayCurve } from "@/game/pathways";
 import {
-  ROUND_ROBIN_SEEDS,
   runRoundRobin,
   type DuelResult,
   type SeatController,
@@ -163,6 +162,7 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
   const [perSide, setPerSide] = useState(5);
   const [seatA, setSeatA] = useState<SeatController>("ai");
   const [seatB, setSeatB] = useState<SeatController>("ai");
+  const [usedSeeds, setUsedSeeds] = useState<number[]>([]);
   const [picked, setPicked] = useState<string[]>(IDS);
   const [focus, setFocus] = useState<string[] | null>(null);
   const [filter, setFilter] = useState<"all" | PathwayCurve | "custom">("all");
@@ -246,12 +246,12 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
       { a: seatA, b: seatB },
     );
     setDuels(result.duels);
+    setUsedSeeds(result.seeds);
     onReport?.(result.report);
     setBusy(false);
   }
 
   const gamesEach = perSide * 2;
-  const seeds = ROUND_ROBIN_SEEDS.slice(0, perSide);
 
   const short = (id: string) => PATHWAYS.find((p) => p.id === id)?.name.replace(/^The /, "") ?? id;
 
@@ -262,10 +262,12 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
           <h2 className="font-[family-name:var(--font-display)] text-xl text-amber-100">Round robin</h2>
           <p className="mt-1 text-sm text-stone-400">
             Every pathway meets every pathway, including itself. Each pairing is played {gamesEach}{" "}
-            times: seeds {seeds.join(", ")}, and each seat goes first once per seed. That is 253
-            pairings and {(253 * gamesEach).toLocaleString()} duels. A cell reads row wins / column
-            wins, so Fool 6/4 against Death is Death 4/6 against Fool. Filters hide pathways from
-            both axes. Overview, Arcana, Items, Cards, and Replay fill from this same run.
+            times, and each seat goes first once per seed. The seeds are drawn anew for every run.
+            That is 253 pairings and {(253 * gamesEach).toLocaleString()} duels. A cell reads row
+            wins / column wins, so Fool 6/4 against Death is Death 4/6 against Fool. Filters hide
+            pathways from both axes. Overview, Arcana, Items, Cards, and Replay fill from this same
+            run.
+            {usedSeeds.length > 0 && ` This run used seeds ${usedSeeds.join(", ")}.`}
           </p>
         </div>
         <div className="flex flex-wrap items-end gap-2">

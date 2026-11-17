@@ -2247,23 +2247,31 @@ function resolveAbility(
       break;
     case "sun_courage":
       if (target) {
-        target.status.attackModifier += 1;
-        p.turnFlags.healedAlly = true; // buff always completes Seq 9 Acting
-        log(state, `${p.name} inspires ${target.name} (+1 Attack).`, "heal");
+        target.status.attackModifier += 2;
+        p.status.block += 2;
+        p.turnFlags.healedAlly = true;
+        p.turnFlags.evadedOrBlocked = true;
+        drawCards(state, p, 1, rng, true);
+        log(state, `${p.name} inspires ${target.name} (+2 Attack), gains 2 Block, and draws.`, "heal");
       }
       break;
     case "sun_light":
       if (target) {
-        dealDamage(state, p, target, 3, {}, rng);
+        dealDamage(state, p, target, 5, {}, rng);
+        dealDamage(state, p, target, 2, { type: "sanity" }, rng);
         p.turnFlags.playedSpells += 1;
       }
       break;
     case "sun_purify":
       if (target) {
-        target.sanity = Math.min(20, target.sanity + 3);
-        p.turnFlags.sanityRestored += 3;
+        const beforeHp = target.hp;
+        target.sanity = Math.min(20, target.sanity + 5);
+        target.hp = Math.min(target.maxHp, target.hp + 4);
+        p.turnFlags.sanityRestored += 5;
+        p.turnFlags.healedHp += Math.max(0, target.hp - beforeHp);
         updateMadness(target, state);
         p.turnFlags.healedAlly = true;
+        drawCards(state, p, 1, rng, true);
       }
       break;
     case "tyrant_balance":
