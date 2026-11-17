@@ -283,5 +283,19 @@ function give(state: GameState, p: PlayerState, defId: string) {
   );
 }
 
+{
+  const { state, me, foe } = boot();
+  state.discard.push(
+    { instanceId: "spear-disc", defId: "flaming_spear" },
+    { instanceId: "mim-old", defId: "scribes_mimicry" },
+  );
+  const before = foe.hp;
+  me.sp = 20;
+  const card = give(state, me, "scribes_mimicry");
+  const played = playCardFromHand(state, card.instanceId, foe.id, getRng(state));
+  check("two mimicries do not recurse", played.ok, played.error);
+  check("mimicry replays the earlier spell", foe.hp < before, `hp ${foe.hp}`);
+}
+
 console.log(failed ? `\n${failed} fidelity checks failed` : "\nAll card fidelity checks passed.");
 process.exit(failed ? 1 : 0);

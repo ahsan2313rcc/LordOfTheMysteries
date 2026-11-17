@@ -1216,6 +1216,7 @@ function resolveCardEffect(
   effectId: string,
   target: PlayerState | undefined,
   rng: Rng,
+  depth = 0,
 ) {
   const def = getCardDef(card.defId);
 
@@ -1474,12 +1475,19 @@ function resolveCardEffect(
       discardToPile(state, card);
       return;
     case "scribes_mimicry": {
-      const last = [...state.discard].reverse().find((c) => getCardDef(c.defId).type === "spell");
       p.turnFlags.playedSpells += 1;
       discardToPile(state, card);
+      // A mimicry must not replay another mimicry. Two of them otherwise call each other forever.
+      if (depth > 0) return;
+      const last = [...state.discard].reverse().find(
+        (c) =>
+          c.instanceId !== card.instanceId &&
+          c.defId !== "scribes_mimicry" &&
+          getCardDef(c.defId).type === "spell",
+      );
       if (last) {
         p.turnFlags.copiedEffect = true;
-        resolveCardEffect(state, p, last, getCardDef(last.defId).effectId, target, rng);
+        resolveCardEffect(state, p, last, getCardDef(last.defId).effectId, target, rng, depth + 1);
       }
       return;
     }
@@ -2339,7 +2347,7 @@ function resolveAbility(
         const [c] = state.discard.splice(idx, 1);
         if (c) {
           p.turnFlags.discardCardsPlayed += 1;
-          resolveCardEffect(state, p, c, getCardDef(c.defId).effectId, target, rng);
+          resolveCardEffect(state, p, c, getCardDef(c.defId).effectId, target, rng, 1);
         }
       } else {
         log(state, `${p.name}'s Seance finds no Utility — contact with discard still counts.`, "system");
@@ -2407,7 +2415,9 @@ function resolveAbility(
     case "tower_mimic":
     case "moon_channel": {
       p.turnFlags.usedDiscard = true;
-      const idx = state.discard.findIndex((c) => getCardDef(c.defId).type === "spell");
+      const idx = state.discard.findIndex(
+        (c) => c.defId !== "scribes_mimicry" && getCardDef(c.defId).type === "spell",
+      );
       if (idx >= 0) {
         const [c] = state.discard.splice(idx, 1);
         if (c) {
@@ -2418,7 +2428,7 @@ function resolveAbility(
             title: "Copied Spell from Discard",
             cards: [cardSnapshot(c)],
           });
-          resolveCardEffect(state, p, c, getCardDef(c.defId).effectId, target, rng);
+          resolveCardEffect(state, p, c, getCardDef(c.defId).effectId, target, rng, 1);
         }
       } else log(state, "No Spell in discard to copy.", "system");
       break;

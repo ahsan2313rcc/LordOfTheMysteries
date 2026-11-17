@@ -733,7 +733,21 @@ export async function runRoundRobin(
   for (const [a, b] of pairs) {
     for (const seed of ROUND_ROBIN_SEEDS) {
       for (const aFirst of [true, false]) {
-        out.push(playDuel(a, b, seed, aFirst));
+        try {
+          out.push(playDuel(a, b, seed, aFirst));
+        } catch {
+          out.push({
+            a,
+            b,
+            seed,
+            aFirst,
+            winner: null,
+            reason: "timeout",
+            turns: 0,
+            seqA: 9,
+            seqB: 9,
+          });
+        }
         done += 1;
         onProgress?.(done, total);
         await new Promise((resolve) => setTimeout(resolve, 0));
