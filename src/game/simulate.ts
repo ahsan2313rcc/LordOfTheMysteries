@@ -17,7 +17,9 @@ export interface SimPlay {
 }
 
 export interface SeatFinish {
+  playerId?: string;
   pathwayId: string;
+  controller?: SeatController;
   sequence: number;
   alive: boolean;
   hp: number;
@@ -165,6 +167,8 @@ export interface SimReport {
   cards: CardStat[];
   pathways: PathwayStat[];
   replays: GameReplay[];
+  /** Every game, without the chronicle log, so the stat filters can recount. */
+  catalog: GameReplay[];
   /** Games where the table had both a neural network and a search AI. */
   mixedGames: number;
   nnWins: number;
@@ -314,8 +318,10 @@ function replayFrom(
     hpComeback: !!winner && !!trail?.sawHole,
     healedComeback: !!winner && !!trail?.roseAfterHole,
     seqComeback,
-    sequences: state.players.map((p) => ({
+    sequences: state.players.map((p, i) => ({
+      playerId: p.id,
       pathwayId: p.pathwayId,
+      controller: controllers?.[i],
       sequence: p.sequence,
       alive: p.alive,
       hp: p.hp,
@@ -430,6 +436,7 @@ function emptyReport(players: number): SimReport {
       avgWinSequence: 0,
     })),
     replays: [],
+    catalog: [],
     mixedGames: 0,
     nnWins: 0,
     aiWins: 0,
@@ -455,13 +462,25 @@ function holdGear(gearById: Map<string, GearStat>, id: string | undefined, won: 
   return row.rarity === "rare" || row.slot === "relic";
 }
 
-function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
+function winnerIndex(game: GameReplay): number {
+  return game.pathways.findIndex((p) => p.pathwayId === game.winnerPathway && p.name === game.winnerName);
+}
+
+function absorb(
+  report: SimReport,
+  game: GameReplay,
+  keepReplay: boolean,
+  include?: (index: number) => boolean,
+) {
+  const indexes = game.sequences.map((_, i) => i).filter((i) => !include || include(i));
+  if (include && indexes.length === 0) return;
   report.games += 1;
+  const winnerAt = winnerIndex(game);
+  const winnerKept = winnerAt >= 0 && (!include || include(winnerAt));
   const kinds = game.pathways.map((p) => p.controller).filter((c): c is SeatController => !!c);
   if (kinds.includes("nn") && kinds.includes("ai")) {
     report.mixedGames += 1;
-    const winnerIdx = game.pathways.findIndex((p) => p.pathwayId === game.winnerPathway && p.name === game.winnerName);
-    const winnerKind = winnerIdx >= 0 ? game.pathways[winnerIdx]?.controller : undefined;
+    const winnerKind = winnerKept ? game.pathways[winnerAt]?.controller : undefined;
     if (winnerKind === "nn") report.nnWins += 1;
     else if (winnerKind === "ai") report.aiWins += 1;
     else report.controllerDraws += 1;
@@ -469,6 +488,7 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
   if (game.timedOut) report.timeouts += 1;
   else report.finished += 1;
   tallyEnding(report, game);
+  if (!include) report.catalog.push({ ...game, log: [] });
   if (keepReplay) report.replays.push(game);
   report.pace.ascensions += game.ascensions;
   report.pace.abilities += game.abilities;
@@ -480,8 +500,7 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
   else if (game.turns <= 80) report.pace.under80 += 1;
   else report.pace.over80 += 1;
 
-  const decided = !!game.winnerPathway;
-  if (decided) {
+  if (winnerKept) {
     report.decided += 1;
     if (game.lowerSeqWin) report.lowerSeqWins += 1;
     if (game.seqLeadWin) report.seqLeadWins += 1;
@@ -495,11 +514,11 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
     }
   }
 
+  const seated = indexes.map((i) => game.sequences[i]!).filter(Boolean);
   const mirrorTable =
-    game.sequences.length > 1 &&
-    game.sequences.every((seat) => seat.pathwayId === game.sequences[0]!.pathwayId);
+    seated.length > 1 && seated.every((seat) => seat.pathwayId === seated[0]!.pathwayId);
   const pathById = new Map(report.pathways.map((p) => [p.id, p]));
-  if (!mirrorTable) for (const seat of game.sequences) {
+  if (!mirrorTable) for (const seat of seated) {
     const row = pathById.get(seat.pathwayId);
     if (!row) continue;
     const games = row.games + 1;
@@ -507,7 +526,7 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
     row.avgSteps = (row.avgSteps * row.games + (9 - seat.sequence)) / games;
     row.avgTurns = (row.avgTurns * row.games + game.turns) / games;
     row.games = games;
-    if (seat.pathwayId === game.winnerPathway) {
+    if (winnerKept && seat.pathwayId === game.winnerPathway) {
       row.wins += 1;
       row.avgWinSequence = (row.avgWinSequence * (row.wins - 1) + seat.sequence) / row.wins;
       if (game.winReason === "lastStanding") row.hpWins += 1;
@@ -523,8 +542,8 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
   }
 
   const gearById = new Map(report.gear.map((g) => [g.id, g]));
-  for (const seat of game.sequences) {
-    const won = seat.pathwayId === game.winnerPathway && !!game.winnerPathway;
+  for (const seat of seated) {
+    const won = winnerKept && seat.pathwayId === game.winnerPathway;
     let rare = holdGear(gearById, seat.weaponId, won);
     rare = holdGear(gearById, seat.artifactId, won) || rare;
     for (const charmId of seat.charmIds) rare = holdGear(gearById, charmId, won) || rare;
@@ -534,16 +553,63 @@ function absorb(report: SimReport, game: GameReplay, keepReplay: boolean) {
     }
   }
 
+  const allowedPlayers = new Set(seated.map((seat) => seat.playerId).filter((id): id is string => !!id));
   const cardById = new Map(report.cards.map((c) => [c.id, c]));
   for (const play of game.plays) {
+    if (include && play.playerId && allowedPlayers.size > 0 && !allowedPlayers.has(play.playerId)) continue;
     const row = cardById.get(play.defId);
     if (!row) continue;
     if (!play.swing) {
       row.plays += 1;
-      if (play.pathwayId === game.winnerPathway) row.winPlays += 1;
+      if (winnerKept && play.pathwayId === game.winnerPathway) row.winPlays += 1;
     }
     row.damage += play.damage;
   }
+}
+
+export function viewReport(
+  source: SimReport,
+  pathways: ReadonlySet<string>,
+  controllers: ReadonlySet<SeatController> | null,
+): SimReport {
+  const next = emptyReport(source.players);
+  next.seatControllers = source.seatControllers;
+  let turnSum = 0;
+  let attackSum = 0;
+  let hpSum = 0;
+  const logs = new Map(source.replays.map((game) => [replayKey(game), game.log]));
+  for (const game of source.catalog) {
+    const include = (index: number) => seatVisible(game, index, pathways, controllers);
+    if (!game.sequences.some((_, index) => include(index))) continue;
+    const logged = logs.get(replayKey(game));
+    const withLog = logged ? { ...game, log: logged } : game;
+    const keep = next.replays.length < 12;
+    absorb(next, withLog, keep, include);
+    if (!game.timedOut) turnSum += game.turns;
+    attackSum += game.attacks;
+    hpSum += game.hpDealt;
+  }
+  finalize(next, attackSum, hpSum);
+  next.avgTurns = next.finished ? turnSum / next.finished : 0;
+  next.catalog = source.catalog;
+  return next;
+}
+
+function replayKey(game: GameReplay): string {
+  return `${game.seed}|${game.pathways.map((p) => `${p.pathwayId}:${p.controller ?? ""}`).join(",")}`;
+}
+
+function seatVisible(
+  game: GameReplay,
+  index: number,
+  pathways: ReadonlySet<string>,
+  controllers: ReadonlySet<SeatController> | null,
+): boolean {
+  const seat = game.sequences[index];
+  if (!seat || !pathways.has(seat.pathwayId)) return false;
+  if (!controllers) return true;
+  const controller = seat.controller ?? game.pathways[index]?.controller;
+  return !!controller && controllers.has(controller);
 }
 
 function rate(count: number, wins: number): number {

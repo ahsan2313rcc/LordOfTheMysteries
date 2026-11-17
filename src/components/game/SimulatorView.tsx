@@ -3,19 +3,22 @@
 import { Button } from "@/components/ui/button";
 import {
   runSimulationAsync,
+  viewReport,
   type GameReplay,
   type RateStat,
   type SeatController,
   type SimReport,
 } from "@/game/simulate";
-import { PATHWAYS, curveLabel, pathwayCurve } from "@/game/pathways";
+import { PATHWAYS, curveLabel, pathwayCurve, type PathwayCurve } from "@/game/pathways";
 import { LearnerPanel } from "./LearnerPanel";
 import { MatchupBoard } from "./MatchupBoard";
 import { compareValues, SortTh, useSort } from "./sort-table";
 import { cn } from "@/lib/utils";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type SimTab = "matchups" | "overview" | "arcana" | "items" | "cards" | "replay" | "learner";
+
+const PATH_IDS = PATHWAYS.map((p) => p.id);
 
 const TABS: { id: SimTab; label: string }[] = [
   { id: "matchups", label: "Matchups" },
@@ -64,8 +67,22 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
   const cardSort = useSort<"name" | "type" | "plays" | "damage" | "damagePerPlay" | "winRateWhenPlayed">("plays");
   const [replayIdx, setReplayIdx] = useState(0);
   const [logCursor, setLogCursor] = useState(0);
+  const [picked, setPicked] = useState<string[]>(PATH_IDS);
+  const [curveFilter, setCurveFilter] = useState<"all" | PathwayCurve | "custom">("all");
+  const [playerFilter, setPlayerFilter] = useState<"all" | SeatController>("all");
 
-  const replay: GameReplay | null = report?.replays[replayIdx] ?? null;
+  const shown = useMemo(() => {
+    if (!report) return null;
+    const unrestricted = picked.length === PATHWAYS.length && playerFilter === "all";
+    if (unrestricted || !report.catalog?.length) return report;
+    return viewReport(report, new Set(picked), playerFilter === "all" ? null : new Set([playerFilter]));
+  }, [report, picked, playerFilter]);
+  const replay: GameReplay | null = shown?.replays[replayIdx] ?? null;
+
+  useEffect(() => {
+    setReplayIdx(0);
+    setLogCursor(0);
+  }, [picked, playerFilter]);
   const visibleLog = useMemo(() => replay?.log.slice(0, logCursor + 1) ?? [], [replay, logCursor]);
 
   async function run() {
@@ -90,7 +107,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
     setTab("overview");
   }
 
-  const playedCards = report?.cards.filter((c) => c.plays > 0) ?? [];
+  const playedCards = shown?.cards.filter((c) => c.plays > 0) ?? [];
   const weak = [...playedCards].sort(
     (a, b) => a.winRateWhenPlayed - b.winRateWhenPlayed || a.damagePerPlay - b.damagePerPlay,
   );
@@ -192,8 +209,15 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
 
         {tab === "learner" && <LearnerPanel />}
 
-        {tab === "matchups" && (
+        <div className={tab === "learner" ? "hidden" : "flex flex-col gap-4"}>
           <MatchupBoard
+            pinned={tab !== "matchups"}
+            picked={picked}
+            setPicked={setPicked}
+            filter={curveFilter}
+            setFilter={setCurveFilter}
+            playerFilter={playerFilter}
+            setPlayerFilter={setPlayerFilter}
             onReport={(next) => {
               setReport(next);
               setReportFrom("22×22 round robin");
@@ -201,7 +225,6 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               setLogCursor(0);
             }}
           />
-        )}
 
         {tab !== "matchups" && !report && (
           <p className="rounded-xl border border-stone-700/60 bg-stone-950/70 p-6 text-sm text-stone-400">
@@ -211,36 +234,39 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
           </p>
         )}
 
-        {tab !== "matchups" && report && (
-          <>
+        {tab !== "matchups" && shown && (
+          <div className="flex flex-col gap-4">
             {reportFrom && (
-              <p className="text-xs text-stone-500">These tables are the {reportFrom}.</p>
+              <p className="text-xs text-stone-500">
+                These tables are the {reportFrom}. The matchup grid stays at the top. The pathway
+                and player filters recount both.
+              </p>
             )}
             <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              <Stat label="Finished" value={`${report.finished}/${report.games}`} />
-              <Stat label="Avg turns" value={report.avgTurns.toFixed(0)} />
-              <Stat label="HP endings" value={pct(report.endings.hp, report.games)} />
-              <Stat label="Sanity endings" value={pct(report.endings.sanity, report.games)} />
-              <Stat label="Ascension" value={pct(report.endings.ascension, report.games)} />
-              <Stat label="Potions drunk" value={perGame(report.pace.ascensions, report.games)} />
+              <Stat label="Finished" value={`${shown.finished}/${shown.games}`} />
+              <Stat label="Avg turns" value={shown.avgTurns.toFixed(0)} />
+              <Stat label="HP endings" value={pct(shown.endings.hp, shown.games)} />
+              <Stat label="Sanity endings" value={pct(shown.endings.sanity, shown.games)} />
+              <Stat label="Ascension" value={pct(shown.endings.ascension, shown.games)} />
+              <Stat label="Potions drunk" value={perGame(shown.pace.ascensions, shown.games)} />
             </div>
-            {report.mixedGames > 0 && (
+            {shown.mixedGames > 0 && (
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <Stat label="Network wins" value={String(report.nnWins)} />
-                <Stat label="Search wins" value={String(report.aiWins)} />
-                <Stat label="Draws" value={String(report.controllerDraws)} />
+                <Stat label="Network wins" value={String(shown.nnWins)} />
+                <Stat label="Search wins" value={String(shown.aiWins)} />
+                <Stat label="Draws" value={String(shown.controllerDraws)} />
                 <Stat
                   label="NN win rate"
                   value={
-                    report.nnWins + report.aiWins
-                      ? pct(report.nnWins, report.nnWins + report.aiWins)
+                    shown.nnWins + shown.aiWins
+                      ? pct(shown.nnWins, shown.nnWins + shown.aiWins)
                       : "—"
                   }
                 />
               </div>
             )}
 
-            {tab === "overview" && <Overview report={report} />}
+            {tab === "overview" && <Overview report={shown} />}
 
             {tab === "arcana" && (
               <div className="flex flex-col gap-4">
@@ -270,7 +296,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...report.pathways]
+                    {[...shown.pathways.filter((p) => picked.includes(p.id))]
                       .map((p) => ({ ...p, curve: curveLabel(pathwayCurve(p.id)) }))
                       .sort((a, b) => compareValues(a[arcanaSort.key], b[arcanaSort.key], arcanaSort.direction))
                       .map((p) => (
@@ -307,7 +333,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                   </tbody>
                 </table>
                 <p className="px-3 py-2 text-xs text-stone-500">
-                  Curve is when the kit is heaviest. Early peak is Sequence 9–7, mid peak is 6–4, late peak is 3–1, and Even holds a similar weight the whole way. Each Sequence still has its own ability. Green is ahead of the pack, rose is lagging. With {report.games} games a pathway
+                  Curve is when the kit is heaviest. Early peak is Sequence 9–7, mid peak is 6–4, late peak is 3–1, and Even holds a similar weight the whole way. Each Sequence still has its own ability. Green is ahead of the pack, rose is lagging. With {shown.games} games a pathway
                   appears only a handful of times — run 64 or more before treating a gap as a real imbalance.
                   On a 4-player table an even pathway wins about 25% of its games. On a 2-player table, about half.
                 </p>
@@ -340,7 +366,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...report.pathways]
+                    {[...shown.pathways.filter((p) => picked.includes(p.id))]
                       .sort((a, b) => compareValues(a[howSort.key], b[howSort.key], howSort.direction))
                       .map((p) => (
                       <tr key={`${p.id}-how`} className="border-t border-stone-800">
@@ -369,7 +395,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
               </div>
             )}
 
-            {tab === "items" && <ItemsPanel report={report} />}
+            {tab === "items" && <ItemsPanel report={shown} />}
 
             {tab === "cards" && (
               <div className="grid gap-4 lg:grid-cols-2">
@@ -377,7 +403,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                   <BucketList
                     title="When a card is played"
                     hint="Win% is how often the seat who played the card eventually won. Relics are counted apart from other rares."
-                    rows={report.playBuckets}
+                    rows={shown.playBuckets}
                   />
                 </div>
                 <CardTable title="Played most / stronger when played" rows={strong.slice(0, 12)} />
@@ -436,7 +462,7 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
             {tab === "replay" && replay && (
               <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)]">
                 <div className="max-h-[70vh] space-y-1 overflow-y-auto rounded-xl border border-stone-700/60 p-2">
-                  {report.replays.map((g, i) => (
+                  {shown.replays.map((g, i) => (
                     <button
                       key={g.seed}
                       type="button"
@@ -528,8 +554,9 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
                 </div>
               </div>
             )}
-          </>
+          </div>
         )}
+        </div>
       </div>
     </main>
   );

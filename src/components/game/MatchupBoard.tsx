@@ -86,7 +86,12 @@ export function buildMatrix(duels: DuelResult[]) {
   return cells;
 }
 
-function seatRows(duels: DuelResult[], ids: string[]): SeatRow[] {
+function seatRows(
+  duels: DuelResult[],
+  ids: string[],
+  allow: Set<SeatController> | null,
+  sides: [SeatController, SeatController],
+): SeatRow[] {
   const set = new Set(ids);
   const rows = new Map<string, SeatRow & { seqSum: number; turnSum: number }>();
   for (const id of ids) {
@@ -110,8 +115,35 @@ function seatRows(duels: DuelResult[], ids: string[]): SeatRow[] {
   }
   for (const duel of duels) {
     if (!set.has(duel.a) || !set.has(duel.b) || duel.a === duel.b) continue;
+    const aOk = !allow || allow.has(sides[0]);
+    const bOk = !allow || allow.has(sides[1]);
+    if (!aOk && !bOk) continue;
     const a = rows.get(duel.a)!;
     const b = rows.get(duel.b)!;
+    if (!aOk) {
+      b.games += 1;
+      b.turnSum += duel.turns;
+      b.seqSum += duel.seqB;
+      if (duel.winner === "b") {
+        b.wins += 1;
+        if (duel.reason === "hp") b.hp += 1;
+        else if (duel.reason === "sanity") b.sanity += 1;
+        else if (duel.reason === "ascension") b.ascension += 1;
+      } else if (duel.winner === "a") b.losses += 1;
+      continue;
+    }
+    if (!bOk) {
+      a.games += 1;
+      a.turnSum += duel.turns;
+      a.seqSum += duel.seqA;
+      if (duel.winner === "a") {
+        a.wins += 1;
+        if (duel.reason === "hp") a.hp += 1;
+        else if (duel.reason === "sanity") a.sanity += 1;
+        else if (duel.reason === "ascension") a.ascension += 1;
+      } else if (duel.winner === "b") a.losses += 1;
+      continue;
+    }
     a.games += 1;
     b.games += 1;
     a.turnSum += duel.turns;
@@ -148,6 +180,66 @@ function seatRows(duels: DuelResult[], ids: string[]): SeatRow[] {
   }));
 }
 
+interface PairScore {
+  games: number;
+  rowWins: number;
+  colWins: number;
+  hp: number;
+  sanity: number;
+  ascension: number;
+  firstWins: number;
+  secondWins: number;
+}
+
+function pairScore(
+  duels: DuelResult[],
+  row: string,
+  col: string,
+  allow: Set<SeatController> | null,
+  sides: [SeatController, SeatController],
+): PairScore {
+  const out: PairScore = {
+    games: 0,
+    rowWins: 0,
+    colWins: 0,
+    hp: 0,
+    sanity: 0,
+    ascension: 0,
+    firstWins: 0,
+    secondWins: 0,
+  };
+  for (const duel of duels) {
+    if (row === col) {
+      if (duel.a !== row || duel.b !== row) continue;
+      const firstSide = duel.aFirst ? sides[0] : sides[1];
+      const secondSide = duel.aFirst ? sides[1] : sides[0];
+      const firstOk = !allow || allow.has(firstSide);
+      const secondOk = !allow || allow.has(secondSide);
+      if (!firstOk && !secondOk) continue;
+      out.games += 1;
+      const firstWon = (duel.aFirst && duel.winner === "a") || (!duel.aFirst && duel.winner === "b");
+      if (duel.winner && firstWon && firstOk) out.firstWins += 1;
+      else if (duel.winner && !firstWon && secondOk) out.secondWins += 1;
+      continue;
+    }
+    const rowIsA = duel.a === row && duel.b === col;
+    const rowIsB = duel.b === row && duel.a === col;
+    if (!rowIsA && !rowIsB) continue;
+    const rowSide = rowIsA ? sides[0] : sides[1];
+    if (allow && !allow.has(rowSide)) continue;
+    out.games += 1;
+    const rowWon = (rowIsA && duel.winner === "a") || (rowIsB && duel.winner === "b");
+    const colWon = (rowIsA && duel.winner === "b") || (rowIsB && duel.winner === "a");
+    if (rowWon) {
+      out.rowWins += 1;
+      if (duel.reason === "hp") out.hp += 1;
+      else if (duel.reason === "sanity") out.sanity += 1;
+      else if (duel.reason === "ascension") out.ascension += 1;
+    } else if (colWon) out.colWins += 1;
+  }
+  return out;
+}
+
 function tone(rate: number, games: number) {
   if (!games) return "text-stone-600";
   if (rate >= 0.6) return "bg-emerald-950/70 text-emerald-200";
@@ -155,7 +247,25 @@ function tone(rate: number, games: number) {
   return "bg-stone-900/80 text-stone-300";
 }
 
-export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => void }) {
+export function MatchupBoard({
+  onReport,
+  picked,
+  setPicked,
+  filter,
+  setFilter,
+  playerFilter,
+  setPlayerFilter,
+  pinned = false,
+}: {
+  onReport?: (report: SimReport) => void;
+  picked: string[];
+  setPicked: (next: string[] | ((cur: string[]) => string[])) => void;
+  filter: "all" | PathwayCurve | "custom";
+  setFilter: (next: "all" | PathwayCurve | "custom") => void;
+  playerFilter: "all" | SeatController;
+  setPlayerFilter: (next: "all" | SeatController) => void;
+  pinned?: boolean;
+}) {
   const [duels, setDuels] = useState<DuelResult[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
@@ -163,16 +273,19 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
   const [seatA, setSeatA] = useState<SeatController>("ai");
   const [seatB, setSeatB] = useState<SeatController>("ai");
   const [usedSeeds, setUsedSeeds] = useState<number[]>([]);
-  const [picked, setPicked] = useState<string[]>(IDS);
   const [focus, setFocus] = useState<string[] | null>(null);
-  const [filter, setFilter] = useState<"all" | PathwayCurve | "custom">("all");
+  const [sides, setSides] = useState<[SeatController, SeatController]>(["ai", "ai"]);
   const [sortCol, setSortCol] = useState<string>("total");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const tableSort = useSort<keyof SeatRow>("winRate");
 
   const cells = useMemo(() => (duels ? buildMatrix(duels) : null), [duels]);
   const detailIds = focus && focus.length >= 2 && focus[0] !== focus[1] ? focus : picked;
-  const detail = useMemo(() => (duels ? seatRows(duels, detailIds) : []), [duels, detailIds]);
+  const allow = playerFilter === "all" ? null : new Set<SeatController>([playerFilter]);
+  const detail = useMemo(
+    () => (duels ? seatRows(duels, detailIds, allow, sides) : []),
+    [duels, detailIds, playerFilter, sides],
+  );
   const sortedDetail = useMemo(() => {
     return [...detail].sort((a, b) =>
       compareValues(a[tableSort.key], b[tableSort.key], tableSort.direction),
@@ -193,25 +306,27 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
 
   const axis = useMemo(() => {
     if (!cells) return picked;
-    const against = sortCol !== "name" && sortCol !== "total" && picked.includes(sortCol) ? sortCol : "total";
+      const against = sortCol !== "name" && sortCol !== "total" && picked.includes(sortCol) ? sortCol : "total";
     const score = (id: string) => {
       if (sortCol === "name") return PATHWAYS.find((p) => p.id === id)?.name ?? id;
+      if (!duels) return 0;
       if (against === "total") {
         let wins = 0;
         let losses = 0;
         for (const other of picked) {
           if (other === id) continue;
-          wins += cells.get(`${id}|${other}`)?.wins ?? 0;
-          losses += cells.get(`${other}|${id}`)?.wins ?? 0;
+          const pair = pairScore(duels, id, other, allow, sides);
+          wins += pair.rowWins;
+          losses += pair.colWins;
         }
         return wins + losses ? wins / (wins + losses) : 0;
       }
-      const wins = cells.get(`${id}|${against}`)?.wins ?? 0;
-      const losses = cells.get(`${against}|${id}`)?.wins ?? 0;
-      return wins + losses ? wins / (wins + losses) : 0;
+      const pair = pairScore(duels, id, against, allow, sides);
+      const decided = pair.rowWins + pair.colWins;
+      return decided ? pair.rowWins / decided : 0;
     };
     return [...picked].sort((a, b) => compareValues(score(a), score(b), sortDir));
-  }, [cells, picked, sortCol, sortDir]);
+  }, [duels, picked, sortCol, sortDir, allow, sides]);
 
   function headerSort(col: string) {
     if (sortCol === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -246,6 +361,7 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
       { a: seatA, b: seatB },
     );
     setDuels(result.duels);
+    setSides([seatA, seatB]);
     setUsedSeeds(result.seeds);
     onReport?.(result.report);
     setBusy(false);
@@ -264,9 +380,8 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
             Every pathway meets every pathway, including itself. Each pairing is played {gamesEach}{" "}
             times, and each seat goes first once per seed. The seeds are drawn anew for every run.
             That is 253 pairings and {(253 * gamesEach).toLocaleString()} duels. A cell reads row
-            wins / column wins, so Fool 6/4 against Death is Death 4/6 against Fool. Filters hide
-            pathways from both axes. Overview, Arcana, Items, Cards, and Replay fill from this same
-            run.
+            wins / column wins, so Fool 6/4 against Death is Death 4/6 against Fool. The filters
+            below stay in place on the other stat tabs, and those tables recount the same run.
             {usedSeeds.length > 0 && ` This run used seeds ${usedSeeds.join(", ")}.`}
           </p>
         </div>
@@ -309,6 +424,9 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
             setPicked([]);
           }}
         />
+        <Filter label="All players" active={playerFilter === "all"} onClick={() => setPlayerFilter("all")} />
+        <Filter label="NN" active={playerFilter === "nn"} onClick={() => setPlayerFilter("nn")} />
+        <Filter label="AI" active={playerFilter === "ai"} onClick={() => setPlayerFilter("ai")} />
       </div>
       <div className="flex flex-wrap gap-1.5">
         {PATHWAYS.map((p) => {
@@ -339,9 +457,9 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
       )}
 
       {duels && cells && (
-        <div className="overflow-x-auto rounded-xl border border-stone-700/60">
+        <div className={cn("overflow-auto rounded-xl border border-stone-700/60", pinned && "max-h-[38vh]")}>
           <table className="border-collapse text-left text-[0.65rem]">
-            <thead>
+            <thead className={pinned ? "sticky top-0 z-20 bg-stone-950" : undefined}>
               <tr>
                 <th className="sticky left-0 z-10 bg-stone-950 px-2 py-2">
                   <button type="button" className="uppercase tracking-wide text-stone-400 hover:text-amber-200" onClick={() => headerSort("name")}>
@@ -373,9 +491,10 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
                 let wins = 0;
                 let losses = 0;
                 for (const other of axis) {
-                  if (other === row) continue;
-                  wins += cells.get(`${row}|${other}`)?.wins ?? 0;
-                  losses += cells.get(`${other}|${row}`)?.wins ?? 0;
+                  if (other === row || !duels) continue;
+                  const pair = pairScore(duels, row, other, allow, sides);
+                  wins += pair.rowWins;
+                  losses += pair.colWins;
                 }
                 const decided = wins + losses;
                 return (
@@ -387,23 +506,22 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
                       {decided ? `${Math.round((100 * wins) / decided)}%` : "—"}
                     </td>
                     {axis.map((col) => {
-                      const c = cells.get(`${row}|${col}`) ?? emptyCell();
-                      const opp = cells.get(`${col}|${row}`) ?? emptyCell();
+                      const pair = duels ? pairScore(duels, row, col, allow, sides) : null;
                       const mirror = row === col;
-                      const rowWins = mirror ? c.firstWins : c.wins;
-                      const colWins = mirror ? c.secondWins : opp.wins;
+                      const rowWins = mirror ? (pair?.firstWins ?? 0) : (pair?.rowWins ?? 0);
+                      const colWins = mirror ? (pair?.secondWins ?? 0) : (pair?.colWins ?? 0);
                       const pairDecided = rowWins + colWins;
-                      const label = c.games ? `${rowWins}/${colWins}` : "—";
+                      const label = pair?.games ? `${rowWins}/${colWins}` : "—";
                       const rate = pairDecided ? rowWins / pairDecided : 0;
-                      const undecided = c.games - pairDecided;
+                      const undecided = (pair?.games ?? 0) - pairDecided;
                       return (
                         <td key={col} className="p-0.5">
                           <button
                             type="button"
                             title={
                               mirror
-                                ? `${short(row)} mirror. First player ${c.firstWins}, second player ${c.secondWins}${undecided ? `, ${undecided} with no winner` : ""}.`
-                                : `${short(row)} ${rowWins} / ${short(col)} ${colWins}. HP ${c.hp}, Sanity ${c.sanity}, Ascension ${c.ascension}${undecided ? `. ${undecided} with no winner` : ""}.`
+                                ? `${short(row)} mirror. First player ${pair?.firstWins ?? 0}, second player ${pair?.secondWins ?? 0}${undecided ? `, ${undecided} with no winner` : ""}.`
+                                : `${short(row)} ${rowWins} / ${short(col)} ${colWins}. HP ${pair?.hp ?? 0}, Sanity ${pair?.sanity ?? 0}, Ascension ${pair?.ascension ?? 0}${undecided ? `. ${undecided} with no winner` : ""}.`
                             }
                             onClick={() => setFocus(mirror ? [row] : [row, col])}
                             className={cn("w-full rounded px-1 py-1 tabular-nums", tone(rate, pairDecided))}
