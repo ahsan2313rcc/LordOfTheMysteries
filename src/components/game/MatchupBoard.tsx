@@ -314,7 +314,6 @@ export function MatchupBoard({ onReport }: { onReport?: (report: SimReport) => v
               style={on ? { color: p.accent } : undefined}
             >
               {short(p.id)}
-              <span className="ml-1 text-[0.6rem] uppercase text-stone-500">{curveLabel(pathwayCurve(p.id))}</span>
             </button>
           );
         })}
