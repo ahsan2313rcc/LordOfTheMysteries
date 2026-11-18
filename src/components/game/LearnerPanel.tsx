@@ -1,8 +1,8 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { eraseLearner, learnerJson, learnerStats, loadLearnerLocal, runTrainerMatch, saveLearnerLocal } from "@/game/learner";
-import { useEffect, useState } from "react";
+import { eraseLearner, importLearner, learnerJson, learnerStats, loadLearnerLocal, runTrainerMatch, saveLearnerLocal } from "@/game/learner";
+import { useEffect, useRef, useState } from "react";
 
 const GAME_CHOICES = [1, 4, 16, 64, 256, 512, 1024];
 
@@ -13,6 +13,7 @@ export function LearnerPanel() {
   const [note, setNote] = useState("");
   const [saved, setSaved] = useState(false);
   const [stats, setStats] = useState(learnerStats());
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSaved(loadLearnerLocal());
@@ -41,7 +42,7 @@ export function LearnerPanel() {
   }
 
   function download() {
-    saveLearnerLocal();
+    const kept = saveLearnerLocal();
     const blob = new Blob([learnerJson()], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -49,8 +50,34 @@ export function LearnerPanel() {
     link.download = "ascension-learner.json";
     link.click();
     URL.revokeObjectURL(url);
-    setSaved(true);
-    setNote("Saved in this browser, and downloaded ascension-learner.json.");
+    setSaved(kept);
+    setNote(
+      kept
+        ? "Saved in this browser, and downloaded ascension-learner.json."
+        : "Downloaded ascension-learner.json. This browser could not keep a copy that large, so use Load model to bring it back.",
+    );
+  }
+
+  function loadFile(file: File) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      if (!importLearner(text)) {
+        setNote("That file is not this network. The weights in this browser were left as they are.");
+        return;
+      }
+      const next = learnerStats();
+      const kept = saveLearnerLocal();
+      setStats(next);
+      setSaved(kept);
+      setNote(
+        kept
+          ? `Loaded ${file.name}. This network has ${next.played} self-play games${next.hasChampion ? " and a saved player" : ""}.`
+          : `Loaded ${file.name} for this page (${next.played} self-play games${next.hasChampion ? ", with a saved player" : ""}). This browser could not keep a copy that large; Save model downloads the file again.`,
+      );
+    };
+    reader.onerror = () => setNote("That file could not be read. The weights in this browser were left as they are.");
+    reader.readAsText(file);
   }
 
   function erase() {
@@ -74,9 +101,10 @@ export function LearnerPanel() {
           are a random legal move, so it tries lines it would otherwise skip. A game at the table,
           and the check against the saved player, use no exploration. Both seats learn from who won.
           Every few games the network still training plays the saved player for eight games. It takes
-          that seat only when it wins more of them. A shuffled deck still swings a short check. Erase
-          is the only control that throws the weights away. A network that has never trained does not
-          act. The previous saved network is left unused, because this one plays itself.
+          that seat only when it wins more of them. A shuffled deck still swings a short check. Load
+          model replaces the weights from a saved JSON file. Erase clears them. A network that has
+          never trained does not act. The previous saved network is left unused, because this one
+          plays itself.
         </p>
       </div>
 
@@ -137,6 +165,21 @@ export function LearnerPanel() {
         <Button variant="outline" disabled={busy} onClick={download}>
           Save model
         </Button>
+        <Button variant="outline" disabled={busy} onClick={() => fileRef.current?.click()}>
+          Load model
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/json,.json"
+          className="hidden"
+          aria-label="Network file"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            e.target.value = "";
+            if (file) loadFile(file);
+          }}
+        />
         <Button variant="outline" disabled={busy} onClick={erase}>
           Erase trained data
         </Button>
@@ -145,11 +188,13 @@ export function LearnerPanel() {
 
       {note && <p className="text-sm text-stone-400">{note}</p>}
       <p className="text-xs text-stone-500">
-        A run can be 1 to 1024 games, and the next run starts from those same weights. Save writes
-        that network into this browser and downloads a JSON file you can keep. Erase drops that
-        browser copy and resets the network. A fresh page loads the saved weights again until you
-        erase them. The saved player is the one that sits at the table. Eight games is a short
-        check, so the count moves in steps, and a shuffled deck still takes games.
+        A run can be 1 to 1024 games, and the next run starts from those same weights. Save
+        downloads ascension-learner.json, and also writes into this browser when the file fits.
+        Load model reads that JSON and replaces the network here, including the saved player when
+        the file has one. A file from an older network is refused. Erase resets the network. A
+        fresh page reloads a browser copy when one is stored; otherwise open the JSON with Load
+        model. The saved player is the one that sits at the table. Eight games is a short check,
+        so the count moves in steps, and a shuffled deck still takes games.
       </p>
     </section>
   );

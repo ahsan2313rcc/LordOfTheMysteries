@@ -102,6 +102,20 @@ function freshModel(seed: number): LearnerModel {
   };
 }
 
+function numeric(xs: number[] | undefined, n: number): boolean {
+  return !!xs && xs.length === n && xs.every((v) => typeof v === "number" && Number.isFinite(v));
+}
+
+function weightsFit(w: Partial<Weights> | null | undefined): w is Weights {
+  return !!w
+    && numeric(w.w1, INPUTS * H1)
+    && numeric(w.b1, H1)
+    && numeric(w.w2, H1 * H2)
+    && numeric(w.b2, H2)
+    && numeric(w.w3, H2)
+    && numeric(w.b3, 1);
+}
+
 function withCounters(parsed: LearnerModel): LearnerModel {
   parsed.played ??= 0;
   parsed.promotions ??= 0;
@@ -110,7 +124,7 @@ function withCounters(parsed: LearnerModel): LearnerModel {
   parsed.savedWins ??= 0;
   parsed.checkGames ??= 0;
   parsed.examHistory ??= [];
-  if (parsed.champion && parsed.champion.w1.length !== INPUTS * H1) parsed.champion = null;
+  if (parsed.champion && !weightsFit(parsed.champion)) parsed.champion = null;
   return parsed;
 }
 
@@ -158,7 +172,8 @@ function loadFromStorage(): boolean {
   if (!raw) return false;
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
-    if (parsed.version !== 4 || parsed.w1.length !== INPUTS * H1) return false;
+    if (parsed.version !== 4 || !weightsFit(parsed)) return false;
+    if (parsed.champion != null && !weightsFit(parsed.champion)) return false;
     model = withCounters(parsed);
     return true;
   } catch {
@@ -183,11 +198,20 @@ export function hydrateLearner() {
   loadFromStorage();
 }
 
+/**
+ * Replace the live network with a version-4 JSON file, the same shape Save writes.
+ * A file that is not that network leaves the current weights alone.
+ */
 export function importLearner(raw: string): boolean {
   try {
     const parsed = JSON.parse(raw) as LearnerModel;
-    if (parsed.version !== 4 || parsed.w1.length !== INPUTS * H1) return false;
+    if (parsed.version !== 4 || !weightsFit(parsed)) return false;
+    if (parsed.champion != null && !weightsFit(parsed.champion)) return false;
     model = withCounters(parsed);
+    buffer.length = 0;
+    hydrated = true;
+    dirty = false;
+    // Browser storage may refuse a large network; the live weights still replace.
     saveLearnerLocal();
     return true;
   } catch {
