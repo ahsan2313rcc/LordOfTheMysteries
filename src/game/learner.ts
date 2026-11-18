@@ -153,7 +153,7 @@ export function eraseLearner() {
   dirty = false;
   hydrated = true;
   buffer.length = 0;
-  if (typeof localStorage !== "undefined") localStorage.removeItem(STORE_KEY);
+  clearLearnerStorage();
 }
 
 export function saveLearnerLocal(): boolean {
@@ -161,6 +161,24 @@ export function saveLearnerLocal(): boolean {
   try {
     localStorage.setItem(STORE_KEY, learnerJson());
     return true;
+  } catch {
+    return false;
+  }
+}
+
+function clearLearnerStorage() {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.removeItem(STORE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+function storageHasModel(): boolean {
+  if (typeof localStorage === "undefined") return false;
+  try {
+    return !!localStorage.getItem(STORE_KEY);
   } catch {
     return false;
   }
@@ -182,11 +200,12 @@ function loadFromStorage(): boolean {
 }
 
 /**
- * Bring in the network stored in this browser.
- * Refuses once this page has already trained, so a reload cannot throw away newer weights.
+ * Bring in the network stored in this browser, once.
+ * Later opens of the Learner tab keep the live weights for this page, including a
+ * network loaded from a file that did not fit in browser storage.
  */
 export function loadLearnerLocal(): boolean {
-  if (dirty) return false;
+  if (dirty || hydrated) return storageHasModel();
   hydrated = true;
   return loadFromStorage();
 }
@@ -211,8 +230,9 @@ export function importLearner(raw: string): boolean {
     buffer.length = 0;
     hydrated = true;
     dirty = false;
-    // Browser storage may refuse a large network; the live weights still replace.
-    saveLearnerLocal();
+    // Browser storage may refuse a large network; drop any older copy so a later
+    // hydrate cannot overwrite these live weights with a stale smaller save.
+    if (!saveLearnerLocal()) clearLearnerStorage();
     return true;
   } catch {
     return false;

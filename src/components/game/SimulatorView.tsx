@@ -207,7 +207,9 @@ export function SimulatorView({ onBack }: { onBack: () => void }) {
           ))}
         </div>
 
-        {tab === "learner" && <LearnerPanel />}
+        <div className={tab === "learner" ? undefined : "hidden"}>
+          <LearnerPanel />
+        </div>
 
         <div className={tab === "learner" ? "hidden" : "flex flex-col gap-4"}>
           <MatchupBoard
